@@ -10,7 +10,7 @@ Guidance for AI agents and developers working in this repo. Keep it accurate —
 
 ## Layout (Nuxt 4)
 
-`srcDir` is `app/` — pages, components, composables, `app.config.ts`, `app.vue` live there. The Nitro `server/` dir is at the **project root**.
+`srcDir` is `app/` — pages, components, composables, layouts, `app.config.ts`, `app.vue` live there. Auth screens use `layouts/auth.vue` (brand mark + centered card + locale switcher). The Nitro `server/` dir is at the **project root**.
 
 ```
 app/            pages, components, composables, app.config.ts, app.vue, assets/css
@@ -27,7 +27,7 @@ i18n/locales/   en.json, pl.json
 2. **DB & auth are plain module-level singletons** (no factories, no `useRuntimeConfig`): `export const db` / `export const auth`, reading env via `import { env } from 'node:process'`. Better Auth auto-reads `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` from env — don't pass them in config.
 3. **`server/database/schema.ts` is GENERATED — do not hand-edit it.** Run `pnpm auth:generate` (the `auth` CLI + an eslint --fix pass). It emits the auth/org tables with FK indexes, `$onUpdate`, and drizzle `relations()`. Hand-written convenience types go in `server/database/types.ts`.
 4. **Better Auth owns its tables.** `organization` etc. have `id`/`createdAt` as notNull with no DB default — Better Auth populates them. So services over these tables are **read-only**; create/update/delete go through Better Auth's API, never a direct Drizzle insert.
-5. **i18n — no hardcoded UI text.** Use `const { t } = useI18n()`; messages in `i18n/locales/*.json` (strategy `no_prefix`). Brand wordmark in `index.vue` is the one deliberate exception.
+5. **i18n — no hardcoded UI text.** Use `const { t } = useI18n()`; messages in `i18n/locales/*.json` (strategy `no_prefix`). Brand wordmark ("Courtto" / "Academy") in `app/components/BrandMark.vue` is the one deliberate exception.
 6. **Nuxt UI theming.** Brand color is vibrant neon/emerald green: `ui.colors.primary: 'green'` in `app/app.config.ts` + the `--color-green-*` ramp in `app/assets/css/main.css`. Don't restyle Nuxt UI components with inline Tailwind at the call site — change `app.config.ts` instead.
 7. **Comments are minimal.** This repo may go public. Don't comment self-evident code; comment only genuinely non-obvious decisions.
 
@@ -41,7 +41,7 @@ i18n/locales/   en.json, pl.json
 ## Auth & sessions
 
 - **Client actions:** one Better Auth client singleton in `app/utils/auth-client.ts` (`createAuthClient` from `better-auth/vue`, same-origin — no `baseURL`). Sign in/up/out call `authClient.*` directly from pages.
-- **Reading the session:** `app/composables/useAuthSession.ts` exposes `useAuthSession()` = `useFetch('/api/session')` (SSR-safe, cookies auto-forwarded) and `refreshAuthSession()`. `/api/session` (`server/api/session.get.ts`) returns `getUserSession(event)` (nullable). This is the single source of session truth — don't read sessions any other way on the client.
+- **Reading the session:** `app/composables/useAuthSession.ts` exposes `useAuthSession()` = `useFetch('/api/session')` (SSR-safe, cookies auto-forwarded) and `refreshAuthSession()`. `/api/session` (`server/api/session.get.ts`) returns `{ session }` (nullable inside — a bare `null` body would become an empty response and trigger useFetch's undefined-value warning); the composable unwraps it via `transform`. This is the single source of session truth — don't read sessions any other way on the client.
   - **Do NOT use `authClient.useSession(useFetch)`** — it passes a `{ ref }` option Nuxt's `useFetch` ignores, so the cache never invalidates after sign-in/out (stale session → broken redirects).
   - **After every auth transition** (`signIn`/`signUp`/`signOut`) call `await refreshAuthSession()` **before** `navigateTo`, or middleware reads the stale cached session.
 - **Route protection:** named middleware `app/middleware/auth.ts` (require session → `/login`) and `guest.ts` (redirect authed → `/dashboard`), applied per-page via `definePageMeta({ middleware: ... })`.

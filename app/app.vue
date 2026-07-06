@@ -14,7 +14,9 @@ useSeoMeta({
 <template>
   <UApp>
     <MotionConfig :reduced-motion="'user'">
-      <NuxtPage />
+      <NuxtLayout>
+        <NuxtPage />
+      </NuxtLayout>
     </MotionConfig>
   </UApp>
 </template>

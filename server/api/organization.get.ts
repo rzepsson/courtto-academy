@@ -1,4 +1,6 @@
 export default defineEventHandler(async (event) => {
+  await requireUserSession(event)
+
   const { slug } = getQuery(event)
 
   if (typeof slug === 'string' && slug.length > 0) {
