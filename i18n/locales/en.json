@@ -6,9 +6,23 @@
     "tagline": "The all-in-one platform for tennis & padel schools."
   },
   "common": {
-    "language": "Language"
+    "language": "Language",
+    "soon": "Soon",
+    "toggleTheme": "Toggle theme"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "schedule": "Schedule",
+    "members": "Members",
+    "courts": "Courts",
+    "payments": "Payments",
+    "settings": "Settings"
   },
   "auth": {
+    "aside": {
+      "title": "Run your whole racquet school on one platform.",
+      "subtitle": "Scheduling, members, courts and payments — everything in one place."
+    },
     "login": {
       "title": "Sign in",
       "subtitle": "Welcome back to Courtto Academy.",
@@ -42,7 +56,18 @@
     "signOut": "Sign out"
   },
   "dashboard": {
-    "title": "Dashboard",
-    "welcome": "Signed in as {name}."
+    "greeting": "Welcome back, {name}",
+    "tagline": "Here's what's happening at your school.",
+    "account": {
+      "title": "Account",
+      "subtitle": "Your profile details."
+    },
+    "comingSoon": "Coming soon",
+    "modules": {
+      "schedule": "Plan lessons, group trainings and court time.",
+      "members": "Manage players, coaches and groups.",
+      "courts": "Set up courts, surfaces and availability.",
+      "payments": "Billing, passes and payouts for your school."
+    }
   }
 }

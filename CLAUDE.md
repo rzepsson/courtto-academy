@@ -10,7 +10,7 @@ Guidance for AI agents and developers working in this repo. Keep it accurate —
 
 ## Layout (Nuxt 4)
 
-`srcDir` is `app/` — pages, components, composables, layouts, `app.config.ts`, `app.vue` live there. Auth screens use `layouts/auth.vue` (brand mark + centered card + locale switcher). The Nitro `server/` dir is at the **project root**.
+`srcDir` is `app/` — pages, components, composables, layouts, `app.config.ts`, `app.vue` live there. Auth screens use `layouts/auth.vue` (enterprise split-screen: brand aside + form panel; no entrance animations beyond the global CSS page transition — content must render instantly on SSR). The app shell is `layouts/dashboard.vue` (Nuxt UI `UDashboardGroup` sidebar + user menu). Brand assets: `components/AppLogo.vue` (SVG mark) and `components/BrandMark.vue` (lockup, `horizontal` prop for the sidebar). The Nitro `server/` dir is at the **project root**.
 
 ```
 app/            pages, components, composables, app.config.ts, app.vue, assets/css
@@ -36,6 +36,7 @@ i18n/locales/   en.json, pl.json
 - **Env vars (plain, no `NUXT_` prefix):** `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`. `drizzle.config.ts` reads `process.env.DATABASE_URL`.
 - **Drizzle adapter:** the built-in `better-auth/adapters/drizzle` (version-matched to core), not the standalone `@better-auth/drizzle-adapter`.
 - **Performance:** `experimental: { joins: true }` is enabled in `auth.ts` (2–3× faster `get-session`/`get-full-organization`); it relies on `import * as schema` (with relations) being passed to both `drizzle()` and `drizzleAdapter()`.
+- **Fonts:** `@nuxt/fonts` self-hosts Public Sans, picked up from `--font-sans` in `app/assets/css/main.css`. `html` has `scrollbar-gutter: stable` so appearing/disappearing scrollbars don't shift the layout.
 - **Client data fetching:** components/composables use `useFetch`/`useAsyncData` against internal `/api/*` routes — never call the server layer directly (e.g. `app/composables/useOrganizations.ts`).
 
 ## Auth & sessions

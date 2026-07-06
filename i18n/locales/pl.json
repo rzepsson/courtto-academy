@@ -6,9 +6,23 @@
     "tagline": "Kompleksowa platforma dla szkół tenisa i padla."
   },
   "common": {
-    "language": "Język"
+    "language": "Język",
+    "soon": "Wkrótce",
+    "toggleTheme": "Przełącz motyw"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "schedule": "Grafik",
+    "members": "Członkowie",
+    "courts": "Korty",
+    "payments": "Płatności",
+    "settings": "Ustawienia"
   },
   "auth": {
+    "aside": {
+      "title": "Cała Twoja szkoła na jednej platformie.",
+      "subtitle": "Grafiki, członkowie, korty i płatności — wszystko w jednym miejscu."
+    },
     "login": {
       "title": "Zaloguj się",
       "subtitle": "Witaj ponownie w Courtto Academy.",
@@ -42,7 +56,18 @@
     "signOut": "Wyloguj się"
   },
   "dashboard": {
-    "title": "Panel",
-    "welcome": "Zalogowano jako {name}."
+    "greeting": "Witaj ponownie, {name}",
+    "tagline": "Oto co dzieje się w Twojej szkole.",
+    "account": {
+      "title": "Konto",
+      "subtitle": "Dane Twojego profilu."
+    },
+    "comingSoon": "Już wkrótce",
+    "modules": {
+      "schedule": "Planuj zajęcia, treningi grupowe i rezerwacje kortów.",
+      "members": "Zarządzaj zawodnikami, trenerami i grupami.",
+      "courts": "Konfiguruj korty, nawierzchnie i dostępność.",
+      "payments": "Rozliczenia, karnety i płatności Twojej szkoły."
+    }
   }
 }

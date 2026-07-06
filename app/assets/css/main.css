@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Reserve scrollbar space so pages of different heights don't shift horizontally */
+html {
+  scrollbar-gutter: stable;
+}
+
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
 
