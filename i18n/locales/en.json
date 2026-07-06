@@ -19,10 +19,6 @@
     "settings": "Settings"
   },
   "auth": {
-    "aside": {
-      "title": "Run your whole racquet school on one platform.",
-      "subtitle": "Scheduling, members, courts and payments — everything in one place."
-    },
     "login": {
       "title": "Sign in",
       "subtitle": "Welcome back to Courtto Academy.",
@@ -43,7 +39,9 @@
       "email": "Email",
       "emailPlaceholder": "you{'@'}example.com",
       "password": "Password",
-      "passwordPlaceholder": "••••••••"
+      "passwordPlaceholder": "••••••••",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
     },
     "errors": {
       "nameRequired": "Please enter your name.",

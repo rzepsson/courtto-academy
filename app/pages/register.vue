@@ -14,6 +14,7 @@ interface RegisterForm {
 
 const state = reactive<RegisterForm>({ name: '', email: '', password: '' })
 const loading = ref(false)
+const showPassword = ref(false)
 
 function validate(form: RegisterForm): FormError[] {
   const errors: FormError[] = []
@@ -40,13 +41,15 @@ async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
 </script>
 
 <template>
-  <div class="w-full max-w-sm">
-    <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-      {{ t('auth.register.title') }}
-    </h1>
-    <p class="mt-2 text-sm text-muted">
-      {{ t('auth.register.subtitle') }}
-    </p>
+  <div class="w-full">
+    <div class="text-center">
+      <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
+        {{ t('auth.register.title') }}
+      </h1>
+      <p class="mt-2 text-sm text-muted">
+        {{ t('auth.register.subtitle') }}
+      </p>
+    </div>
 
     <UForm
       :state="state"
@@ -87,22 +90,43 @@ async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
       >
         <UInput
           v-model="state.password"
-          type="password"
+          :type="showPassword ? 'text' : 'password'"
           size="lg"
           autocomplete="new-password"
           :placeholder="t('auth.fields.passwordPlaceholder')"
           class="w-full"
-        />
+          :ui="{ trailing: 'pe-1' }"
+        >
+          <template #trailing>
+            <UButton
+              color="neutral"
+              variant="link"
+              size="sm"
+              :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+              :aria-label="showPassword ? t('auth.fields.hidePassword') : t('auth.fields.showPassword')"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
+            />
+          </template>
+        </UInput>
       </UFormField>
 
-      <UButton
-        type="submit"
-        block
-        size="lg"
+      <Motion
         class="mt-1"
-        :loading="loading"
-        :label="t('auth.register.submit')"
-      />
+        :while-press="{ scale: 0.98 }"
+        :transition="{ type: 'spring', stiffness: 500, damping: 30 }"
+      >
+        <UButton
+          type="submit"
+          block
+          size="lg"
+          trailing-icon="i-lucide-arrow-right"
+          class="group"
+          :ui="{ trailingIcon: 'transition-transform duration-200 group-hover:translate-x-0.5' }"
+          :loading="loading"
+          :label="t('auth.register.submit')"
+        />
+      </Motion>
     </UForm>
 
     <USeparator class="my-8" />

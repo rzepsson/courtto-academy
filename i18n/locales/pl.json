@@ -19,10 +19,6 @@
     "settings": "Ustawienia"
   },
   "auth": {
-    "aside": {
-      "title": "Cała Twoja szkoła na jednej platformie.",
-      "subtitle": "Grafiki, członkowie, korty i płatności — wszystko w jednym miejscu."
-    },
     "login": {
       "title": "Zaloguj się",
       "subtitle": "Witaj ponownie w Courtto Academy.",
@@ -43,7 +39,9 @@
       "email": "E-mail",
       "emailPlaceholder": "ty{'@'}przyklad.pl",
       "password": "Hasło",
-      "passwordPlaceholder": "••••••••"
+      "passwordPlaceholder": "••••••••",
+      "showPassword": "Pokaż hasło",
+      "hidePassword": "Ukryj hasło"
     },
     "errors": {
       "nameRequired": "Podaj imię i nazwisko.",
