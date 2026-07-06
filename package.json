@@ -1,0 +1,40 @@
+{
+  "name": "courtto-academy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "typecheck": "nuxt typecheck",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "auth:generate": "auth generate --config server/utils/auth.ts --output server/database/schema.ts -y && eslint server/database/schema.ts --fix"
+  },
+  "dependencies": {
+    "@iconify-json/lucide": "^1.2.114",
+    "@iconify-json/simple-icons": "^1.2.86",
+    "@nuxt/ui": "^4.9.0",
+    "@nuxtjs/i18n": "10.4.0",
+    "better-auth": "^1.6.20",
+    "drizzle-orm": "^0.45.2",
+    "motion-v": "^2.3.0",
+    "nuxt": "^4.4.8",
+    "postgres": "^3.4.9",
+    "tailwindcss": "^4.3.1"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "^1.16.0",
+    "@types/node": "^26.0.1",
+    "auth": "^1.6.22",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^10.5.0",
+    "typescript": "^6.0.3",
+    "vue-tsc": "^3.3.5"
+  },
+  "packageManager": "pnpm@11.8.0"
+}

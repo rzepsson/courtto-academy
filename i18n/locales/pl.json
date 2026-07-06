@@ -1,0 +1,48 @@
+{
+  "brand": {
+    "name": "Courtto Academy"
+  },
+  "home": {
+    "tagline": "Kompleksowa platforma dla szkół tenisa i padla."
+  },
+  "common": {
+    "language": "Język"
+  },
+  "auth": {
+    "login": {
+      "title": "Zaloguj się",
+      "subtitle": "Witaj ponownie w Courtto Academy.",
+      "submit": "Zaloguj się",
+      "noAccount": "Nie masz konta?",
+      "signUp": "Załóż konto"
+    },
+    "register": {
+      "title": "Załóż konto",
+      "subtitle": "Zacznij zarządzać swoją szkołą w kilka minut.",
+      "submit": "Załóż konto",
+      "hasAccount": "Masz już konto?",
+      "signIn": "Zaloguj się"
+    },
+    "fields": {
+      "name": "Imię i nazwisko",
+      "namePlaceholder": "Jan Kowalski",
+      "email": "E-mail",
+      "emailPlaceholder": "ty{'@'}przyklad.pl",
+      "password": "Hasło",
+      "passwordPlaceholder": "••••••••"
+    },
+    "errors": {
+      "nameRequired": "Podaj imię i nazwisko.",
+      "emailRequired": "Podaj adres e-mail.",
+      "passwordRequired": "Podaj hasło.",
+      "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków.",
+      "signInFailed": "Nie udało się zalogować",
+      "signUpFailed": "Nie udało się założyć konta"
+    },
+    "signOut": "Wyloguj się"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "welcome": "Zalogowano jako {name}."
+  }
+}

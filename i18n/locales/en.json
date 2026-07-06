@@ -1,0 +1,48 @@
+{
+  "brand": {
+    "name": "Courtto Academy"
+  },
+  "home": {
+    "tagline": "The all-in-one platform for tennis & padel schools."
+  },
+  "common": {
+    "language": "Language"
+  },
+  "auth": {
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Welcome back to Courtto Academy.",
+      "submit": "Sign in",
+      "noAccount": "Don't have an account?",
+      "signUp": "Create one"
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Start managing your school in minutes.",
+      "submit": "Create account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in"
+    },
+    "fields": {
+      "name": "Full name",
+      "namePlaceholder": "Jane Doe",
+      "email": "Email",
+      "emailPlaceholder": "you{'@'}example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••"
+    },
+    "errors": {
+      "nameRequired": "Please enter your name.",
+      "emailRequired": "Please enter your email.",
+      "passwordRequired": "Please enter your password.",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "signInFailed": "Could not sign in",
+      "signUpFailed": "Could not create account"
+    },
+    "signOut": "Sign out"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Signed in as {name}."
+  }
+}
