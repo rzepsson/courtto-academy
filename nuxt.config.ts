@@ -6,7 +6,12 @@ export default defineNuxtConfig({
   },
 
   app: {
-    pageTransition: { name: 'page', mode: 'out-in' }
+    // No global page transition: `mode: 'out-in'` drops the incoming page's
+    // content when the target has async `setup` (Suspense) — which every
+    // dashboard page does — so client-side nav rendered a blank panel until a
+    // hard refresh. Instant navigation is also the right feel for an app shell.
+    pageTransition: false,
+    layoutTransition: false
   },
 
   css: ['~/assets/css/main.css'],

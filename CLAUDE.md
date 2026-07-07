@@ -10,14 +10,16 @@ Guidance for AI agents and developers working in this repo. Keep it accurate —
 
 ## Layout (Nuxt 4)
 
-`srcDir` is `app/` — pages, components, composables, layouts, `app.config.ts`, `app.vue` live there. Auth screens use `layouts/auth.vue` (a single centered column: brand mark above the form card, locale/theme switch top-right, no side panel; no entrance animations beyond the global CSS page transition — content must render instantly on SSR). The app shell is `layouts/dashboard.vue` (Nuxt UI `UDashboardGroup` sidebar + user menu). Brand assets: `components/AppLogo.vue` (SVG mark) and `components/BrandMark.vue` (lockup, `horizontal` prop for the sidebar). The Nitro `server/` dir is at the **project root**.
+`srcDir` is `app/` — pages, components, composables, layouts, `app.config.ts`, `app.vue` live there. Auth screens use `layouts/auth.vue` (a single centered column: brand mark above the form card, locale/theme switch top-right, no side panel; no entrance animations — content must render instantly on SSR). **Page/layout transitions are disabled** (`app.pageTransition: false` in `nuxt.config.ts`): `mode: 'out-in'` drops the incoming page's content whenever the target has async `setup` (Suspense), which every dashboard page does, so client-side nav rendered a blank panel until refresh. The app shell is `layouts/dashboard.vue` (Nuxt UI `UDashboardGroup` sidebar + user menu). Brand assets: `components/AppLogo.vue` (SVG mark) and `components/BrandMark.vue` (lockup, `horizontal` prop for the sidebar). The Nitro `server/` dir is at the **project root**.
 
 ```
 app/            pages, components, composables, app.config.ts, app.vue, assets/css
 server/
   api/          HTTP handlers — thin, call services only
-  utils/        auto-imported: db.ts, auth.ts, services/*
+  utils/        auto-imported: db.ts, auth.ts, org.ts, session.ts, services/*
   database/     schema.ts (generated), types.ts (hand-written)
+shared/         permissions.ts — org roles + access control, imported by BOTH
+                server/utils/auth.ts and app/utils/auth-client.ts
 i18n/locales/   en.json, pl.json
 ```
 
@@ -50,6 +52,17 @@ i18n/locales/   en.json, pl.json
 - **Server-side route protection:** `server/utils/session.ts` exports `getUserSession(event)` (nullable) and `requireUserSession(event)` (throws 401). Custom API handlers needing auth call `requireUserSession` first (template: `server/api/me.get.ts`).
 - **Email verification is OFF for now** (no mail provider yet) — sign-up logs the user straight in.
 - **DB migrations:** schema changes (re-run `pnpm auth:generate` when auth tables change) are applied via `pnpm db:generate` (emit SQL to `server/database/migrations/`) then `pnpm db:migrate`. Use migrations, not `db:push`.
+
+## Organizations, roles & invitations
+
+- **Roles** (per membership, single role): `owner`, `admin`, `coach`, `student`, `parent` — defined once in `shared/permissions.ts` (`ac` + `roles`, wired into both the `organization()` plugin and `organizationClient()`). `INVITABLE_ROLES` excludes `owner`. Role labels/colors render via `app/components/RoleBadge.vue`.
+- **Role-based routing:** `/dashboard` never renders — middleware `resolve-home` redirects to the active-org role's home: owner/admin → `/school`, coach → `/coach`, student/parent → `/my`; no membership → `/onboarding`. The mapping lives in `roleHome()` (`app/utils/org.ts`). Area pages use middleware chains `['auth', 'school'|'coach'|'my-area']` built on `resolveAreaRedirect()` (`app/utils/area-guard.ts`).
+- **Active organization:** `session.activeOrganizationId`, seeded by a `databaseHooks.session.create.before` hook (first membership) and switched via `authClient.organization.setActive` (see `useOrgSwitch()`). `GET /api/app-context` (composable `useAppContext()` / `refreshAppContext()`) returns memberships + a **validated** active org id — the single client source of org/role truth.
+- **Server-side org guard:** `requireActiveMembership(event, allowedRoles?)` in `server/utils/org.ts` — custom `/api/school/*` handlers call it first.
+- **Invitations are copyable links** (no mail provider): owner/admin creates one via `authClient.organization.inviteMember` (7-day expiry) and shares `/invite/[id]`. The landing endpoint `GET /api/invitations/[id]` is public by design (the id is the unguessable token; the email is masked server-side). Accept/reject go through `authClient.organization.*`; Better Auth enforces that the signed-in user's email matches the invitation.
+- **Reads vs mutations:** reads via services + `/api/*` (`membership.ts` service), all org/member/invitation mutations via `authClient.organization.*` — never Drizzle writes (rule 4).
+- **Gotcha — Nuxt async context:** the unctx transform covers `app/middleware/*` and plugins only. Never call `navigateTo` (or other Nuxt composables) after an `await` inside `app/utils/*` — compute the redirect target in the util, call `navigateTo` from the middleware file.
+- **Gotcha — `auth` CLI:** `server/utils/auth.ts` and everything it imports (e.g. `services/membership.ts`, `shared/permissions.ts`) is loaded by the `auth` CLI **outside Nuxt** — those files need explicit imports (no auto-imports, no Nuxt aliases).
 
 ## Quality gates (must pass before done)
 

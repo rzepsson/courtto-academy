@@ -8,15 +8,42 @@
   "common": {
     "language": "Language",
     "soon": "Soon",
-    "toggleTheme": "Toggle theme"
+    "toggleTheme": "Toggle theme",
+    "viewAll": "View all",
+    "copy": "Copy",
+    "copied": "Copied",
+    "done": "Done",
+    "cancel": "Cancel",
+    "save": "Save changes"
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "overview": "Overview",
     "schedule": "Schedule",
     "members": "Members",
     "courts": "Courts",
     "payments": "Payments",
-    "settings": "Settings"
+    "settings": "Settings",
+    "groups": "Groups",
+    "lessons": "Lessons",
+    "mySchools": "My schools"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "coach": "Coach",
+    "student": "Student",
+    "parent": "Parent"
+  },
+  "roleDescriptions": {
+    "admin": "Manages members, invitations and school settings.",
+    "coach": "Runs trainings and works with groups.",
+    "student": "Trains at your school and follows their schedule.",
+    "parent": "Follows their child's trainings and payments."
+  },
+  "orgSwitcher": {
+    "label": "Switch school",
+    "createSchool": "Create a school",
+    "switchFailed": "Could not switch school"
   },
   "auth": {
     "login": {
@@ -53,19 +80,192 @@
     },
     "signOut": "Sign out"
   },
-  "dashboard": {
-    "greeting": "Welcome back, {name}",
-    "tagline": "Here's what's happening at your school.",
-    "account": {
-      "title": "Account",
-      "subtitle": "Your profile details."
+  "onboarding": {
+    "create": {
+      "title": "Create your school",
+      "subtitle": "Set up your school's home on Courtto in under a minute.",
+      "submit": "Create school",
+      "prompt": "Want to start a new school instead?",
+      "cta": "Create a school"
     },
-    "comingSoon": "Coming soon",
-    "modules": {
-      "schedule": "Plan lessons, group trainings and court time.",
-      "members": "Manage players, coaches and groups.",
-      "courts": "Set up courts, surfaces and availability.",
-      "payments": "Billing, passes and payouts for your school."
+    "join": {
+      "title": "Join a school",
+      "subtitle": "Paste the invitation link you received from your school.",
+      "submit": "Continue",
+      "prompt": "Received an invitation?",
+      "cta": "Join with a link"
+    },
+    "fields": {
+      "schoolName": "School name",
+      "schoolNamePlaceholder": "Ace Tennis Academy",
+      "slug": "School handle",
+      "slugHelp": "A unique identifier for your school. You can change it later.",
+      "inviteLink": "Invitation link",
+      "invitePlaceholder": "https://…/invite/…"
+    },
+    "errors": {
+      "nameRequired": "Please enter your school's name.",
+      "slugRequired": "Please enter a handle.",
+      "slugInvalid": "Use lowercase letters, numbers and single dashes.",
+      "slugTaken": "This handle is already taken — try another one.",
+      "createFailed": "Could not create the school",
+      "inviteInvalid": "That doesn't look like a valid invitation link."
+    },
+    "backToDashboard": "Back to dashboard"
+  },
+  "invite": {
+    "title": "Join {school}",
+    "subtitle": "{inviter} invited you to their school on Courtto Academy.",
+    "sentTo": "Sent to",
+    "validUntil": "Valid until",
+    "accept": "Accept invitation",
+    "decline": "Decline",
+    "accepted": "Welcome to {school}!",
+    "declined": "Invitation declined",
+    "signedInAs": "Signed in as {email}",
+    "createAccount": "Create account",
+    "signIn": "Sign in",
+    "emailHint": "Use the email address this invitation was sent to.",
+    "backToDashboard": "Go to dashboard",
+    "errors": {
+      "acceptFailed": "Could not accept the invitation",
+      "declineFailed": "Could not decline the invitation"
+    },
+    "status": {
+      "notFound": {
+        "title": "Invitation not found",
+        "description": "This link is invalid. Ask your school for a new invitation."
+      },
+      "accepted": {
+        "title": "Already accepted",
+        "description": "This invitation has already been used."
+      },
+      "rejected": {
+        "title": "Invitation declined",
+        "description": "This invitation was declined. Ask your school for a new one."
+      },
+      "canceled": {
+        "title": "Invitation canceled",
+        "description": "This invitation was canceled by the school."
+      },
+      "expired": {
+        "title": "Invitation expired",
+        "description": "This invitation is no longer valid. Ask your school for a new one."
+      }
     }
+  },
+  "school": {
+    "overview": {
+      "greeting": "Welcome back, {name}",
+      "tagline": "Here's what's happening at {school}.",
+      "stats": {
+        "members": "Members",
+        "coaches": "Coaches",
+        "players": "Students & parents",
+        "pendingInvites": "Pending invites"
+      },
+      "recentMembers": {
+        "title": "Recent members",
+        "subtitle": "The latest people to join your school.",
+        "empty": "No members yet — invite your first coach or student."
+      }
+    },
+    "members": {
+      "title": "Members",
+      "subtitle": "Everyone with access to your school.",
+      "invite": "Invite",
+      "joined": "Joined {date}",
+      "actions": "Member actions",
+      "changeRole": "Change role",
+      "remove": "Remove from school",
+      "roleUpdated": "{name}'s role has been updated",
+      "removed": "{name} has been removed",
+      "removeConfirm": {
+        "title": "Remove member",
+        "description": "{name} will lose access to this school. You can invite them again later."
+      },
+      "errors": {
+        "updateFailed": "Could not update the role",
+        "removeFailed": "Could not remove the member"
+      }
+    },
+    "invitations": {
+      "title": "Pending invitations",
+      "subtitle": "Share the invite link — it works until it expires.",
+      "expires": "Expires {date}",
+      "copyLink": "Copy link",
+      "cancel": "Cancel invitation",
+      "canceled": "Invitation canceled",
+      "empty": {
+        "title": "No pending invitations",
+        "description": "Invite coaches, students and parents — they'll get a link that adds them straight to your school."
+      },
+      "errors": {
+        "cancelFailed": "Could not cancel the invitation"
+      }
+    },
+    "invite": {
+      "title": "Invite to your school",
+      "subtitle": "Choose a role and we'll create a personal invite link.",
+      "roleLabel": "Role",
+      "submit": "Create invitation",
+      "inviteAnother": "Invite someone else",
+      "copyFailed": "Could not copy the link",
+      "linkReady": {
+        "title": "Invitation created",
+        "subtitle": "Share this link with the person you're inviting.",
+        "sentTo": "Invitation for {email}",
+        "hint": "Send them the link below — it's valid for 7 days."
+      },
+      "errors": {
+        "emailInvalid": "Please enter a valid email address.",
+        "failed": "Could not create the invitation"
+      }
+    },
+    "settings": {
+      "profile": {
+        "title": "School profile",
+        "subtitle": "Your school's name and handle."
+      },
+      "saved": "Settings saved",
+      "deleted": "School deleted",
+      "danger": {
+        "title": "Danger zone",
+        "subtitle": "Irreversible actions for this school.",
+        "deleteHint": "Deleting removes the school, its members and invitations.",
+        "delete": "Delete school",
+        "confirmTitle": "Delete school",
+        "confirmDescription": "This permanently deletes {name} and removes access for all members.",
+        "confirmLabel": "Type {name} to confirm"
+      },
+      "errors": {
+        "saveFailed": "Could not save the settings",
+        "deleteFailed": "Could not delete the school"
+      }
+    }
+  },
+  "coach": {
+    "greeting": "Welcome back, coach {name}",
+    "tagline": "Your coaching hub at {school}.",
+    "memberSince": "Coaching here since {date}",
+    "modules": {
+      "schedule": "Your lessons and court time, all in one place.",
+      "groups": "The groups you train and their players.",
+      "availabilityTitle": "Availability",
+      "availability": "Tell your school when you're available to coach."
+    }
+  },
+  "my": {
+    "greeting": "Hi, {name}",
+    "tagline": "Your schools and everything happening in them.",
+    "modules": {
+      "lessons": "Your upcoming trainings and lessons.",
+      "payments": "Passes, payments and billing history.",
+      "progressTitle": "Progress",
+      "progress": "Track development and training milestones."
+    }
+  },
+  "dashboard": {
+    "comingSoon": "Coming soon"
   }
 }

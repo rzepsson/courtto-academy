@@ -1,18 +1,42 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import { roleArea } from '~~/shared/permissions'
 
 const { t } = useI18n()
 const { data: session } = await useAuthSession()
+const { data: context } = await useAppContext()
 
-const navItems = computed<NavigationMenuItem[][]>(() => [[
-  { label: t('nav.dashboard'), icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
-  { label: t('nav.schedule'), icon: 'i-lucide-calendar-days', badge: t('common.soon'), disabled: true },
-  { label: t('nav.members'), icon: 'i-lucide-users', badge: t('common.soon'), disabled: true },
-  { label: t('nav.courts'), icon: 'i-lucide-land-plot', badge: t('common.soon'), disabled: true },
-  { label: t('nav.payments'), icon: 'i-lucide-credit-card', badge: t('common.soon'), disabled: true }
-], [
-  { label: t('nav.settings'), icon: 'i-lucide-settings', badge: t('common.soon'), disabled: true }
-]])
+const active = computed(() => activeMembershipOf(context.value))
+
+const navItems = computed<NavigationMenuItem[][]>(() => {
+  const soon = (label: string, icon: string): NavigationMenuItem =>
+    ({ label, icon, badge: t('common.soon'), disabled: true })
+
+  switch (active.value ? roleArea(active.value.role) : undefined) {
+    case 'school':
+      return [[
+        { label: t('nav.overview'), icon: 'i-lucide-layout-dashboard', to: '/school' },
+        { label: t('nav.members'), icon: 'i-lucide-users', to: '/school/members' },
+        soon(t('nav.schedule'), 'i-lucide-calendar-days'),
+        soon(t('nav.courts'), 'i-lucide-land-plot'),
+        soon(t('nav.payments'), 'i-lucide-credit-card')
+      ], [
+        { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/school/settings' }
+      ]]
+    case 'coach':
+      return [[
+        { label: t('nav.overview'), icon: 'i-lucide-layout-dashboard', to: '/coach' },
+        soon(t('nav.schedule'), 'i-lucide-calendar-days'),
+        soon(t('nav.groups'), 'i-lucide-users')
+      ]]
+    default:
+      return [[
+        { label: t('nav.mySchools'), icon: 'i-lucide-home', to: '/my' },
+        soon(t('nav.lessons'), 'i-lucide-calendar-days'),
+        soon(t('nav.payments'), 'i-lucide-credit-card')
+      ]]
+  }
+})
 
 const signingOut = ref(false)
 
@@ -43,6 +67,8 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
       </template>
 
       <template #default="{ collapsed }">
+        <OrgSwitcher :collapsed="collapsed" />
+
         <UNavigationMenu
           :collapsed="collapsed"
           :items="navItems"

@@ -1,16 +1,28 @@
 <script setup lang="ts">
-const { locale, locales, setLocale } = useI18n()
+import type { DropdownMenuItem } from '@nuxt/ui'
+
+const { t, locale, locales, setLocale } = useI18n()
+
+const items = computed<DropdownMenuItem[]>(() =>
+  locales.value.map(l => ({
+    label: l.name,
+    type: 'checkbox',
+    checked: locale.value === l.code,
+    onUpdateChecked: () => setLocale(l.code)
+  }))
+)
 </script>
 
 <template>
-  <UFieldGroup size="sm">
+  <UDropdownMenu
+    :items="items"
+    :content="{ align: 'end' }"
+  >
     <UButton
-      v-for="l in locales"
-      :key="l.code"
-      :label="l.name"
-      :color="locale === l.code ? 'primary' : 'neutral'"
-      :variant="locale === l.code ? 'solid' : 'outline'"
-      @click="setLocale(l.code)"
+      icon="i-lucide-globe"
+      color="neutral"
+      variant="ghost"
+      :aria-label="t('common.language')"
     />
-  </UFieldGroup>
+  </UDropdownMenu>
 </template>

@@ -8,15 +8,42 @@
   "common": {
     "language": "Język",
     "soon": "Wkrótce",
-    "toggleTheme": "Przełącz motyw"
+    "toggleTheme": "Przełącz motyw",
+    "viewAll": "Zobacz wszystkich",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "done": "Gotowe",
+    "cancel": "Anuluj",
+    "save": "Zapisz zmiany"
   },
   "nav": {
-    "dashboard": "Panel",
+    "overview": "Przegląd",
     "schedule": "Grafik",
     "members": "Członkowie",
     "courts": "Korty",
     "payments": "Płatności",
-    "settings": "Ustawienia"
+    "settings": "Ustawienia",
+    "groups": "Grupy",
+    "lessons": "Zajęcia",
+    "mySchools": "Moje szkoły"
+  },
+  "roles": {
+    "owner": "Właściciel",
+    "admin": "Administrator",
+    "coach": "Trener",
+    "student": "Uczeń",
+    "parent": "Rodzic"
+  },
+  "roleDescriptions": {
+    "admin": "Zarządza członkami, zaproszeniami i ustawieniami szkoły.",
+    "coach": "Prowadzi treningi i pracuje z grupami.",
+    "student": "Trenuje w Twojej szkole i korzysta ze swojego grafiku.",
+    "parent": "Śledzi treningi i płatności swojego dziecka."
+  },
+  "orgSwitcher": {
+    "label": "Zmień szkołę",
+    "createSchool": "Załóż szkołę",
+    "switchFailed": "Nie udało się zmienić szkoły"
   },
   "auth": {
     "login": {
@@ -53,19 +80,192 @@
     },
     "signOut": "Wyloguj się"
   },
-  "dashboard": {
-    "greeting": "Witaj ponownie, {name}",
-    "tagline": "Oto co dzieje się w Twojej szkole.",
-    "account": {
-      "title": "Konto",
-      "subtitle": "Dane Twojego profilu."
+  "onboarding": {
+    "create": {
+      "title": "Załóż swoją szkołę",
+      "subtitle": "Skonfiguruj miejsce swojej szkoły w Courtto w niecałą minutę.",
+      "submit": "Załóż szkołę",
+      "prompt": "Chcesz założyć nową szkołę?",
+      "cta": "Załóż szkołę"
     },
-    "comingSoon": "Już wkrótce",
-    "modules": {
-      "schedule": "Planuj zajęcia, treningi grupowe i rezerwacje kortów.",
-      "members": "Zarządzaj zawodnikami, trenerami i grupami.",
-      "courts": "Konfiguruj korty, nawierzchnie i dostępność.",
-      "payments": "Rozliczenia, karnety i płatności Twojej szkoły."
+    "join": {
+      "title": "Dołącz do szkoły",
+      "subtitle": "Wklej link z zaproszeniem otrzymany od swojej szkoły.",
+      "submit": "Dalej",
+      "prompt": "Masz zaproszenie?",
+      "cta": "Dołącz z linku"
+    },
+    "fields": {
+      "schoolName": "Nazwa szkoły",
+      "schoolNamePlaceholder": "Akademia Tenisa As",
+      "slug": "Identyfikator szkoły",
+      "slugHelp": "Unikalny identyfikator Twojej szkoły. Możesz go później zmienić.",
+      "inviteLink": "Link z zaproszeniem",
+      "invitePlaceholder": "https://…/invite/…"
+    },
+    "errors": {
+      "nameRequired": "Podaj nazwę szkoły.",
+      "slugRequired": "Podaj identyfikator.",
+      "slugInvalid": "Użyj małych liter, cyfr i pojedynczych myślników.",
+      "slugTaken": "Ten identyfikator jest już zajęty — wybierz inny.",
+      "createFailed": "Nie udało się założyć szkoły",
+      "inviteInvalid": "To nie wygląda na poprawny link z zaproszeniem."
+    },
+    "backToDashboard": "Wróć do panelu"
+  },
+  "invite": {
+    "title": "Dołącz do {school}",
+    "subtitle": "{inviter} zaprasza Cię do swojej szkoły w Courtto Academy.",
+    "sentTo": "Wysłano na",
+    "validUntil": "Ważne do",
+    "accept": "Przyjmij zaproszenie",
+    "decline": "Odrzuć",
+    "accepted": "Witaj w {school}!",
+    "declined": "Zaproszenie odrzucone",
+    "signedInAs": "Zalogowano jako {email}",
+    "createAccount": "Załóż konto",
+    "signIn": "Zaloguj się",
+    "emailHint": "Użyj adresu e-mail, na który wysłano zaproszenie.",
+    "backToDashboard": "Przejdź do panelu",
+    "errors": {
+      "acceptFailed": "Nie udało się przyjąć zaproszenia",
+      "declineFailed": "Nie udało się odrzucić zaproszenia"
+    },
+    "status": {
+      "notFound": {
+        "title": "Nie znaleziono zaproszenia",
+        "description": "Ten link jest nieprawidłowy. Poproś szkołę o nowe zaproszenie."
+      },
+      "accepted": {
+        "title": "Zaproszenie już przyjęte",
+        "description": "To zaproszenie zostało już wykorzystane."
+      },
+      "rejected": {
+        "title": "Zaproszenie odrzucone",
+        "description": "To zaproszenie zostało odrzucone. Poproś szkołę o nowe."
+      },
+      "canceled": {
+        "title": "Zaproszenie anulowane",
+        "description": "To zaproszenie zostało anulowane przez szkołę."
+      },
+      "expired": {
+        "title": "Zaproszenie wygasło",
+        "description": "To zaproszenie jest już nieważne. Poproś szkołę o nowe."
+      }
     }
+  },
+  "school": {
+    "overview": {
+      "greeting": "Witaj ponownie, {name}",
+      "tagline": "Oto co dzieje się w {school}.",
+      "stats": {
+        "members": "Członkowie",
+        "coaches": "Trenerzy",
+        "players": "Uczniowie i rodzice",
+        "pendingInvites": "Oczekujące zaproszenia"
+      },
+      "recentMembers": {
+        "title": "Ostatnio dołączyli",
+        "subtitle": "Najnowsze osoby w Twojej szkole.",
+        "empty": "Brak członków — zaproś pierwszego trenera lub ucznia."
+      }
+    },
+    "members": {
+      "title": "Członkowie",
+      "subtitle": "Wszyscy z dostępem do Twojej szkoły.",
+      "invite": "Zaproś",
+      "joined": "Dołączył(a) {date}",
+      "actions": "Akcje członka",
+      "changeRole": "Zmień rolę",
+      "remove": "Usuń ze szkoły",
+      "roleUpdated": "Rola {name} została zmieniona",
+      "removed": "{name} został(a) usunięty(a)",
+      "removeConfirm": {
+        "title": "Usuń członka",
+        "description": "{name} straci dostęp do tej szkoły. Możesz zaprosić tę osobę ponownie."
+      },
+      "errors": {
+        "updateFailed": "Nie udało się zmienić roli",
+        "removeFailed": "Nie udało się usunąć członka"
+      }
+    },
+    "invitations": {
+      "title": "Oczekujące zaproszenia",
+      "subtitle": "Udostępnij link — działa do momentu wygaśnięcia.",
+      "expires": "Wygasa {date}",
+      "copyLink": "Kopiuj link",
+      "cancel": "Anuluj zaproszenie",
+      "canceled": "Zaproszenie anulowane",
+      "empty": {
+        "title": "Brak oczekujących zaproszeń",
+        "description": "Zaproś trenerów, uczniów i rodziców — otrzymają link, który doda ich prosto do Twojej szkoły."
+      },
+      "errors": {
+        "cancelFailed": "Nie udało się anulować zaproszenia"
+      }
+    },
+    "invite": {
+      "title": "Zaproś do swojej szkoły",
+      "subtitle": "Wybierz rolę, a my utworzymy osobisty link z zaproszeniem.",
+      "roleLabel": "Rola",
+      "submit": "Utwórz zaproszenie",
+      "inviteAnother": "Zaproś kolejną osobę",
+      "copyFailed": "Nie udało się skopiować linku",
+      "linkReady": {
+        "title": "Zaproszenie utworzone",
+        "subtitle": "Udostępnij ten link zapraszanej osobie.",
+        "sentTo": "Zaproszenie dla {email}",
+        "hint": "Wyślij poniższy link — jest ważny przez 7 dni."
+      },
+      "errors": {
+        "emailInvalid": "Podaj poprawny adres e-mail.",
+        "failed": "Nie udało się utworzyć zaproszenia"
+      }
+    },
+    "settings": {
+      "profile": {
+        "title": "Profil szkoły",
+        "subtitle": "Nazwa i identyfikator Twojej szkoły."
+      },
+      "saved": "Zapisano ustawienia",
+      "deleted": "Szkoła usunięta",
+      "danger": {
+        "title": "Strefa zagrożenia",
+        "subtitle": "Nieodwracalne akcje dla tej szkoły.",
+        "deleteHint": "Usunięcie kasuje szkołę, jej członków i zaproszenia.",
+        "delete": "Usuń szkołę",
+        "confirmTitle": "Usuń szkołę",
+        "confirmDescription": "To trwale usunie {name} i odbierze dostęp wszystkim członkom.",
+        "confirmLabel": "Wpisz {name}, aby potwierdzić"
+      },
+      "errors": {
+        "saveFailed": "Nie udało się zapisać ustawień",
+        "deleteFailed": "Nie udało się usunąć szkoły"
+      }
+    }
+  },
+  "coach": {
+    "greeting": "Witaj ponownie, trenerze {name}",
+    "tagline": "Twoje centrum trenerskie w {school}.",
+    "memberSince": "Trenujesz tu od {date}",
+    "modules": {
+      "schedule": "Twoje zajęcia i rezerwacje kortów w jednym miejscu.",
+      "groups": "Grupy, które prowadzisz, i ich zawodnicy.",
+      "availabilityTitle": "Dostępność",
+      "availability": "Daj znać szkole, kiedy możesz prowadzić treningi."
+    }
+  },
+  "my": {
+    "greeting": "Cześć, {name}",
+    "tagline": "Twoje szkoły i wszystko, co się w nich dzieje.",
+    "modules": {
+      "lessons": "Twoje nadchodzące treningi i zajęcia.",
+      "payments": "Karnety, płatności i historia rozliczeń.",
+      "progressTitle": "Postępy",
+      "progress": "Śledź rozwój i kolejne cele treningowe."
+    }
+  },
+  "dashboard": {
+    "comingSoon": "Już wkrótce"
   }
 }

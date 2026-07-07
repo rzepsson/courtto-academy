@@ -5,6 +5,12 @@ definePageMeta({ middleware: 'guest', layout: 'auth' })
 
 const { t } = useI18n()
 const toast = useToast()
+const route = useRoute()
+
+const redirectTarget = computed(() => sanitizeRedirect(route.query.redirect))
+const crossQuery = computed(() =>
+  typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : undefined
+)
 
 interface LoginForm {
   email: string
@@ -33,7 +39,7 @@ async function onSubmit(event: FormSubmitEvent<LoginForm>) {
   }
 
   await refreshAuthSession()
-  await navigateTo('/dashboard')
+  await navigateTo(redirectTarget.value)
 }
 </script>
 
@@ -95,22 +101,13 @@ async function onSubmit(event: FormSubmitEvent<LoginForm>) {
         </UInput>
       </UFormField>
 
-      <Motion
+      <PressButton
+        type="submit"
         class="mt-1"
-        :while-press="{ scale: 0.98 }"
-        :transition="{ type: 'spring', stiffness: 500, damping: 30 }"
-      >
-        <UButton
-          type="submit"
-          block
-          size="lg"
-          trailing-icon="i-lucide-arrow-right"
-          class="group"
-          :ui="{ trailingIcon: 'transition-transform duration-200 group-hover:translate-x-0.5' }"
-          :loading="loading"
-          :label="t('auth.login.submit')"
-        />
-      </Motion>
+        trailing-icon="i-lucide-arrow-right"
+        :loading="loading"
+        :label="t('auth.login.submit')"
+      />
     </UForm>
 
     <USeparator class="my-8" />
@@ -118,7 +115,7 @@ async function onSubmit(event: FormSubmitEvent<LoginForm>) {
     <p class="text-center text-sm text-muted">
       {{ t('auth.login.noAccount') }}
       <ULink
-        to="/register"
+        :to="{ path: '/register', query: crossQuery }"
         class="font-medium text-primary"
       >
         {{ t('auth.login.signUp') }}

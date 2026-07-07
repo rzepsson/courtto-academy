@@ -4,7 +4,7 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-  <div class="relative flex min-h-screen flex-col items-center justify-center px-6 py-16">
+  <div class="relative flex min-h-screen flex-col items-center px-6 pb-16 pt-[max(4rem,14vh)]">
     <div class="absolute top-5 right-5 flex items-center gap-2">
       <LocaleSwitcher />
       <ColorModeButton />
