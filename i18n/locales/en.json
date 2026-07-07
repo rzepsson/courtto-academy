@@ -5,6 +5,17 @@
   "home": {
     "tagline": "The all-in-one platform for tennis & padel schools."
   },
+  "error": {
+    "action": "Back to safety",
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you're looking for doesn't exist or has moved."
+    },
+    "generic": {
+      "title": "Something went wrong",
+      "description": "An unexpected error occurred. Please try again in a moment."
+    }
+  },
   "common": {
     "language": "Language",
     "soon": "Soon",

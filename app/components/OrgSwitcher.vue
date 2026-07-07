@@ -39,11 +39,13 @@ const items = computed<DropdownMenuItem[][]>(() => [
       :square="collapsed"
       :loading="switching"
       :aria-label="t('orgSwitcher.label')"
+      class="group"
     >
       <UAvatar
         :src="active?.organization.logo ?? undefined"
         :alt="active?.organization.name"
         size="2xs"
+        class="transition-transform duration-200 group-hover:scale-105"
       />
       <template v-if="!collapsed">
         <span class="truncate font-medium text-highlighted">
@@ -51,7 +53,7 @@ const items = computed<DropdownMenuItem[][]>(() => [
         </span>
         <UIcon
           name="i-lucide-chevrons-up-down"
-          class="ms-auto size-4 shrink-0 text-dimmed"
+          class="ms-auto size-4 shrink-0 text-dimmed transition-colors duration-200 group-hover:text-default"
         />
       </template>
     </UButton>

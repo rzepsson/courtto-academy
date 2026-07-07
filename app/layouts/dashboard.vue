@@ -43,6 +43,7 @@ const signingOut = ref(false)
 async function onSignOut() {
   signingOut.value = true
   await authClient.signOut()
+  clearAppContext()
   await refreshAuthSession()
   await navigateTo('/login')
 }
@@ -67,13 +68,20 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
       </template>
 
       <template #default="{ collapsed }">
-        <OrgSwitcher :collapsed="collapsed" />
+        <MotionReveal :y="6">
+          <OrgSwitcher :collapsed="collapsed" />
+        </MotionReveal>
 
-        <UNavigationMenu
-          :collapsed="collapsed"
-          :items="navItems"
-          orientation="vertical"
-        />
+        <MotionReveal
+          :y="6"
+          :delay="0.08"
+        >
+          <UNavigationMenu
+            :collapsed="collapsed"
+            :items="navItems"
+            orientation="vertical"
+          />
+        </MotionReveal>
       </template>
 
       <template #footer="{ collapsed }">

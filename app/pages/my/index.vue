@@ -32,21 +32,24 @@ const modules = computed(() => [
 
     <template #body>
       <div class="flex flex-col gap-8">
-        <div>
+        <MotionReveal>
           <h1 class="text-2xl font-semibold text-highlighted">
             {{ t('my.greeting', { name: session?.user.name }) }}
           </h1>
           <p class="mt-1 text-muted">
             {{ t('my.tagline') }}
           </p>
-        </div>
+        </MotionReveal>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Motion
-            v-for="membership in memberships"
+            v-for="(membership, i) in memberships"
             :key="membership.id"
+            :initial="{ opacity: 0, y: 12 }"
+            :animate="{ opacity: 1, y: 0 }"
+            :while-hover="{ y: -4 }"
             :while-press="{ scale: 0.99 }"
-            :transition="{ type: 'spring', stiffness: 500, damping: 30 }"
+            :transition="{ type: 'spring', stiffness: 400, damping: 28, delay: 0.05 * (i + 1) }"
           >
             <button
               type="button"
@@ -57,7 +60,7 @@ const modules = computed(() => [
               <UCard
                 variant="subtle"
                 :class="membership.organization.id === active?.organization.id
-                  ? 'ring-primary/50'
+                  ? 'ring-2 ring-primary/50'
                   : 'transition-colors hover:bg-elevated/50'"
               >
                 <div class="flex items-center gap-3">
@@ -87,7 +90,10 @@ const modules = computed(() => [
         </div>
 
         <div>
-          <div class="flex items-center gap-2">
+          <MotionReveal
+            :delay="0.2"
+            class="flex items-center gap-2"
+          >
             <h2 class="text-sm font-medium uppercase tracking-wide text-muted">
               {{ t('dashboard.comingSoon') }}
             </h2>
@@ -97,16 +103,22 @@ const modules = computed(() => [
               variant="subtle"
               size="sm"
             />
-          </div>
+          </MotionReveal>
           <UPageGrid class="mt-4 lg:grid-cols-3">
-            <UPageCard
-              v-for="module in modules"
+            <MotionReveal
+              v-for="(module, i) in modules"
               :key="module.icon"
-              :title="module.title"
-              :description="module.description"
-              :icon="module.icon"
-              variant="subtle"
-            />
+              :delay="0.24 + 0.06 * i"
+              class="h-full"
+            >
+              <UPageCard
+                :title="module.title"
+                :description="module.description"
+                :icon="module.icon"
+                variant="subtle"
+                class="h-full"
+              />
+            </MotionReveal>
           </UPageGrid>
         </div>
       </div>

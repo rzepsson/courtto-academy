@@ -109,83 +109,89 @@ async function onDelete() {
 
     <template #body>
       <div class="mx-auto flex w-full max-w-2xl flex-col gap-8">
-        <UCard variant="subtle">
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              {{ t('school.settings.profile.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('school.settings.profile.subtitle') }}
-            </p>
-          </template>
+        <MotionReveal>
+          <UCard variant="subtle">
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                {{ t('school.settings.profile.title') }}
+              </h2>
+              <p class="mt-1 text-sm text-muted">
+                {{ t('school.settings.profile.subtitle') }}
+              </p>
+            </template>
 
-          <UForm
-            :state="state"
-            :validate="validate"
-            class="flex flex-col gap-5"
-            @submit="onSave"
+            <UForm
+              :state="state"
+              :validate="validate"
+              class="flex flex-col gap-5"
+              @submit="onSave"
+            >
+              <UFormField
+                :label="t('onboarding.fields.schoolName')"
+                name="name"
+              >
+                <UInput
+                  v-model="state.name"
+                  size="lg"
+                  class="w-full"
+                />
+              </UFormField>
+
+              <UFormField
+                :label="t('onboarding.fields.slug')"
+                name="slug"
+                :help="t('onboarding.fields.slugHelp')"
+              >
+                <UInput
+                  v-model="state.slug"
+                  size="lg"
+                  icon="i-lucide-link"
+                  class="w-full font-mono"
+                />
+              </UFormField>
+
+              <div class="flex justify-end">
+                <UButton
+                  type="submit"
+                  :loading="saving"
+                  :label="t('common.save')"
+                />
+              </div>
+            </UForm>
+          </UCard>
+        </MotionReveal>
+
+        <MotionReveal
+          v-if="isOwner"
+          :delay="0.08"
+        >
+          <UCard
+            variant="subtle"
+            class="ring-error/25"
           >
-            <UFormField
-              :label="t('onboarding.fields.schoolName')"
-              name="name"
-            >
-              <UInput
-                v-model="state.name"
-                size="lg"
-                class="w-full"
-              />
-            </UFormField>
+            <template #header>
+              <h2 class="font-semibold text-error">
+                {{ t('school.settings.danger.title') }}
+              </h2>
+              <p class="mt-1 text-sm text-muted">
+                {{ t('school.settings.danger.subtitle') }}
+              </p>
+            </template>
 
-            <UFormField
-              :label="t('onboarding.fields.slug')"
-              name="slug"
-              :help="t('onboarding.fields.slugHelp')"
-            >
-              <UInput
-                v-model="state.slug"
-                size="lg"
-                icon="i-lucide-link"
-                class="w-full font-mono"
-              />
-            </UFormField>
-
-            <div class="flex justify-end">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+              <p class="text-sm text-muted">
+                {{ t('school.settings.danger.deleteHint') }}
+              </p>
               <UButton
-                type="submit"
-                :loading="saving"
-                :label="t('common.save')"
+                color="error"
+                variant="subtle"
+                icon="i-lucide-trash-2"
+                :label="t('school.settings.danger.delete')"
+                @click="deleteOpen = true"
               />
             </div>
-          </UForm>
-        </UCard>
-
-        <UCard
-          v-if="isOwner"
-          variant="subtle"
-          class="ring-error/25"
-        >
-          <template #header>
-            <h2 class="font-semibold text-error">
-              {{ t('school.settings.danger.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('school.settings.danger.subtitle') }}
-            </p>
-          </template>
-
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <p class="text-sm text-muted">
-              {{ t('school.settings.danger.deleteHint') }}
-            </p>
-            <UButton
-              color="error"
-              variant="subtle"
-              icon="i-lucide-trash-2"
-              :label="t('school.settings.danger.delete')"
-              @click="deleteOpen = true"
-            />
-          </div>
-        </UCard>
+          </UCard>
+        </MotionReveal>
       </div>
 
       <UModal

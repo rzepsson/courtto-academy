@@ -10,12 +10,12 @@ const toast = useToast()
 const { copiedId, copy: copyInviteLink } = useInviteLink()
 const { data: session } = await useAuthSession()
 
-const membersFetch = useFetch('/api/school/members', { key: 'school:members' })
-const invitationsFetch = useFetch('/api/school/invitations', { key: 'school:invitations' })
-await Promise.all([membersFetch, invitationsFetch])
+// Lazy so the page shell renders instantly on navigation; lists fill via skeletons.
+const { data: members, status: membersStatus, refresh: refreshMembers } = useLazyFetch('/api/school/members', { key: 'school:members' })
+const { data: invitations, status: invitationsStatus, refresh: refreshInvitations } = useLazyFetch('/api/school/invitations', { key: 'school:invitations' })
 
-const { data: members, refresh: refreshMembers } = membersFetch
-const { data: invitations, refresh: refreshInvitations } = invitationsFetch
+const membersLoading = computed(() => membersStatus.value === 'pending')
+const invitationsLoading = computed(() => invitationsStatus.value === 'pending')
 
 const inviteOpen = ref(false)
 
@@ -117,7 +117,9 @@ function dateLabel(value: string) {
         <template #right>
           <LocaleSwitcher />
           <ColorModeButton />
-          <UButton
+          <PressButton
+            :block="false"
+            size="md"
             icon="i-lucide-user-plus"
             :label="t('school.members.invite')"
             @click="inviteOpen = true"
@@ -128,129 +130,144 @@ function dateLabel(value: string) {
 
     <template #body>
       <div class="flex flex-col gap-8">
-        <UCard variant="subtle">
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              {{ t('school.members.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('school.members.subtitle') }}
-            </p>
-          </template>
+        <MotionReveal>
+          <UCard variant="subtle">
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                {{ t('school.members.title') }}
+              </h2>
+              <p class="mt-1 text-sm text-muted">
+                {{ t('school.members.subtitle') }}
+              </p>
+            </template>
 
-          <ul class="flex flex-col divide-y divide-default">
-            <li
-              v-for="row in members ?? []"
-              :key="row.id"
-              class="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            <AppListSkeleton
+              v-if="membersLoading"
+              :rows="5"
+            />
+            <ul
+              v-else
+              class="flex flex-col divide-y divide-default"
             >
-              <UUser
-                :name="row.user.name"
-                :description="row.user.email"
-                :avatar="{ src: row.user.image ?? undefined, alt: row.user.name }"
-                size="sm"
-              />
-              <div class="flex items-center gap-3">
-                <span class="hidden text-xs text-dimmed sm:block">
-                  {{ t('school.members.joined', { date: dateLabel(row.createdAt) }) }}
-                </span>
-                <RoleBadge :role="row.role" />
-                <UDropdownMenu
-                  v-if="canManage(row)"
-                  :items="memberActions(row)"
-                  :content="{ align: 'end' }"
-                >
+              <li
+                v-for="row in members ?? []"
+                :key="row.id"
+                class="-mx-2 flex items-center justify-between gap-4 rounded-md px-2 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/40"
+              >
+                <UUser
+                  :name="row.user.name"
+                  :description="row.user.email"
+                  :avatar="{ src: row.user.image ?? undefined, alt: row.user.name }"
+                  size="sm"
+                />
+                <div class="flex items-center gap-3">
+                  <span class="hidden text-xs text-dimmed sm:block">
+                    {{ t('school.members.joined', { date: dateLabel(row.createdAt) }) }}
+                  </span>
+                  <RoleBadge :role="row.role" />
+                  <UDropdownMenu
+                    v-if="canManage(row)"
+                    :items="memberActions(row)"
+                    :content="{ align: 'end' }"
+                  >
+                    <UButton
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-ellipsis-vertical"
+                      size="sm"
+                      :aria-label="t('school.members.actions')"
+                    />
+                  </UDropdownMenu>
+                  <span
+                    v-else
+                    class="size-8"
+                  />
+                </div>
+              </li>
+            </ul>
+          </UCard>
+        </MotionReveal>
+
+        <MotionReveal :delay="0.1">
+          <UCard variant="subtle">
+            <template #header>
+              <h2 class="font-semibold text-highlighted">
+                {{ t('school.invitations.title') }}
+              </h2>
+              <p class="mt-1 text-sm text-muted">
+                {{ t('school.invitations.subtitle') }}
+              </p>
+            </template>
+
+            <AppListSkeleton
+              v-if="invitationsLoading"
+              :rows="2"
+            />
+            <ul
+              v-else-if="(invitations?.length ?? 0) > 0"
+              class="flex flex-col divide-y divide-default"
+            >
+              <li
+                v-for="invite in invitations ?? []"
+                :key="invite.id"
+                class="-mx-2 flex flex-wrap items-center justify-between gap-4 rounded-md px-2 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/40"
+              >
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium text-highlighted">
+                    {{ invite.email }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-dimmed">
+                    {{ t('school.invitations.expires', { date: dateLabel(invite.expiresAt) }) }}
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <RoleBadge :role="invite.role" />
                   <UButton
                     color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-ellipsis-vertical"
+                    variant="subtle"
                     size="sm"
-                    :aria-label="t('school.members.actions')"
+                    :icon="copiedId === invite.id ? 'i-lucide-check' : 'i-lucide-copy'"
+                    :label="copiedId === invite.id ? t('common.copied') : t('school.invitations.copyLink')"
+                    @click="copyInviteLink(invite.id)"
                   />
-                </UDropdownMenu>
-                <span
-                  v-else
-                  class="size-8"
-                />
-              </div>
-            </li>
-          </ul>
-        </UCard>
+                  <UButton
+                    color="error"
+                    variant="ghost"
+                    size="sm"
+                    icon="i-lucide-x"
+                    :aria-label="t('school.invitations.cancel')"
+                    @click="cancelInvitation(invite.id)"
+                  />
+                </div>
+              </li>
+            </ul>
 
-        <UCard variant="subtle">
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              {{ t('school.invitations.title') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('school.invitations.subtitle') }}
-            </p>
-          </template>
-
-          <ul
-            v-if="(invitations?.length ?? 0) > 0"
-            class="flex flex-col divide-y divide-default"
-          >
-            <li
-              v-for="invite in invitations ?? []"
-              :key="invite.id"
-              class="flex flex-wrap items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+            <div
+              v-else
+              class="flex flex-col items-center py-6 text-center"
             >
-              <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-highlighted">
-                  {{ invite.email }}
-                </p>
-                <p class="mt-0.5 text-xs text-dimmed">
-                  {{ t('school.invitations.expires', { date: dateLabel(invite.expiresAt) }) }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <RoleBadge :role="invite.role" />
-                <UButton
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                  :icon="copiedId === invite.id ? 'i-lucide-check' : 'i-lucide-copy'"
-                  :label="copiedId === invite.id ? t('common.copied') : t('school.invitations.copyLink')"
-                  @click="copyInviteLink(invite.id)"
-                />
-                <UButton
-                  color="error"
-                  variant="ghost"
-                  size="sm"
-                  icon="i-lucide-x"
-                  :aria-label="t('school.invitations.cancel')"
-                  @click="cancelInvitation(invite.id)"
+              <div class="flex size-12 items-center justify-center rounded-full bg-elevated">
+                <UIcon
+                  name="i-lucide-mail-plus"
+                  class="size-6 text-dimmed"
                 />
               </div>
-            </li>
-          </ul>
-
-          <div
-            v-else
-            class="flex flex-col items-center py-6 text-center"
-          >
-            <div class="flex size-12 items-center justify-center rounded-full bg-elevated">
-              <UIcon
-                name="i-lucide-mail-plus"
-                class="size-6 text-dimmed"
+              <p class="mt-3 text-sm font-medium text-highlighted">
+                {{ t('school.invitations.empty.title') }}
+              </p>
+              <p class="mt-1 max-w-sm text-sm text-muted">
+                {{ t('school.invitations.empty.description') }}
+              </p>
+              <UButton
+                class="mt-4"
+                variant="subtle"
+                icon="i-lucide-user-plus"
+                :label="t('school.members.invite')"
+                @click="inviteOpen = true"
               />
             </div>
-            <p class="mt-3 text-sm font-medium text-highlighted">
-              {{ t('school.invitations.empty.title') }}
-            </p>
-            <p class="mt-1 max-w-sm text-sm text-muted">
-              {{ t('school.invitations.empty.description') }}
-            </p>
-            <UButton
-              class="mt-4"
-              variant="subtle"
-              icon="i-lucide-user-plus"
-              :label="t('school.members.invite')"
-              @click="inviteOpen = true"
-            />
-          </div>
-        </UCard>
+          </UCard>
+        </MotionReveal>
       </div>
 
       <SchoolInviteMemberModal

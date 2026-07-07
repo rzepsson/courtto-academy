@@ -13,6 +13,10 @@ useSeoMeta({
 
 <template>
   <UApp>
+    <NuxtLoadingIndicator
+      color="var(--ui-primary)"
+      :height="2"
+    />
     <MotionConfig reduced-motion="user">
       <NuxtLayout>
         <NuxtPage />

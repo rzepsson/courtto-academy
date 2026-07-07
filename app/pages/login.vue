@@ -38,6 +38,7 @@ async function onSubmit(event: FormSubmitEvent<LoginForm>) {
     return
   }
 
+  clearAppContext()
   await refreshAuthSession()
   await navigateTo(redirectTarget.value)
 }

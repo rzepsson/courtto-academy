@@ -34,42 +34,47 @@ const modules = computed(() => [
 
     <template #body>
       <div class="flex flex-col gap-8">
-        <div>
+        <MotionReveal>
           <h1 class="text-2xl font-semibold text-highlighted">
             {{ t('coach.greeting', { name: session?.user.name }) }}
           </h1>
           <p class="mt-1 text-muted">
             {{ t('coach.tagline', { school: active?.organization.name }) }}
           </p>
-        </div>
+        </MotionReveal>
 
-        <UCard variant="subtle">
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <UAvatar
-                :src="active?.organization.logo ?? undefined"
-                :alt="active?.organization.name"
-                size="lg"
-              />
-              <div>
-                <p class="font-semibold text-highlighted">
-                  {{ active?.organization.name }}
-                </p>
-                <p class="mt-0.5 text-sm text-muted">
-                  {{ t('coach.memberSince', { date: joinedLabel }) }}
-                </p>
+        <MotionReveal :delay="0.08">
+          <UCard variant="subtle">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <UAvatar
+                  :src="active?.organization.logo ?? undefined"
+                  :alt="active?.organization.name"
+                  size="lg"
+                />
+                <div>
+                  <p class="font-semibold text-highlighted">
+                    {{ active?.organization.name }}
+                  </p>
+                  <p class="mt-0.5 text-sm text-muted">
+                    {{ t('coach.memberSince', { date: joinedLabel }) }}
+                  </p>
+                </div>
               </div>
+              <RoleBadge
+                v-if="active"
+                :role="active.role"
+                size="md"
+              />
             </div>
-            <RoleBadge
-              v-if="active"
-              :role="active.role"
-              size="md"
-            />
-          </div>
-        </UCard>
+          </UCard>
+        </MotionReveal>
 
         <div>
-          <div class="flex items-center gap-2">
+          <MotionReveal
+            :delay="0.16"
+            class="flex items-center gap-2"
+          >
             <h2 class="text-sm font-medium uppercase tracking-wide text-muted">
               {{ t('dashboard.comingSoon') }}
             </h2>
@@ -79,16 +84,22 @@ const modules = computed(() => [
               variant="subtle"
               size="sm"
             />
-          </div>
+          </MotionReveal>
           <UPageGrid class="mt-4 lg:grid-cols-3">
-            <UPageCard
-              v-for="module in modules"
+            <MotionReveal
+              v-for="(module, i) in modules"
               :key="module.icon"
-              :title="module.title"
-              :description="module.description"
-              :icon="module.icon"
-              variant="subtle"
-            />
+              :delay="0.2 + 0.06 * i"
+              class="h-full"
+            >
+              <UPageCard
+                :title="module.title"
+                :description="module.description"
+                :icon="module.icon"
+                variant="subtle"
+                class="h-full"
+              />
+            </MotionReveal>
           </UPageGrid>
         </div>
       </div>

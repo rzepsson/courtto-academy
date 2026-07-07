@@ -5,6 +5,17 @@
   "home": {
     "tagline": "Kompleksowa platforma dla szkół tenisa i padla."
   },
+  "error": {
+    "action": "Wróć na stronę główną",
+    "notFound": {
+      "title": "Nie znaleziono strony",
+      "description": "Strona, której szukasz, nie istnieje lub została przeniesiona."
+    },
+    "generic": {
+      "title": "Coś poszło nie tak",
+      "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie za chwilę."
+    }
+  },
   "common": {
     "language": "Język",
     "soon": "Wkrótce",
