@@ -49,94 +49,106 @@ async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
 
 <template>
   <div class="w-full">
-    <div class="text-center">
-      <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
-        {{ t('auth.register.title') }}
-      </h1>
-      <p class="mt-2 text-sm text-muted">
-        {{ t('auth.register.subtitle') }}
-      </p>
-    </div>
+    <MotionReveal :y="8">
+      <div class="text-center">
+        <h1 class="text-2xl font-semibold tracking-tight text-highlighted">
+          {{ t('auth.register.title') }}
+        </h1>
+        <p class="mt-2 text-sm text-muted">
+          {{ t('auth.register.subtitle') }}
+        </p>
+      </div>
+    </MotionReveal>
 
-    <UForm
-      :state="state"
-      :validate="validate"
-      class="mt-8 flex flex-col gap-5"
-      @submit="onSubmit"
+    <MotionReveal
+      :y="8"
+      :delay="0.08"
     >
-      <UFormField
-        :label="t('auth.fields.name')"
-        name="name"
+      <UForm
+        :state="state"
+        :validate="validate"
+        class="mt-8 flex flex-col gap-5"
+        @submit="onSubmit"
       >
-        <UInput
-          v-model="state.name"
-          size="lg"
-          autocomplete="name"
-          :placeholder="t('auth.fields.namePlaceholder')"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField
-        :label="t('auth.fields.email')"
-        name="email"
-      >
-        <UInput
-          v-model="state.email"
-          type="email"
-          size="lg"
-          autocomplete="email"
-          :placeholder="t('auth.fields.emailPlaceholder')"
-          class="w-full"
-        />
-      </UFormField>
-
-      <UFormField
-        :label="t('auth.fields.password')"
-        name="password"
-      >
-        <UInput
-          v-model="state.password"
-          :type="showPassword ? 'text' : 'password'"
-          size="lg"
-          autocomplete="new-password"
-          :placeholder="t('auth.fields.passwordPlaceholder')"
-          class="w-full"
-          :ui="{ trailing: 'pe-1' }"
+        <UFormField
+          :label="t('auth.fields.name')"
+          name="name"
         >
-          <template #trailing>
-            <UButton
-              color="neutral"
-              variant="link"
-              size="sm"
-              :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-              :aria-label="showPassword ? t('auth.fields.hidePassword') : t('auth.fields.showPassword')"
-              :aria-pressed="showPassword"
-              @click="showPassword = !showPassword"
-            />
-          </template>
-        </UInput>
-      </UFormField>
+          <UInput
+            v-model="state.name"
+            size="lg"
+            autocomplete="name"
+            :placeholder="t('auth.fields.namePlaceholder')"
+            class="w-full"
+          />
+        </UFormField>
 
-      <PressButton
-        type="submit"
-        class="mt-1"
-        trailing-icon="i-lucide-arrow-right"
-        :loading="loading"
-        :label="t('auth.register.submit')"
-      />
-    </UForm>
+        <UFormField
+          :label="t('auth.fields.email')"
+          name="email"
+        >
+          <UInput
+            v-model="state.email"
+            type="email"
+            size="lg"
+            autocomplete="email"
+            :placeholder="t('auth.fields.emailPlaceholder')"
+            class="w-full"
+          />
+        </UFormField>
 
-    <USeparator class="my-8" />
+        <UFormField
+          :label="t('auth.fields.password')"
+          name="password"
+        >
+          <UInput
+            v-model="state.password"
+            :type="showPassword ? 'text' : 'password'"
+            size="lg"
+            autocomplete="new-password"
+            :placeholder="t('auth.fields.passwordPlaceholder')"
+            class="w-full"
+            :ui="{ trailing: 'pe-1' }"
+          >
+            <template #trailing>
+              <UButton
+                color="neutral"
+                variant="link"
+                size="sm"
+                :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
+                :aria-label="showPassword ? t('auth.fields.hidePassword') : t('auth.fields.showPassword')"
+                :aria-pressed="showPassword"
+                @click="showPassword = !showPassword"
+              />
+            </template>
+          </UInput>
+        </UFormField>
 
-    <p class="text-center text-sm text-muted">
-      {{ t('auth.register.hasAccount') }}
-      <ULink
-        :to="{ path: '/login', query: crossQuery }"
-        class="font-medium text-primary"
-      >
-        {{ t('auth.register.signIn') }}
-      </ULink>
-    </p>
+        <PressButton
+          type="submit"
+          class="mt-1"
+          trailing-icon="i-lucide-arrow-right"
+          :loading="loading"
+          :label="t('auth.register.submit')"
+        />
+      </UForm>
+    </MotionReveal>
+
+    <MotionReveal
+      :y="8"
+      :delay="0.16"
+    >
+      <USeparator class="my-8" />
+
+      <p class="text-center text-sm text-muted">
+        {{ t('auth.register.hasAccount') }}
+        <ULink
+          :to="{ path: '/login', query: crossQuery }"
+          class="font-medium text-primary"
+        >
+          {{ t('auth.register.signIn') }}
+        </ULink>
+      </p>
+    </MotionReveal>
   </div>
 </template>
