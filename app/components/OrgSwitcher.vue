@@ -36,26 +36,30 @@ const items = computed<DropdownMenuItem[][]>(() => [
       color="neutral"
       variant="ghost"
       block
-      :square="collapsed"
       :loading="switching"
       :aria-label="t('orgSwitcher.label')"
-      class="group"
+      class="group transition-[padding] duration-200 ease-in-out"
+      :class="collapsed ? 'p-1' : 'px-2.5 py-1.5'"
     >
-      <UAvatar
-        :src="active?.organization.logo ?? undefined"
-        :alt="active?.organization.name"
-        size="2xs"
-        class="transition-transform duration-200 group-hover:scale-105"
-      />
-      <template v-if="!collapsed">
-        <span class="truncate font-medium text-highlighted">
-          {{ active?.organization.name }}
-        </span>
-        <UIcon
-          name="i-lucide-chevrons-up-down"
-          class="ms-auto size-4 shrink-0 text-dimmed transition-colors duration-200 group-hover:text-default"
+      <div class="flex w-full items-center gap-2">
+        <UAvatar
+          :src="active?.organization.logo ?? undefined"
+          :alt="active?.organization.name"
+          size="2xs"
+          class="shrink-0 transition-transform duration-200 group-hover:scale-105"
         />
-      </template>
+        <SidebarReveal :collapsed="collapsed">
+          <span class="flex items-center gap-1">
+            <span class="max-w-32 truncate font-medium text-highlighted">
+              {{ active?.organization.name }}
+            </span>
+            <UIcon
+              name="i-lucide-chevrons-up-down"
+              class="size-4 shrink-0 text-dimmed transition-colors duration-200 group-hover:text-default"
+            />
+          </span>
+        </SidebarReveal>
+      </div>
     </UButton>
   </UDropdownMenu>
 </template>

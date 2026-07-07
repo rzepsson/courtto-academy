@@ -57,13 +57,9 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
   <UDashboardGroup>
     <UDashboardSidebar collapsible>
       <template #header="{ collapsed }">
-        <AppLogo
-          v-if="collapsed"
-          class="size-8 shrink-0"
-        />
         <BrandMark
-          v-else
           horizontal
+          :collapsed="collapsed"
         />
       </template>
 
@@ -94,21 +90,26 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
             color="neutral"
             variant="ghost"
             block
-            :square="collapsed"
             :loading="signingOut"
+            class="transition-[padding] duration-200 ease-in-out"
+            :class="collapsed ? 'p-1' : 'px-2.5 py-1.5'"
           >
-            <UUser
-              v-if="!collapsed"
-              :name="session?.user.name"
-              :description="session?.user.email"
-              :avatar="{ alt: session?.user.name }"
-              size="sm"
-            />
-            <UAvatar
-              v-else
-              :alt="session?.user.name"
-              size="2xs"
-            />
+            <div class="flex h-10 w-full items-center gap-2.5">
+              <Icon
+                name="i-lucide-user"
+                class="h-5 w-5 shrink-0"
+              />
+              <SidebarReveal :collapsed="collapsed">
+                <div class="max-w-40 text-left">
+                  <p class="truncate text-sm font-medium text-highlighted">
+                    {{ session?.user.name }}
+                  </p>
+                  <p class="truncate text-xs text-muted">
+                    {{ session?.user.email }}
+                  </p>
+                </div>
+              </SidebarReveal>
+            </div>
           </UButton>
         </UDropdownMenu>
       </template>

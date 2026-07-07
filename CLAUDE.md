@@ -67,11 +67,28 @@ i18n/locales/   en.json, pl.json
 - **Gotcha — Nuxt async context:** the unctx transform covers `app/middleware/*` and plugins only. Never call `navigateTo` (or other Nuxt composables) after an `await` inside `app/utils/*` — compute the redirect target in the util, call `navigateTo` from the middleware file.
 - **Gotcha — `auth` CLI:** `server/utils/auth.ts` and everything it imports (e.g. `services/membership.ts`, `shared/permissions.ts`) is loaded by the `auth` CLI **outside Nuxt** — those files need explicit imports (no auto-imports, no Nuxt aliases).
 
+## Testing
+
+Three tiers (full guide in `TESTING.md`). **Vitest** for unit + server, **Playwright** for e2e. Tests live under `test/{unit,server,e2e}/`; config in `vitest.config.ts` (two projects: `unit`, `server`) and `playwright.config.ts`.
+
+```bash
+pnpm test          # unit — pure functions, no DB, always runnable
+pnpm test:watch    # unit in watch mode
+pnpm test:server   # server integration — needs TEST_DATABASE_URL (else skips)
+pnpm test:e2e      # Playwright — needs .env.e2e + E2E_DATABASE_URL, served on :3000
+```
+
+- **Unit** covers the security-critical pure logic in `shared/permissions.ts`, `app/utils/{org,format}.ts`, and the exported `maskEmail`/`toOrgRole` helpers.
+- **Server** exercises `requireActiveMembership`, the `membership.ts` service (expiry filter, multi-tenant isolation) and invitation masking against a real Postgres. It seeds **only** through `auth.api.*` (rule 4); the one test-only DB write is `expireInvitation()`. Gated on `TEST_DATABASE_URL` — **never** falls back to the dev `DATABASE_URL`; unset → the suite skips (green).
+- **E2E** drives signup/onboarding, per-role home routing, permission denial (401/403), and the cross-user cache-isolation regression. The app is served on **port 3000** (Better Auth origin check) via `--dotenv .env.e2e`, isolating it from the dev DB. Local-only, not in CI.
+- CI (`.github/workflows/ci.yml`) runs lint → typecheck → unit → server (with a Postgres service) → build.
+
 ## Quality gates (must pass before done)
 
 ```bash
 pnpm typecheck   # nuxt typecheck (vue-tsc)
 pnpm lint        # eslint
+pnpm test        # vitest unit tier (add test:server when a test DB is available)
 ```
 
 ## Known gotchas

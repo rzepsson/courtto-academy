@@ -10,7 +10,7 @@ import type { OrgRole } from '../../../shared/permissions'
 // The `role` column is a free-text string at the DB level and may hold legacy
 // values (e.g. Better Auth's default 'member' from before custom roles). Coerce
 // anything unknown to the least-privileged role so it never crashes the UI.
-function toOrgRole(value: string | null): OrgRole {
+export function toOrgRole(value: string | null): OrgRole {
   return value && isOrgRole(value) ? value : 'student'
 }
 
@@ -89,7 +89,7 @@ export async function listPendingInvitations(organizationId: string): Promise<In
   return rows.map(row => ({ ...row, role: toOrgRole(row.role) }))
 }
 
-function maskEmail(email: string): string {
+export function maskEmail(email: string): string {
   const [local = '', domain = ''] = email.split('@')
   const visible = local.slice(0, 1)
   return `${visible}${'*'.repeat(Math.max(local.length - 1, 2))}@${domain}`

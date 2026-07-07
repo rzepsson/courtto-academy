@@ -18,6 +18,11 @@ logs
 .fleet
 .idea
 
+# Test artifacts
+test-results
+playwright-report
+.playwright
+
 # Local env files
 .env
 .env.*

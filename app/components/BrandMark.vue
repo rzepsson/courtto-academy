@@ -1,21 +1,23 @@
 <script setup lang="ts">
-defineProps<{ horizontal?: boolean }>()
+defineProps<{ horizontal?: boolean, collapsed?: boolean }>()
 </script>
 
 <template>
   <div
     v-if="horizontal"
-    class="flex select-none items-center gap-3"
+    class="flex select-none items-center gap-3 overflow-hidden"
   >
-    <AppLogo class="size-9 shrink-0" />
-    <div class="leading-tight">
-      <p class="text-base font-bold tracking-tight text-highlighted">
-        Courtto
-      </p>
-      <p class="text-[10px] font-medium uppercase tracking-[0.28em] text-primary">
-        Academy
-      </p>
-    </div>
+    <AppLogo class="size-8 shrink-0" />
+    <SidebarReveal :collapsed="collapsed">
+      <div class="leading-tight">
+        <p class="whitespace-nowrap text-base font-bold tracking-tight text-highlighted">
+          Courtto
+        </p>
+        <p class="whitespace-nowrap text-[10px] font-medium uppercase tracking-[0.28em] text-primary">
+          Academy
+        </p>
+      </div>
+    </SidebarReveal>
   </div>
   <div
     v-else
