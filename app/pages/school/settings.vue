@@ -5,6 +5,7 @@ definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
 
 const { t } = useI18n()
 const toast = useToast()
+const { toastError } = useApiError()
 const { data: context } = await useAppContext()
 
 const active = computed(() => activeMembershipOf(context.value))
@@ -47,8 +48,7 @@ async function onSave(event: FormSubmitEvent<SettingsForm>) {
   saving.value = false
 
   if (error) {
-    const description = error.code === 'SLUG_IS_TAKEN' ? t('onboarding.errors.slugTaken') : error.message
-    toast.add({ title: t('school.settings.errors.saveFailed'), description, color: 'error' })
+    toastError('school.settings.errors.saveFailed', error)
     return
   }
 
@@ -82,7 +82,7 @@ async function onDelete() {
   deleting.value = false
 
   if (error) {
-    toast.add({ title: t('school.settings.errors.deleteFailed'), description: error.message, color: 'error' })
+    toastError('school.settings.errors.deleteFailed', error)
     return
   }
 

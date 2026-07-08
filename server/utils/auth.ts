@@ -14,6 +14,18 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true
   },
+  session: {
+    // Signed, short-lived copy of the session in a cookie so most requests
+    // (SSR render + every requireUserSession) skip the DB round trip. Safe here
+    // because activeOrganizationId only ever changes through Better Auth's own
+    // API (setActive / the create hook), which refreshes this cache via
+    // Set-Cookie; and /api/app-context re-reads memberships live, so removal
+    // from a school is caught within the DB, not this window.
+    cookieCache: {
+      enabled: true,
+      maxAge: 60 * 5
+    }
+  },
   databaseHooks: {
     session: {
       create: {

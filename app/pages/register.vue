@@ -4,7 +4,7 @@ import type { FormError, FormSubmitEvent } from '@nuxt/ui'
 definePageMeta({ middleware: 'guest', layout: 'auth' })
 
 const { t } = useI18n()
-const toast = useToast()
+const { toastError } = useApiError()
 const route = useRoute()
 
 const redirectTarget = computed(() => sanitizeRedirect(route.query.redirect))
@@ -37,7 +37,7 @@ async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
 
   if (error) {
     loading.value = false
-    toast.add({ title: t('auth.errors.signUpFailed'), description: error.message, color: 'error' })
+    toastError('auth.errors.signUpFailed', error)
     return
   }
 

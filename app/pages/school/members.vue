@@ -7,6 +7,7 @@ definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
 
 const { t, locale } = useI18n()
 const toast = useToast()
+const { toastError } = useApiError()
 const { copiedId, copy: copyInviteLink } = useInviteLink()
 const { data: session } = await useAuthSession()
 const origin = useRequestURL().origin
@@ -82,7 +83,7 @@ async function changeRole(row: MemberRow, role: InvitableRole) {
   const { error } = await authClient.organization.updateMemberRole({ memberId: row.id, role })
 
   if (error) {
-    toast.add({ title: t('school.members.errors.updateFailed'), description: error.message, color: 'error' })
+    toastError('school.members.errors.updateFailed', error)
     return
   }
 
@@ -130,7 +131,7 @@ async function confirmRemove() {
   removing.value = false
 
   if (error) {
-    toast.add({ title: t('school.members.errors.removeFailed'), description: error.message, color: 'error' })
+    toastError('school.members.errors.removeFailed', error)
     return
   }
 
@@ -143,7 +144,7 @@ async function cancelInvitation(invitationId: string) {
   const { error } = await authClient.organization.cancelInvitation({ invitationId })
 
   if (error) {
-    toast.add({ title: t('school.invitations.errors.cancelFailed'), description: error.message, color: 'error' })
+    toastError('school.invitations.errors.cancelFailed', error)
     return
   }
 

@@ -14,6 +14,47 @@
     "generic": {
       "title": "Something went wrong",
       "description": "An unexpected error occurred. Please try again in a moment."
+    },
+    "rateLimited": "Too many attempts. Please wait a moment and try again.",
+    "network": "Can't reach the server. Check your connection and try again.",
+    "codes": {
+      "INVALID_EMAIL_OR_PASSWORD": "Incorrect email or password.",
+      "INVALID_EMAIL": "Please enter a valid email address.",
+      "INVALID_PASSWORD": "Incorrect password.",
+      "USER_ALREADY_EXISTS": "An account with this email already exists.",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists. Try signing in instead.",
+      "PASSWORD_TOO_SHORT": "Password must be at least 8 characters.",
+      "PASSWORD_TOO_LONG": "Password is too long.",
+      "USER_NOT_FOUND": "We couldn't find an account with this email.",
+      "EMAIL_NOT_VERIFIED": "Please verify your email address before signing in.",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "No password sign-in is set up for this account.",
+      "ACCOUNT_NOT_FOUND": "Account not found.",
+      "FAILED_TO_CREATE_USER": "We couldn't create your account. Please try again.",
+      "FAILED_TO_CREATE_SESSION": "We couldn't sign you in. Please try again.",
+      "SESSION_EXPIRED": "Your session has expired. Please sign in again.",
+      "ORGANIZATION_ALREADY_EXISTS": "This handle is already taken — try another one.",
+      "ORGANIZATION_SLUG_ALREADY_TAKEN": "This handle is already taken — try another one.",
+      "ORGANIZATION_NOT_FOUND": "This school no longer exists.",
+      "YOU_ARE_NOT_ALLOWED_TO_CREATE_A_NEW_ORGANIZATION": "You don't have permission to create a school.",
+      "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS": "You've reached the maximum number of schools.",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION": "You don't have permission to change these settings.",
+      "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION": "You don't have permission to delete this school.",
+      "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION": "This person isn't a member of the school.",
+      "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "This person is already a member of the school.",
+      "MEMBER_NOT_FOUND": "This member no longer exists.",
+      "ROLE_NOT_FOUND": "That role doesn't exist.",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER": "You don't have permission to change this member's role.",
+      "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER": "You don't have permission to remove this member.",
+      "YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION": "You don't have permission to invite people to this school.",
+      "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE": "You don't have permission to invite someone with this role.",
+      "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "This person has already been invited.",
+      "INVITATION_NOT_FOUND": "This invitation no longer exists.",
+      "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "This invitation was sent to a different email address.",
+      "YOU_ARE_NOT_ALLOWED_TO_CANCEL_THIS_INVITATION": "You don't have permission to cancel this invitation.",
+      "INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION": "The person who sent this invitation is no longer with the school.",
+      "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "You're the only owner — assign another owner before leaving.",
+      "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "This school has reached its member limit.",
+      "INVITATION_LIMIT_REACHED": "This school has reached its invitation limit."
     }
   },
   "common": {
@@ -98,7 +139,7 @@
     },
     "join": {
       "title": "Join a school",
-      "subtitle": "Paste the invitation link you received from your school.",
+      "subtitle": "Enter the code or invite link your school gave you.",
       "submit": "Continue"
     },
     "orDivider": "or",
@@ -109,16 +150,16 @@
       "schoolNamePlaceholder": "Ace Tennis Academy",
       "slug": "School handle",
       "slugHelp": "A unique identifier for your school. You can change it later.",
-      "inviteLink": "Invitation link",
-      "invitePlaceholder": "Paste your link here"
+      "inviteOrCode": "Invite code or link",
+      "invitePlaceholder": "ABCD-EFGH or an invite link",
+      "inviteHelp": "Have a short code or a link? Either one works."
     },
     "errors": {
       "nameRequired": "Please enter your school's name.",
       "slugRequired": "Please enter a handle.",
       "slugInvalid": "Use lowercase letters, numbers and single dashes.",
-      "slugTaken": "This handle is already taken — try another one.",
       "createFailed": "Could not create the school",
-      "inviteInvalid": "That doesn't look like a valid invitation link."
+      "inviteInvalid": "That doesn't look like a valid code or link."
     },
     "backToDashboard": "Back to dashboard"
   },
@@ -169,6 +210,7 @@
     "codeLabel": "Join code",
     "codePlaceholder": "ABCD-EFGH",
     "continue": "Continue",
+    "inputInvalid": "That doesn't look like a valid code or link.",
     "confirmTitle": "Join {school}",
     "confirmSubtitle": "You'll join as a student.",
     "join": "Join school",

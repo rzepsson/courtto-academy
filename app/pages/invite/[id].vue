@@ -3,6 +3,7 @@ definePageMeta({ layout: 'auth' })
 
 const { t, locale } = useI18n()
 const toast = useToast()
+const { toastError } = useApiError()
 const route = useRoute()
 
 const invitationId = computed(() => String(route.params.id))
@@ -44,7 +45,7 @@ async function onAccept() {
 
   if (error) {
     accepting.value = false
-    toast.add({ title: t('invite.errors.acceptFailed'), description: error.message, color: 'error' })
+    toastError('invite.errors.acceptFailed', error)
     return
   }
 
@@ -60,7 +61,7 @@ async function onDecline() {
 
   if (error) {
     declining.value = false
-    toast.add({ title: t('invite.errors.declineFailed'), description: error.message, color: 'error' })
+    toastError('invite.errors.declineFailed', error)
     return
   }
 

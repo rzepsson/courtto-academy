@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   activeMembershipOf,
   extractInvitationId,
+  resolveJoinTarget,
   sanitizeRedirect,
   slugify,
   validateSchoolForm,
@@ -79,6 +80,37 @@ describe('extractInvitationId', () => {
     expect(extractInvitationId('   ')).toBeNull()
     expect(extractInvitationId('not a valid id!')).toBeNull()
     expect(extractInvitationId('https://evil.com/x')).toBeNull()
+  })
+})
+
+describe('resolveJoinTarget', () => {
+  it('routes a join link (URL) to the join page', () => {
+    expect(resolveJoinTarget('https://courtto.app/join/ABCDEFGH')).toBe('/join/ABCDEFGH')
+    expect(resolveJoinTarget('http://localhost:3000/join/ABCDEFGH?x=1')).toBe('/join/ABCDEFGH')
+  })
+
+  it('routes an invite link (URL) to the invite page', () => {
+    expect(resolveJoinTarget('https://courtto.app/invite/tok3n_ID')).toBe('/invite/tok3n_ID')
+  })
+
+  it('treats a bare 8-char code as a join code, ignoring case and dashes', () => {
+    expect(resolveJoinTarget('ABCDEFGH')).toBe('/join/ABCDEFGH')
+    expect(resolveJoinTarget('abcd-efgh')).toBe('/join/ABCDEFGH')
+    expect(resolveJoinTarget('  ABCD EFGH  ')).toBe('/join/ABCDEFGH')
+  })
+
+  it('falls back to an invitation id for a bare non-code token', () => {
+    // Longer than 8 chars → not a join code, so treated as an invite id.
+    expect(resolveJoinTarget('tok3n_invitation_id')).toBe('/invite/tok3n_invitation_id')
+    // 8 chars but contains ambiguous 0/1 that the code alphabet excludes.
+    expect(resolveJoinTarget('ABCD01GH')).toBe('/invite/ABCD01GH')
+  })
+
+  it('returns null for empty or junk input', () => {
+    expect(resolveJoinTarget('')).toBeNull()
+    expect(resolveJoinTarget('   ')).toBeNull()
+    expect(resolveJoinTarget('not a code!')).toBeNull()
+    expect(resolveJoinTarget('https://evil.com/x')).toBeNull()
   })
 })
 

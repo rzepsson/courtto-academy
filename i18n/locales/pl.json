@@ -14,6 +14,47 @@
     "generic": {
       "title": "Coś poszło nie tak",
       "description": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie za chwilę."
+    },
+    "rateLimited": "Zbyt wiele prób. Odczekaj chwilę i spróbuj ponownie.",
+    "network": "Nie można połączyć się z serwerem. Sprawdź połączenie i spróbuj ponownie.",
+    "codes": {
+      "INVALID_EMAIL_OR_PASSWORD": "Nieprawidłowy e-mail lub hasło.",
+      "INVALID_EMAIL": "Podaj prawidłowy adres e-mail.",
+      "INVALID_PASSWORD": "Nieprawidłowe hasło.",
+      "USER_ALREADY_EXISTS": "Konto z tym adresem e-mail już istnieje.",
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Konto z tym adresem e-mail już istnieje. Zaloguj się zamiast tego.",
+      "PASSWORD_TOO_SHORT": "Hasło musi mieć co najmniej 8 znaków.",
+      "PASSWORD_TOO_LONG": "Hasło jest zbyt długie.",
+      "USER_NOT_FOUND": "Nie znaleziono konta z tym adresem e-mail.",
+      "EMAIL_NOT_VERIFIED": "Przed zalogowaniem potwierdź swój adres e-mail.",
+      "CREDENTIAL_ACCOUNT_NOT_FOUND": "Dla tego konta nie skonfigurowano logowania hasłem.",
+      "ACCOUNT_NOT_FOUND": "Nie znaleziono konta.",
+      "FAILED_TO_CREATE_USER": "Nie udało się utworzyć konta. Spróbuj ponownie.",
+      "FAILED_TO_CREATE_SESSION": "Nie udało się zalogować. Spróbuj ponownie.",
+      "SESSION_EXPIRED": "Twoja sesja wygasła. Zaloguj się ponownie.",
+      "ORGANIZATION_ALREADY_EXISTS": "Ten identyfikator jest już zajęty — wybierz inny.",
+      "ORGANIZATION_SLUG_ALREADY_TAKEN": "Ten identyfikator jest już zajęty — wybierz inny.",
+      "ORGANIZATION_NOT_FOUND": "Ta szkoła już nie istnieje.",
+      "YOU_ARE_NOT_ALLOWED_TO_CREATE_A_NEW_ORGANIZATION": "Nie masz uprawnień do utworzenia szkoły.",
+      "YOU_HAVE_REACHED_THE_MAXIMUM_NUMBER_OF_ORGANIZATIONS": "Osiągnięto maksymalną liczbę szkół.",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_ORGANIZATION": "Nie masz uprawnień do zmiany tych ustawień.",
+      "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION": "Nie masz uprawnień do usunięcia tej szkoły.",
+      "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION": "Ta osoba nie należy do szkoły.",
+      "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "Ta osoba już należy do szkoły.",
+      "MEMBER_NOT_FOUND": "Ten członek już nie istnieje.",
+      "ROLE_NOT_FOUND": "Taka rola nie istnieje.",
+      "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER": "Nie masz uprawnień do zmiany roli tego członka.",
+      "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER": "Nie masz uprawnień do usunięcia tego członka.",
+      "YOU_ARE_NOT_ALLOWED_TO_INVITE_USERS_TO_THIS_ORGANIZATION": "Nie masz uprawnień do zapraszania osób do tej szkoły.",
+      "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE": "Nie masz uprawnień do zaproszenia osoby z tą rolą.",
+      "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION": "Ta osoba została już zaproszona.",
+      "INVITATION_NOT_FOUND": "To zaproszenie już nie istnieje.",
+      "YOU_ARE_NOT_THE_RECIPIENT_OF_THE_INVITATION": "To zaproszenie wysłano na inny adres e-mail.",
+      "YOU_ARE_NOT_ALLOWED_TO_CANCEL_THIS_INVITATION": "Nie masz uprawnień do anulowania tego zaproszenia.",
+      "INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION": "Osoba, która wysłała to zaproszenie, nie należy już do szkoły.",
+      "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "Jesteś jedynym właścicielem — przypisz innego właściciela przed odejściem.",
+      "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "Ta szkoła osiągnęła limit członków.",
+      "INVITATION_LIMIT_REACHED": "Ta szkoła osiągnęła limit zaproszeń."
     }
   },
   "common": {
@@ -98,7 +139,7 @@
     },
     "join": {
       "title": "Dołącz do szkoły",
-      "subtitle": "Wklej link z zaproszeniem otrzymany od swojej szkoły.",
+      "subtitle": "Wpisz kod lub wklej link, który dała Ci szkoła.",
       "submit": "Dalej"
     },
     "orDivider": "lub",
@@ -109,16 +150,16 @@
       "schoolNamePlaceholder": "Akademia Tenisa As",
       "slug": "Identyfikator szkoły",
       "slugHelp": "Unikalny identyfikator Twojej szkoły. Możesz go później zmienić.",
-      "inviteLink": "Link z zaproszeniem",
-      "invitePlaceholder": "Wklej tutaj swój link"
+      "inviteOrCode": "Kod lub link zaproszenia",
+      "invitePlaceholder": "ABCD-EFGH lub link zaproszenia",
+      "inviteHelp": "Masz krótki kod albo link? Jedno i drugie zadziała."
     },
     "errors": {
       "nameRequired": "Podaj nazwę szkoły.",
       "slugRequired": "Podaj identyfikator.",
       "slugInvalid": "Użyj małych liter, cyfr i pojedynczych myślników.",
-      "slugTaken": "Ten identyfikator jest już zajęty — wybierz inny.",
       "createFailed": "Nie udało się założyć szkoły",
-      "inviteInvalid": "To nie wygląda na poprawny link z zaproszeniem."
+      "inviteInvalid": "To nie wygląda na poprawny kod ani link."
     },
     "backToDashboard": "Wróć do panelu"
   },
@@ -169,6 +210,7 @@
     "codeLabel": "Kod dołączenia",
     "codePlaceholder": "ABCD-EFGH",
     "continue": "Dalej",
+    "inputInvalid": "To nie wygląda na poprawny kod ani link.",
     "confirmTitle": "Dołącz do {school}",
     "confirmSubtitle": "Dołączysz jako uczeń.",
     "join": "Dołącz do szkoły",

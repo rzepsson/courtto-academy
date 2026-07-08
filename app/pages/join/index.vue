@@ -4,15 +4,21 @@ definePageMeta({ layout: 'auth' })
 const { t } = useI18n()
 
 const state = reactive({ code: '' })
-// Route param resolution normalizes anyway; strip here only so the URL we push
-// is clean ("ABCD-EFGH" typed → /join/ABCDEFGH).
-const normalized = computed(() => state.code.toUpperCase().replace(/[^A-Z0-9]/g, ''))
-const canContinue = computed(() => normalized.value.length > 0)
+const error = ref(false)
+const canContinue = computed(() => state.code.trim().length > 0)
 
+// Resolve through the shared smart parser so a pasted link still works here
+// (routes to /join/<code> or /invite/<id>) instead of 404-ing.
 function onSubmit() {
-  if (canContinue.value) {
-    navigateTo(`/join/${normalized.value}`)
+  const target = resolveJoinTarget(state.code)
+
+  if (!target) {
+    error.value = true
+    return
   }
+
+  error.value = false
+  navigateTo(target)
 }
 </script>
 
@@ -49,6 +55,7 @@ function onSubmit() {
         <UFormField
           :label="t('join.codeLabel')"
           name="code"
+          :error="error ? t('join.inputInvalid') : undefined"
         >
           <UInput
             v-model="state.code"
@@ -58,6 +65,7 @@ function onSubmit() {
             :placeholder="t('join.codePlaceholder')"
             class="w-full"
             :ui="{ base: 'text-center font-mono uppercase tracking-[0.25em]' }"
+            @update:model-value="error = false"
           />
         </UFormField>
 

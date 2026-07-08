@@ -1,6 +1,5 @@
 export function useOrgSwitch() {
-  const { t } = useI18n()
-  const toast = useToast()
+  const { toastError } = useApiError()
   const { data: context } = useAppContext()
 
   const switching = ref(false)
@@ -17,7 +16,7 @@ export function useOrgSwitch() {
 
     if (error) {
       switching.value = false
-      toast.add({ title: t('orgSwitcher.switchFailed'), description: error.message, color: 'error' })
+      toastError('orgSwitcher.switchFailed', error)
       return
     }
 

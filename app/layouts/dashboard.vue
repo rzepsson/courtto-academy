@@ -38,18 +38,10 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
   }
 })
 
-const signingOut = ref(false)
-
-async function onSignOut() {
-  signingOut.value = true
-  await authClient.signOut()
-  clearAppContext()
-  await refreshAuthSession()
-  await navigateTo('/login')
-}
+const { signingOut, signOut } = useSignOut()
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
-  { label: t('auth.signOut'), icon: 'i-lucide-log-out', onSelect: () => { onSignOut() } }
+  { label: t('auth.signOut'), icon: 'i-lucide-log-out', onSelect: () => { signOut() } }
 ]])
 </script>
 

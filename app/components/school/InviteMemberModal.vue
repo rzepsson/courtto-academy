@@ -7,7 +7,7 @@ const open = defineModel<boolean>('open', { required: true })
 const emit = defineEmits<{ created: [] }>()
 
 const { t } = useI18n()
-const toast = useToast()
+const { toastError } = useApiError()
 const { copiedId, linkFor, copy } = useInviteLink()
 
 interface InviteForm {
@@ -52,7 +52,7 @@ async function onSubmit(event: FormSubmitEvent<InviteForm>) {
   sending.value = false
 
   if (error || !data) {
-    toast.add({ title: t('school.invite.errors.failed'), description: error?.message, color: 'error' })
+    toastError('school.invite.errors.failed', error)
     return
   }
 

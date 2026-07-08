@@ -4,7 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 definePageMeta({ middleware: 'auth', layout: 'auth' })
 
 const { t } = useI18n()
-const toast = useToast()
+const { toastError } = useApiError()
 const { data: context } = await useAppContext()
 
 const hasMemberships = computed(() => (context.value?.memberships.length ?? 0) > 0)
@@ -38,8 +38,7 @@ async function onCreate(event: FormSubmitEvent<CreateSchoolForm>) {
 
   if (error || !data) {
     creating.value = false
-    const description = error?.code === 'SLUG_IS_TAKEN' ? t('onboarding.errors.slugTaken') : error?.message
-    toast.add({ title: t('onboarding.errors.createFailed'), description, color: 'error' })
+    toastError('onboarding.errors.createFailed', error)
     return
   }
 
@@ -52,15 +51,15 @@ const inviteInput = ref('')
 const inviteError = ref(false)
 
 async function onJoin() {
-  const id = extractInvitationId(inviteInput.value)
+  const target = resolveJoinTarget(inviteInput.value)
 
-  if (!id) {
+  if (!target) {
     inviteError.value = true
     return
   }
 
   inviteError.value = false
-  await navigateTo(`/invite/${id}`)
+  await navigateTo(target)
 }
 </script>
 
@@ -142,8 +141,9 @@ async function onJoin() {
             class="mt-8 flex flex-col gap-5"
           >
             <UFormField
-              :label="t('onboarding.fields.inviteLink')"
+              :label="t('onboarding.fields.inviteOrCode')"
               name="invite"
+              :help="t('onboarding.fields.inviteHelp')"
               :error="inviteError ? t('onboarding.errors.inviteInvalid') : undefined"
             >
               <UInput
