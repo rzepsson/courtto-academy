@@ -227,7 +227,8 @@
     "members": {
       "title": "Członkowie",
       "subtitle": "Wszyscy z dostępem do Twojej szkoły.",
-      "invite": "Zaproś kadrę",
+      "invite": "Zaproś",
+      "you": "Ty",
       "joined": "Dołączył(a) {date}",
       "actions": "Akcje członka",
       "changeRole": "Zmień rolę",
@@ -252,7 +253,7 @@
       "canceled": "Zaproszenie anulowane",
       "empty": {
         "title": "Brak oczekujących zaproszeń",
-        "description": "Zaproś trenerów i administratorów e-mailem — dostaną osobisty link. Uczniowie dołączą od razu kodem szkoły powyżej."
+        "description": "Zaproś kogokolwiek e-mailem i wybierz jego rolę — dostanie osobisty link. Uczniowie mogą też dołączyć sami kodem powyżej."
       },
       "errors": {
         "cancelFailed": "Nie udało się anulować zaproszenia"

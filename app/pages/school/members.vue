@@ -304,9 +304,18 @@ function dateLabel(value: string) {
         <MotionReveal :delay="0.1">
           <UCard variant="subtle">
             <template #header>
-              <h2 class="font-semibold text-highlighted">
-                {{ t('school.members.title') }}
-              </h2>
+              <div class="flex items-center gap-2.5">
+                <h2 class="font-semibold text-highlighted">
+                  {{ t('school.members.title') }}
+                </h2>
+                <UBadge
+                  v-if="!membersLoading"
+                  :label="String(members?.length ?? 0)"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                />
+              </div>
               <p class="mt-1 text-sm text-muted">
                 {{ t('school.members.subtitle') }}
               </p>
@@ -318,21 +327,40 @@ function dateLabel(value: string) {
             />
             <ul
               v-else
-              class="flex flex-col divide-y divide-default"
+              class="flex flex-col divide-y divide-default/60"
             >
               <li
                 v-for="row in members ?? []"
                 :key="row.id"
-                class="-mx-2 flex items-center justify-between gap-4 rounded-md px-2 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/40"
+                class="group -mx-2 flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/50"
               >
-                <UUser
-                  :name="row.user.name"
-                  :description="row.user.email"
-                  :avatar="{ src: row.user.image ?? undefined, alt: row.user.name }"
-                  size="sm"
-                />
-                <div class="flex items-center gap-3">
-                  <span class="hidden text-xs text-dimmed sm:block">
+                <div class="flex min-w-0 items-center gap-3">
+                  <UAvatar
+                    :src="row.user.image ?? undefined"
+                    :alt="row.user.name"
+                    size="md"
+                    class="shrink-0 ring-1 ring-default"
+                  />
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5">
+                      <p class="truncate text-sm font-medium text-highlighted">
+                        {{ row.user.name }}
+                      </p>
+                      <UBadge
+                        v-if="row.user.id === session?.user.id"
+                        :label="t('school.members.you')"
+                        color="neutral"
+                        variant="subtle"
+                        size="sm"
+                      />
+                    </div>
+                    <p class="truncate text-xs text-muted">
+                      {{ row.user.email }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex shrink-0 items-center gap-3">
+                  <span class="hidden text-xs text-dimmed md:block">
                     {{ t('school.members.joined', { date: dateLabel(row.createdAt) }) }}
                   </span>
                   <RoleBadge :role="row.role" />
@@ -346,6 +374,7 @@ function dateLabel(value: string) {
                       variant="ghost"
                       icon="i-lucide-ellipsis-vertical"
                       size="sm"
+                      class="text-dimmed transition-colors group-hover:text-default"
                       :aria-label="t('school.members.actions')"
                     />
                   </UDropdownMenu>
@@ -362,9 +391,18 @@ function dateLabel(value: string) {
         <MotionReveal :delay="0.2">
           <UCard variant="subtle">
             <template #header>
-              <h2 class="font-semibold text-highlighted">
-                {{ t('school.invitations.title') }}
-              </h2>
+              <div class="flex items-center gap-2.5">
+                <h2 class="font-semibold text-highlighted">
+                  {{ t('school.invitations.title') }}
+                </h2>
+                <UBadge
+                  v-if="!invitationsLoading && (invitations?.length ?? 0) > 0"
+                  :label="String(invitations?.length ?? 0)"
+                  color="neutral"
+                  variant="subtle"
+                  size="sm"
+                />
+              </div>
               <p class="mt-1 text-sm text-muted">
                 {{ t('school.invitations.subtitle') }}
               </p>
@@ -376,22 +414,34 @@ function dateLabel(value: string) {
             />
             <ul
               v-else-if="(invitations?.length ?? 0) > 0"
-              class="flex flex-col divide-y divide-default"
+              class="flex flex-col divide-y divide-default/60"
             >
               <li
                 v-for="invite in invitations ?? []"
                 :key="invite.id"
-                class="-mx-2 flex flex-wrap items-center justify-between gap-4 rounded-md px-2 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/40"
+                class="group -mx-2 flex flex-wrap items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/50"
               >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-highlighted">
-                    {{ invite.email }}
-                  </p>
-                  <p class="mt-0.5 text-xs text-dimmed">
-                    {{ t('school.invitations.expires', { date: dateLabel(invite.expiresAt) }) }}
-                  </p>
+                <div class="flex min-w-0 items-center gap-3">
+                  <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-elevated ring-1 ring-default">
+                    <UIcon
+                      name="i-lucide-mail"
+                      class="size-4 text-dimmed"
+                    />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-highlighted">
+                      {{ invite.email }}
+                    </p>
+                    <p class="mt-0.5 flex items-center gap-1 text-xs text-dimmed">
+                      <UIcon
+                        name="i-lucide-clock-3"
+                        class="size-3 shrink-0"
+                      />
+                      {{ t('school.invitations.expires', { date: dateLabel(invite.expiresAt) }) }}
+                    </p>
+                  </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex shrink-0 items-center gap-2">
                   <RoleBadge :role="invite.role" />
                   <UButton
                     color="neutral"

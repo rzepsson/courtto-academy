@@ -227,7 +227,8 @@
     "members": {
       "title": "Members",
       "subtitle": "Everyone with access to your school.",
-      "invite": "Invite staff",
+      "invite": "Invite",
+      "you": "You",
       "joined": "Joined {date}",
       "actions": "Member actions",
       "changeRole": "Change role",
@@ -252,7 +253,7 @@
       "canceled": "Invitation canceled",
       "empty": {
         "title": "No pending invitations",
-        "description": "Invite coaches and admins by email — they'll get a personal link. Students can join instantly with your school code above."
+        "description": "Invite anyone by email and choose their role — they'll get a personal link. Students can also join on their own with the code above."
       },
       "errors": {
         "cancelFailed": "Could not cancel the invitation"
