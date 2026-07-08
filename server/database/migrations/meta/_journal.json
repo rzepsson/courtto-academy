@@ -8,6 +8,20 @@
       "when": 1782512324955,
       "tag": "0000_tan_jigsaw",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783529021479,
+      "tag": "0001_purple_whirlwind",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783531136719,
+      "tag": "0002_normal_sentinels",
+      "breakpoints": true
     }
   ]
 }

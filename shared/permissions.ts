@@ -10,15 +10,14 @@ export const roles = {
   owner: ac.newRole(ownerAc.statements),
   admin: ac.newRole(adminAc.statements),
   coach: ac.newRole(memberAc.statements),
-  student: ac.newRole(memberAc.statements),
-  parent: ac.newRole(memberAc.statements)
+  student: ac.newRole(memberAc.statements)
 }
 
-export const ORG_ROLES = ['owner', 'admin', 'coach', 'student', 'parent'] as const
+export const ORG_ROLES = ['owner', 'admin', 'coach', 'student'] as const
 
 export type OrgRole = (typeof ORG_ROLES)[number]
 
-export const INVITABLE_ROLES = ['admin', 'coach', 'student', 'parent'] as const satisfies readonly OrgRole[]
+export const INVITABLE_ROLES = ['admin', 'coach', 'student'] as const satisfies readonly OrgRole[]
 
 export type InvitableRole = (typeof INVITABLE_ROLES)[number]
 
@@ -37,7 +36,7 @@ export type Area = (typeof AREAS)[number]
 export const AREA_ROLES = {
   school: ['owner', 'admin'],
   coach: ['coach'],
-  my: ['student', 'parent']
+  my: ['student']
 } as const satisfies Record<Area, readonly OrgRole[]>
 
 // Unknown/legacy roles fall into the least-privileged area so they always land

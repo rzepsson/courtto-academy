@@ -40,6 +40,17 @@ export interface Invitation {
   expiresAt: Date
 }
 
+export interface JoinCode {
+  code: string
+  enabled: boolean
+  expiresAt: Date
+}
+
+export interface JoinCodeTarget {
+  organizationId: string
+  organization: OrganizationSummary
+}
+
 export type InvitationLandingStatus = 'pending' | 'accepted' | 'rejected' | 'canceled' | 'expired'
 
 export interface InvitationLanding {

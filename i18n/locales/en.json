@@ -23,6 +23,7 @@
     "viewAll": "View all",
     "copy": "Copy",
     "copied": "Copied",
+    "copyFailed": "Could not copy to clipboard",
     "done": "Done",
     "cancel": "Cancel",
     "save": "Save changes"
@@ -42,14 +43,12 @@
     "owner": "Owner",
     "admin": "Admin",
     "coach": "Coach",
-    "student": "Student",
-    "parent": "Parent"
+    "student": "Student"
   },
   "roleDescriptions": {
     "admin": "Manages members, invitations and school settings.",
     "coach": "Runs trainings and works with groups.",
-    "student": "Trains at your school and follows their schedule.",
-    "parent": "Follows their child's trainings and payments."
+    "student": "Trains at your school and follows their schedule."
   },
   "orgSwitcher": {
     "label": "Switch school",
@@ -164,26 +163,71 @@
       }
     }
   },
+  "join": {
+    "promptTitle": "Join a school",
+    "subtitle": "Enter the code your school gave you to join instantly.",
+    "codeLabel": "Join code",
+    "codePlaceholder": "ABCD-EFGH",
+    "continue": "Continue",
+    "confirmTitle": "Join {school}",
+    "confirmSubtitle": "You'll join as a student.",
+    "join": "Join school",
+    "joined": "Welcome to {school}!",
+    "signedInAs": "Signed in as {email}",
+    "createAccount": "Create an account to join",
+    "signIn": "Sign in to join",
+    "roleNote": "You'll join as a student.",
+    "tryAnother": "Try another code",
+    "invalid": {
+      "title": "Code not found",
+      "description": "This code is invalid or has expired. Ask your school for the current one."
+    },
+    "errors": {
+      "joinFailed": "Could not join the school"
+    }
+  },
   "school": {
     "overview": {
       "greeting": "Welcome back, {name}",
       "tagline": "Here's what's happening at {school}.",
-      "stats": {
-        "members": "Members",
-        "coaches": "Coaches",
-        "players": "Students & parents",
-        "pendingInvites": "Pending invites"
+      "memberSince": "Running this school since {date}"
+    },
+    "modules": {
+      "schedule": "Lessons, court bookings and your school's calendar.",
+      "courts": "Manage your courts and their availability.",
+      "payments": "Passes, payments and billing history."
+    },
+    "joinCode": {
+      "title": "Student join code",
+      "subtitle": "Share this code and anyone can join your school as a student — no email needed.",
+      "expires": "Valid until {date}",
+      "copyCode": "Copy code",
+      "copyLink": "Copy link",
+      "regenerate": "Regenerate",
+      "generate": "Generate code",
+      "toggleLabel": "Self-enrollment",
+      "empty": {
+        "title": "No join code yet",
+        "description": "Generate a code so students can join on their own, then share it however you like."
       },
-      "recentMembers": {
-        "title": "Recent members",
-        "subtitle": "The latest people to join your school.",
-        "empty": "No members yet — invite your first coach or student."
+      "off": {
+        "title": "Self-enrollment is off",
+        "description": "Students can't join with a code right now. Turn it on to share your code again."
+      },
+      "regenerateConfirm": {
+        "title": "Regenerate join code?",
+        "description": "The current code stops working right away. Anyone who still needs to join will need the new one."
+      },
+      "generated": "New join code ready",
+      "errors": {
+        "rotateFailed": "Could not generate a join code",
+        "toggleFailed": "Could not update self-enrollment"
       }
     },
     "members": {
       "title": "Members",
       "subtitle": "Everyone with access to your school.",
-      "invite": "Invite",
+      "invite": "Invite staff",
       "joined": "Joined {date}",
       "actions": "Member actions",
       "changeRole": "Change role",
@@ -208,7 +252,7 @@
       "canceled": "Invitation canceled",
       "empty": {
         "title": "No pending invitations",
-        "description": "Invite coaches, students and parents — they'll get a link that adds them straight to your school."
+        "description": "Invite coaches and admins by email — they'll get a personal link. Students can join instantly with your school code above."
       },
       "errors": {
         "cancelFailed": "Could not cancel the invitation"
@@ -220,7 +264,6 @@
       "roleLabel": "Role",
       "submit": "Create invitation",
       "inviteAnother": "Invite someone else",
-      "copyFailed": "Could not copy the link",
       "linkReady": {
         "title": "Invitation created",
         "subtitle": "Share this link with the person you're inviting.",

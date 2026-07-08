@@ -1,0 +1,1 @@
+ALTER TABLE "org_join_code" ADD COLUMN "enabled" boolean DEFAULT true NOT NULL;

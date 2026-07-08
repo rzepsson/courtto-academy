@@ -90,6 +90,7 @@ function inviteAnother() {
             size="lg"
             icon="i-lucide-mail"
             :placeholder="t('auth.fields.emailPlaceholder')"
+            :disabled="sending"
             class="w-full"
           />
         </UFormField>
@@ -102,14 +103,16 @@ function inviteAnother() {
             v-model="state.role"
             :items="roleItems"
             variant="card"
-            :ui="{ fieldset: 'w-full gap-2' }"
+            :disabled="sending"
+            :ui="{
+              fieldset: 'w-full gap-2',
+              item: 'cursor-pointer transition-all duration-200 ease-out hover:border-primary/50 has-data-[state=checked]:bg-primary/5 has-data-[state=checked]:ring-1 has-data-[state=checked]:ring-primary/20 has-data-[state=checked]:shadow-sm'
+            }"
           />
         </UFormField>
 
-        <UButton
+        <PressButton
           type="submit"
-          block
-          size="lg"
           icon="i-lucide-user-plus"
           :loading="sending"
           :label="t('school.invite.submit')"
@@ -120,30 +123,41 @@ function inviteAnother() {
         v-else
         class="flex flex-col gap-5"
       >
-        <UAlert
-          color="success"
-          variant="subtle"
-          icon="i-lucide-check-circle-2"
-          :title="t('school.invite.linkReady.sentTo', { email: state.email })"
-          :description="t('school.invite.linkReady.hint')"
-        />
-
-        <UFieldGroup class="w-full">
-          <UInput
-            :model-value="inviteLink"
-            readonly
-            class="w-full font-mono"
-          />
-          <UButton
-            color="neutral"
+        <MotionReveal :y="8">
+          <UAlert
+            color="success"
             variant="subtle"
-            :icon="copiedId === createdId ? 'i-lucide-check' : 'i-lucide-copy'"
-            :label="copiedId === createdId ? t('common.copied') : t('common.copy')"
-            @click="createdId && copy(createdId)"
+            icon="i-lucide-check-circle-2"
+            :title="t('school.invite.linkReady.sentTo', { email: state.email })"
+            :description="t('school.invite.linkReady.hint')"
           />
-        </UFieldGroup>
+        </MotionReveal>
 
-        <div class="flex justify-end gap-2">
+        <MotionReveal
+          :y="8"
+          :delay="0.08"
+        >
+          <UFieldGroup class="w-full">
+            <UInput
+              :model-value="inviteLink"
+              readonly
+              class="w-full font-mono"
+            />
+            <UButton
+              color="neutral"
+              variant="subtle"
+              :icon="copiedId === createdId ? 'i-lucide-check' : 'i-lucide-copy'"
+              :label="copiedId === createdId ? t('common.copied') : t('common.copy')"
+              @click="createdId && copy(createdId)"
+            />
+          </UFieldGroup>
+        </MotionReveal>
+
+        <MotionReveal
+          :y="8"
+          :delay="0.16"
+          class="flex justify-end gap-2"
+        >
           <UButton
             color="neutral"
             variant="ghost"
@@ -154,7 +168,7 @@ function inviteAnother() {
             :label="t('common.done')"
             @click="open = false"
           />
-        </div>
+        </MotionReveal>
       </div>
     </template>
   </UModal>

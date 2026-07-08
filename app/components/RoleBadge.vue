@@ -8,8 +8,7 @@ const META: Record<OrgRole, { color: BadgeProps['color'], icon: string }> = {
   owner: { color: 'primary', icon: 'i-lucide-crown' },
   admin: { color: 'secondary', icon: 'i-lucide-shield-check' },
   coach: { color: 'info', icon: 'i-lucide-clipboard-list' },
-  student: { color: 'neutral', icon: 'i-lucide-graduation-cap' },
-  parent: { color: 'warning', icon: 'i-lucide-heart-handshake' }
+  student: { color: 'neutral', icon: 'i-lucide-graduation-cap' }
 }
 
 const props = defineProps<{

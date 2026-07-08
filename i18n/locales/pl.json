@@ -23,6 +23,7 @@
     "viewAll": "Zobacz wszystkich",
     "copy": "Kopiuj",
     "copied": "Skopiowano",
+    "copyFailed": "Nie udało się skopiować do schowka",
     "done": "Gotowe",
     "cancel": "Anuluj",
     "save": "Zapisz zmiany"
@@ -42,14 +43,12 @@
     "owner": "Właściciel",
     "admin": "Administrator",
     "coach": "Trener",
-    "student": "Uczeń",
-    "parent": "Rodzic"
+    "student": "Uczeń"
   },
   "roleDescriptions": {
     "admin": "Zarządza członkami, zaproszeniami i ustawieniami szkoły.",
     "coach": "Prowadzi treningi i pracuje z grupami.",
-    "student": "Trenuje w Twojej szkole i korzysta ze swojego grafiku.",
-    "parent": "Śledzi treningi i płatności swojego dziecka."
+    "student": "Trenuje w Twojej szkole i korzysta ze swojego grafiku."
   },
   "orgSwitcher": {
     "label": "Zmień szkołę",
@@ -164,26 +163,71 @@
       }
     }
   },
+  "join": {
+    "promptTitle": "Dołącz do szkoły",
+    "subtitle": "Wpisz kod otrzymany od szkoły, aby dołączyć od razu.",
+    "codeLabel": "Kod dołączenia",
+    "codePlaceholder": "ABCD-EFGH",
+    "continue": "Dalej",
+    "confirmTitle": "Dołącz do {school}",
+    "confirmSubtitle": "Dołączysz jako uczeń.",
+    "join": "Dołącz do szkoły",
+    "joined": "Witaj w {school}!",
+    "signedInAs": "Zalogowano jako {email}",
+    "createAccount": "Załóż konto, aby dołączyć",
+    "signIn": "Zaloguj się, aby dołączyć",
+    "roleNote": "Dołączysz jako uczeń.",
+    "tryAnother": "Wpisz inny kod",
+    "invalid": {
+      "title": "Nie znaleziono kodu",
+      "description": "Ten kod jest nieprawidłowy lub wygasł. Poproś szkołę o aktualny."
+    },
+    "errors": {
+      "joinFailed": "Nie udało się dołączyć do szkoły"
+    }
+  },
   "school": {
     "overview": {
       "greeting": "Witaj ponownie, {name}",
       "tagline": "Oto co dzieje się w {school}.",
-      "stats": {
-        "members": "Członkowie",
-        "coaches": "Trenerzy",
-        "players": "Uczniowie i rodzice",
-        "pendingInvites": "Oczekujące zaproszenia"
+      "memberSince": "Prowadzisz tę szkołę od {date}"
+    },
+    "modules": {
+      "schedule": "Zajęcia, rezerwacje kortów i kalendarz Twojej szkoły.",
+      "courts": "Zarządzaj kortami i ich dostępnością.",
+      "payments": "Karnety, płatności i historia rozliczeń."
+    },
+    "joinCode": {
+      "title": "Kod dla uczniów",
+      "subtitle": "Udostępnij ten kod, a każdy dołączy do szkoły jako uczeń — bez e-maila.",
+      "expires": "Ważny do {date}",
+      "copyCode": "Kopiuj kod",
+      "copyLink": "Kopiuj link",
+      "regenerate": "Wygeneruj nowy",
+      "generate": "Wygeneruj kod",
+      "toggleLabel": "Zapisy uczniów",
+      "empty": {
+        "title": "Brak kodu dołączenia",
+        "description": "Wygeneruj kod, aby uczniowie mogli dołączać samodzielnie, a potem udostępnij go dowolnie."
       },
-      "recentMembers": {
-        "title": "Ostatnio dołączyli",
-        "subtitle": "Najnowsze osoby w Twojej szkole.",
-        "empty": "Brak członków — zaproś pierwszego trenera lub ucznia."
+      "off": {
+        "title": "Zapisy przez kod są wyłączone",
+        "description": "Uczniowie nie mogą teraz dołączyć kodem. Włącz, aby znów udostępniać kod."
+      },
+      "regenerateConfirm": {
+        "title": "Wygenerować nowy kod?",
+        "description": "Obecny kod przestanie działać natychmiast. Kto jeszcze nie dołączył, będzie potrzebował nowego."
+      },
+      "generated": "Nowy kod dołączenia gotowy",
+      "errors": {
+        "rotateFailed": "Nie udało się wygenerować kodu",
+        "toggleFailed": "Nie udało się zmienić zapisów"
       }
     },
     "members": {
       "title": "Członkowie",
       "subtitle": "Wszyscy z dostępem do Twojej szkoły.",
-      "invite": "Zaproś",
+      "invite": "Zaproś kadrę",
       "joined": "Dołączył(a) {date}",
       "actions": "Akcje członka",
       "changeRole": "Zmień rolę",
@@ -208,7 +252,7 @@
       "canceled": "Zaproszenie anulowane",
       "empty": {
         "title": "Brak oczekujących zaproszeń",
-        "description": "Zaproś trenerów, uczniów i rodziców — otrzymają link, który doda ich prosto do Twojej szkoły."
+        "description": "Zaproś trenerów i administratorów e-mailem — dostaną osobisty link. Uczniowie dołączą od razu kodem szkoły powyżej."
       },
       "errors": {
         "cancelFailed": "Nie udało się anulować zaproszenia"
@@ -220,7 +264,6 @@
       "roleLabel": "Rola",
       "submit": "Utwórz zaproszenie",
       "inviteAnother": "Zaproś kolejną osobę",
-      "copyFailed": "Nie udało się skopiować linku",
       "linkReady": {
         "title": "Zaproszenie utworzone",
         "subtitle": "Udostępnij ten link zapraszanej osobie.",

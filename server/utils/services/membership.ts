@@ -46,6 +46,16 @@ export async function getFirstMembershipOrganizationId(userId: string): Promise<
   return row?.organizationId ?? null
 }
 
+export async function isOrganizationMember(organizationId: string, userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: member.id })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
+    .limit(1)
+
+  return row !== undefined
+}
+
 export async function listOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
   const rows = await db
     .select({

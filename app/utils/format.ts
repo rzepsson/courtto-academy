@@ -7,3 +7,10 @@ export function formatDate(
 ): string {
   return new Date(value).toLocaleDateString(locale, { dateStyle })
 }
+
+// Display-only grouping for join codes: "ABCDEFGH" → "ABCD-EFGH". Purely
+// cosmetic — the stored/redeemed value is always the ungrouped code, and the
+// server normalizes any dashes back out.
+export function formatJoinCode(code: string): string {
+  return code.replace(/(.{4})(?=.)/g, '$1-')
+}

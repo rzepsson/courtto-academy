@@ -9,15 +9,64 @@ const { t, locale } = useI18n()
 const toast = useToast()
 const { copiedId, copy: copyInviteLink } = useInviteLink()
 const { data: session } = await useAuthSession()
+const origin = useRequestURL().origin
 
 // Lazy so the page shell renders instantly on navigation; lists fill via skeletons.
 const { data: members, status: membersStatus, refresh: refreshMembers } = useLazyFetch('/api/school/members', { key: 'school:members' })
 const { data: invitations, status: invitationsStatus, refresh: refreshInvitations } = useLazyFetch('/api/school/invitations', { key: 'school:invitations' })
+const { data: joinCodeData, status: joinCodeStatus, refresh: refreshJoinCode } = useLazyFetch('/api/school/join-code', { key: 'school:joinCode' })
 
 const membersLoading = computed(() => membersStatus.value === 'pending')
 const invitationsLoading = computed(() => invitationsStatus.value === 'pending')
+const joinCodeLoading = computed(() => joinCodeStatus.value === 'pending')
 
 const inviteOpen = ref(false)
+
+const joinCode = computed(() => joinCodeData.value?.joinCode ?? null)
+const joinLink = computed(() => joinCode.value ? `${origin}/join/${joinCode.value.code}` : '')
+
+const { copiedKey, copy } = useClipboard()
+const rotating = ref(false)
+const togglingEnabled = ref(false)
+const regenerateOpen = ref(false)
+
+async function toggleEnabled(enabled: boolean) {
+  togglingEnabled.value = true
+  try {
+    await $fetch('/api/school/join-code', { method: 'PATCH', body: { enabled } })
+    await refreshJoinCode()
+  } catch {
+    toast.add({ title: t('school.joinCode.errors.toggleFailed'), color: 'error' })
+  } finally {
+    togglingEnabled.value = false
+  }
+}
+
+async function generateCode() {
+  rotating.value = true
+  try {
+    await $fetch('/api/school/join-code', { method: 'POST' })
+    await refreshJoinCode()
+    toast.add({ title: t('school.joinCode.generated'), color: 'success' })
+  } catch {
+    toast.add({ title: t('school.joinCode.errors.rotateFailed'), color: 'error' })
+  } finally {
+    rotating.value = false
+    regenerateOpen.value = false
+  }
+}
+
+function copyCode() {
+  if (joinCode.value) {
+    copy('code', formatJoinCode(joinCode.value.code))
+  }
+}
+
+function copyJoinLink() {
+  if (joinCode.value) {
+    copy('link', joinLink.value)
+  }
+}
 
 type MemberRow = NonNullable<typeof members.value>[number]
 
@@ -133,6 +182,128 @@ function dateLabel(value: string) {
         <MotionReveal>
           <UCard variant="subtle">
             <template #header>
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h2 class="font-semibold text-highlighted">
+                    {{ t('school.joinCode.title') }}
+                  </h2>
+                  <p class="mt-1 text-sm text-muted">
+                    {{ t('school.joinCode.subtitle') }}
+                  </p>
+                </div>
+                <USwitch
+                  v-if="joinCode"
+                  :model-value="joinCode.enabled"
+                  :disabled="togglingEnabled"
+                  :label="t('school.joinCode.toggleLabel')"
+                  class="shrink-0"
+                  @update:model-value="toggleEnabled"
+                />
+                <UIcon
+                  v-else-if="!joinCodeLoading"
+                  name="i-lucide-ticket"
+                  class="hidden size-5 shrink-0 text-dimmed sm:block"
+                />
+              </div>
+            </template>
+
+            <USkeleton
+              v-if="joinCodeLoading"
+              class="h-20 w-full"
+            />
+
+            <div
+              v-else-if="joinCode && joinCode.enabled"
+              class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="flex flex-col items-center rounded-xl bg-elevated/40 px-6 py-4 ring-1 ring-default sm:items-start">
+                <span class="font-mono text-3xl font-semibold tracking-[0.25em] text-highlighted">
+                  {{ formatJoinCode(joinCode.code) }}
+                </span>
+                <span class="mt-1.5 text-xs text-dimmed">
+                  {{ t('school.joinCode.expires', { date: dateLabel(joinCode.expiresAt) }) }}
+                </span>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <PressButton
+                  :block="false"
+                  size="md"
+                  :icon="copiedKey === 'code' ? 'i-lucide-check' : 'i-lucide-copy'"
+                  :label="copiedKey === 'code' ? t('common.copied') : t('school.joinCode.copyCode')"
+                  @click="copyCode"
+                />
+                <UButton
+                  color="neutral"
+                  variant="subtle"
+                  size="md"
+                  :icon="copiedKey === 'link' ? 'i-lucide-check' : 'i-lucide-link'"
+                  :label="copiedKey === 'link' ? t('common.copied') : t('school.joinCode.copyLink')"
+                  @click="copyJoinLink"
+                />
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="md"
+                  icon="i-lucide-refresh-cw"
+                  :label="t('school.joinCode.regenerate')"
+                  :loading="rotating"
+                  @click="regenerateOpen = true"
+                />
+              </div>
+            </div>
+
+            <div
+              v-else-if="joinCode"
+              class="flex items-center gap-3 rounded-xl bg-elevated/40 px-4 py-3 ring-1 ring-default"
+            >
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-full bg-elevated">
+                <UIcon
+                  name="i-lucide-pause"
+                  class="size-4 text-dimmed"
+                />
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-highlighted">
+                  {{ t('school.joinCode.off.title') }}
+                </p>
+                <p class="mt-0.5 text-sm text-muted">
+                  {{ t('school.joinCode.off.description') }}
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-else
+              class="flex flex-col items-center py-6 text-center"
+            >
+              <div class="flex size-12 items-center justify-center rounded-full bg-elevated">
+                <UIcon
+                  name="i-lucide-ticket"
+                  class="size-6 text-dimmed"
+                />
+              </div>
+              <p class="mt-3 text-sm font-medium text-highlighted">
+                {{ t('school.joinCode.empty.title') }}
+              </p>
+              <p class="mt-1 max-w-sm text-sm text-muted">
+                {{ t('school.joinCode.empty.description') }}
+              </p>
+              <PressButton
+                class="mt-4"
+                :block="false"
+                size="md"
+                icon="i-lucide-sparkles"
+                :label="t('school.joinCode.generate')"
+                :loading="rotating"
+                @click="generateCode"
+              />
+            </div>
+          </UCard>
+        </MotionReveal>
+
+        <MotionReveal :delay="0.1">
+          <UCard variant="subtle">
+            <template #header>
               <h2 class="font-semibold text-highlighted">
                 {{ t('school.members.title') }}
               </h2>
@@ -188,7 +359,7 @@ function dateLabel(value: string) {
           </UCard>
         </MotionReveal>
 
-        <MotionReveal :delay="0.1">
+        <MotionReveal :delay="0.2">
           <UCard variant="subtle">
             <template #header>
               <h2 class="font-semibold text-highlighted">
@@ -258,8 +429,10 @@ function dateLabel(value: string) {
               <p class="mt-1 max-w-sm text-sm text-muted">
                 {{ t('school.invitations.empty.description') }}
               </p>
-              <UButton
+              <PressButton
                 class="mt-4"
+                :block="false"
+                size="md"
                 variant="subtle"
                 icon="i-lucide-user-plus"
                 :label="t('school.members.invite')"
@@ -274,6 +447,29 @@ function dateLabel(value: string) {
         v-model:open="inviteOpen"
         @created="refreshInvitations()"
       />
+
+      <UModal
+        :open="regenerateOpen"
+        :title="t('school.joinCode.regenerateConfirm.title')"
+        :description="t('school.joinCode.regenerateConfirm.description')"
+        @update:open="(value: boolean) => { if (!value) regenerateOpen = false }"
+      >
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              :label="t('common.cancel')"
+              @click="regenerateOpen = false"
+            />
+            <UButton
+              :loading="rotating"
+              :label="t('school.joinCode.regenerate')"
+              @click="generateCode"
+            />
+          </div>
+        </template>
+      </UModal>
 
       <UModal
         :open="memberToRemove !== null"

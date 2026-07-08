@@ -42,16 +42,17 @@ describe('roleArea', () => {
     expect(roleArea('coach')).toBe('coach')
   })
 
-  it('routes student and parent to the my area', () => {
+  it('routes student to the my area', () => {
     expect(roleArea('student')).toBe('my')
-    expect(roleArea('parent')).toBe('my')
   })
 
   // Regression guard: an unknown/legacy role must resolve to a reachable area so
   // area middleware never bounces it between two guards that both reject it.
+  // 'parent' is a retired role (merged into student) and must still land in /my.
   it('falls back to the my area for an unknown role', () => {
     expect(roleArea('ghost' as OrgRole)).toBe('my')
     expect(roleArea('member' as OrgRole)).toBe('my')
+    expect(roleArea('parent' as OrgRole)).toBe('my')
   })
 
   it('every declared area is covered by AREA_ROLES', () => {
@@ -66,7 +67,6 @@ describe('roleHome', () => {
     expect(roleHome('owner')).toBe('/school')
     expect(roleHome('coach')).toBe('/coach')
     expect(roleHome('student')).toBe('/my')
-    expect(roleHome('parent')).toBe('/my')
   })
 
   it('sends an unknown role to /my', () => {

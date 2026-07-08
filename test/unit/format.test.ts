@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate } from '../../app/utils/format'
+import { formatDate, formatJoinCode } from '../../app/utils/format'
 
 describe('formatDate', () => {
   const date = new Date('2026-07-07T12:00:00Z')
@@ -19,5 +19,16 @@ describe('formatDate', () => {
 
   it('respects a custom dateStyle', () => {
     expect(formatDate(date, 'en-US', 'short')).toBe('7/7/26')
+  })
+})
+
+describe('formatJoinCode', () => {
+  it('groups an 8-char code into two blocks of four', () => {
+    expect(formatJoinCode('ABCDEFGH')).toBe('ABCD-EFGH')
+  })
+
+  it('leaves a short code untouched', () => {
+    expect(formatJoinCode('ABC')).toBe('ABC')
+    expect(formatJoinCode('ABCD')).toBe('ABCD')
   })
 })
