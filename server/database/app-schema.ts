@@ -42,3 +42,58 @@ export const orgJoinCodeRelations = relations(orgJoinCode, ({ one }) => ({
     references: [organization.id]
   })
 }))
+
+// Extended school profile (contact, address, regional & business details) that
+// Better Auth's `organization` table doesn't model. One row per org (PK =
+// organizationId). Kept out of the auth table on purpose: this is app-domain
+// data, we don't want to bloat every get-session/get-full-organization payload,
+// and it grows independently of `pnpm auth:generate`. Owner/admin fill it in
+// later from school settings — not during onboarding. `name`, `slug` and `logo`
+// stay on `organization` (edited via Better Auth); everything else lives here.
+export const orgProfile = pgTable('org_profile', {
+  organizationId: text('organization_id')
+    .primaryKey()
+    .references(() => organization.id, { onDelete: 'cascade' }),
+
+  // Public profile / marketing
+  description: text('description'),
+  // Which racket sports the school offers (e.g. ['tennis', 'padel']); drives
+  // terminology across the app. Stored as a Postgres text[].
+  sports: text('sports').array(),
+
+  // Contact — public-facing and the reply-to identity for future notifications.
+  contactEmail: text('contact_email'),
+  contactPhone: text('contact_phone'),
+  websiteUrl: text('website_url'),
+  instagramUrl: text('instagram_url'),
+  facebookUrl: text('facebook_url'),
+
+  // Location / address
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city: text('city'),
+  postalCode: text('postal_code'),
+  country: text('country'), // ISO 3166-1 alpha-2
+
+  // Regional / operational — critical for scheduling & notification timing.
+  timezone: text('timezone'), // IANA, e.g. 'Europe/Warsaw'
+  locale: text('locale'), // default notification language, 'pl' | 'en'
+  currency: text('currency'), // ISO 4217, e.g. 'PLN' — future billing
+
+  // Business / legal — for future invoicing.
+  legalName: text('legal_name'),
+  taxId: text('tax_id'),
+
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at')
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull()
+})
+
+export const orgProfileRelations = relations(orgProfile, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orgProfile.organizationId],
+    references: [organization.id]
+  })
+}))

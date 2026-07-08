@@ -46,6 +46,13 @@ export interface JoinCode {
   expiresAt: Date
 }
 
+export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect
+
+// The editable subset of the profile (everything except the org id and the
+// managed timestamps). Both the PATCH body and the service `set` are typed
+// against this so a new column is wired through in one place.
+export type OrgProfileInput = Omit<OrgProfile, 'organizationId' | 'createdAt' | 'updatedAt'>
+
 export interface JoinCodeTarget {
   organizationId: string
   organization: OrganizationSummary

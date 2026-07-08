@@ -319,11 +319,69 @@
       }
     },
     "settings": {
-      "profile": {
-        "title": "School profile",
-        "subtitle": "Your school's name and handle."
+      "tagline": "Manage your school's profile, contact details and preferences.",
+      "general": {
+        "title": "General",
+        "subtitle": "Your school's name, handle and logo."
+      },
+      "logo": {
+        "label": "Logo",
+        "hint": "PNG, JPG or WebP, up to 2 MB.",
+        "upload": "Upload logo",
+        "change": "Change logo",
+        "remove": "Remove",
+        "uploading": "Uploading…",
+        "notConfigured": "Logo uploads are not available yet — object storage isn't configured."
+      },
+      "publicProfile": {
+        "title": "Public profile",
+        "subtitle": "How your school presents itself to players.",
+        "description": "Description",
+        "descriptionPlaceholder": "A few words about your school…",
+        "sports": "Sports offered",
+        "sportsHint": "Which racket sports you run."
+      },
+      "contact": {
+        "title": "Contact",
+        "subtitle": "Public contact details and the reply-to for future notifications.",
+        "email": "Contact email",
+        "phone": "Phone",
+        "website": "Website",
+        "instagram": "Instagram",
+        "facebook": "Facebook"
+      },
+      "location": {
+        "title": "Location",
+        "subtitle": "Where your school is based.",
+        "addressLine1": "Address",
+        "addressLine2": "Address line 2",
+        "city": "City",
+        "postalCode": "Postal code",
+        "country": "Country"
+      },
+      "regional": {
+        "title": "Regional settings",
+        "subtitle": "Time zone, language and currency — used for scheduling and notifications.",
+        "timezone": "Time zone",
+        "language": "Default language",
+        "currency": "Currency"
+      },
+      "business": {
+        "title": "Business details",
+        "subtitle": "Company information for future invoicing.",
+        "legalName": "Legal name",
+        "taxId": "Tax ID"
+      },
+      "sports": {
+        "tennis": "Tennis",
+        "padel": "Padel"
+      },
+      "languages": {
+        "pl": "Polish",
+        "en": "English"
       },
       "saved": "Settings saved",
+      "logoUpdated": "Logo updated",
       "deleted": "School deleted",
       "danger": {
         "title": "Danger zone",
@@ -336,7 +394,12 @@
       },
       "errors": {
         "saveFailed": "Could not save the settings",
-        "deleteFailed": "Could not delete the school"
+        "deleteFailed": "Could not delete the school",
+        "uploadFailed": "Could not upload the logo",
+        "email": "Enter a valid email address",
+        "phone": "Enter a valid phone number",
+        "url": "Enter a valid URL (starting with http:// or https://)",
+        "invalid": "This value is invalid"
       }
     }
   },

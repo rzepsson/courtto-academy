@@ -319,11 +319,69 @@
       }
     },
     "settings": {
-      "profile": {
-        "title": "Profil szkoły",
-        "subtitle": "Nazwa i identyfikator Twojej szkoły."
+      "tagline": "Zarządzaj profilem szkoły, danymi kontaktowymi i preferencjami.",
+      "general": {
+        "title": "Ogólne",
+        "subtitle": "Nazwa, identyfikator i logo Twojej szkoły."
+      },
+      "logo": {
+        "label": "Logo",
+        "hint": "PNG, JPG lub WebP, do 2 MB.",
+        "upload": "Wgraj logo",
+        "change": "Zmień logo",
+        "remove": "Usuń",
+        "uploading": "Wgrywanie…",
+        "notConfigured": "Wgrywanie logo nie jest jeszcze dostępne — magazyn plików nie jest skonfigurowany."
+      },
+      "publicProfile": {
+        "title": "Profil publiczny",
+        "subtitle": "Jak Twoja szkoła prezentuje się zawodnikom.",
+        "description": "Opis",
+        "descriptionPlaceholder": "Kilka słów o Twojej szkole…",
+        "sports": "Oferowane dyscypliny",
+        "sportsHint": "Jakie sporty rakietowe prowadzisz."
+      },
+      "contact": {
+        "title": "Kontakt",
+        "subtitle": "Publiczne dane kontaktowe i adres zwrotny przyszłych powiadomień.",
+        "email": "E-mail kontaktowy",
+        "phone": "Telefon",
+        "website": "Strona WWW",
+        "instagram": "Instagram",
+        "facebook": "Facebook"
+      },
+      "location": {
+        "title": "Lokalizacja",
+        "subtitle": "Gdzie mieści się Twoja szkoła.",
+        "addressLine1": "Adres",
+        "addressLine2": "Adres — druga linia",
+        "city": "Miasto",
+        "postalCode": "Kod pocztowy",
+        "country": "Kraj"
+      },
+      "regional": {
+        "title": "Ustawienia regionalne",
+        "subtitle": "Strefa czasowa, język i waluta — używane w grafiku i powiadomieniach.",
+        "timezone": "Strefa czasowa",
+        "language": "Domyślny język",
+        "currency": "Waluta"
+      },
+      "business": {
+        "title": "Dane firmowe",
+        "subtitle": "Dane firmy pod przyszłe fakturowanie.",
+        "legalName": "Nazwa firmy",
+        "taxId": "NIP"
+      },
+      "sports": {
+        "tennis": "Tenis",
+        "padel": "Padel"
+      },
+      "languages": {
+        "pl": "Polski",
+        "en": "Angielski"
       },
       "saved": "Zapisano ustawienia",
+      "logoUpdated": "Zaktualizowano logo",
       "deleted": "Szkoła usunięta",
       "danger": {
         "title": "Strefa zagrożenia",
@@ -336,7 +394,12 @@
       },
       "errors": {
         "saveFailed": "Nie udało się zapisać ustawień",
-        "deleteFailed": "Nie udało się usunąć szkoły"
+        "deleteFailed": "Nie udało się usunąć szkoły",
+        "uploadFailed": "Nie udało się wgrać logo",
+        "email": "Podaj poprawny adres e-mail",
+        "phone": "Podaj poprawny numer telefonu",
+        "url": "Podaj poprawny adres URL (zaczynający się od http:// lub https://)",
+        "invalid": "Ta wartość jest nieprawidłowa"
       }
     }
   },

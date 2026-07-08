@@ -20,6 +20,7 @@
     "auth:generate": "auth generate --config server/utils/auth.ts --output server/database/schema.ts -y && eslint server/database/schema.ts --fix"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1081.0",
     "@iconify-json/lucide": "^1.2.114",
     "@iconify-json/simple-icons": "^1.2.86",
     "@nuxt/ui": "^4.9.0",
