@@ -6,6 +6,21 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Circular reveal on theme toggle (ColorModeButton) instead of the browser's default cross-fade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2;
+}
+
 @theme static {
   --font-sans: 'Public Sans', sans-serif;
 

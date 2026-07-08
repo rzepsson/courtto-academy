@@ -95,24 +95,23 @@
     "create": {
       "title": "Załóż swoją szkołę",
       "subtitle": "Skonfiguruj miejsce swojej szkoły w Courtto w niecałą minutę.",
-      "submit": "Załóż szkołę",
-      "prompt": "Chcesz założyć nową szkołę?",
-      "cta": "Załóż szkołę"
+      "submit": "Załóż szkołę"
     },
     "join": {
       "title": "Dołącz do szkoły",
       "subtitle": "Wklej link z zaproszeniem otrzymany od swojej szkoły.",
-      "submit": "Dalej",
-      "prompt": "Masz zaproszenie?",
-      "cta": "Dołącz z linku"
+      "submit": "Dalej"
     },
+    "orDivider": "lub",
+    "switchToCreate": "Załóż nową szkołę",
+    "switchToJoin": "Dołącz do szkoły",
     "fields": {
       "schoolName": "Nazwa szkoły",
       "schoolNamePlaceholder": "Akademia Tenisa As",
       "slug": "Identyfikator szkoły",
       "slugHelp": "Unikalny identyfikator Twojej szkoły. Możesz go później zmienić.",
       "inviteLink": "Link z zaproszeniem",
-      "invitePlaceholder": "https://…/invite/…"
+      "invitePlaceholder": "Wklej tutaj swój link"
     },
     "errors": {
       "nameRequired": "Podaj nazwę szkoły.",

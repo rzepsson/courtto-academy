@@ -95,24 +95,23 @@
     "create": {
       "title": "Create your school",
       "subtitle": "Set up your school's home on Courtto in under a minute.",
-      "submit": "Create school",
-      "prompt": "Want to start a new school instead?",
-      "cta": "Create a school"
+      "submit": "Create school"
     },
     "join": {
       "title": "Join a school",
       "subtitle": "Paste the invitation link you received from your school.",
-      "submit": "Continue",
-      "prompt": "Received an invitation?",
-      "cta": "Join with a link"
+      "submit": "Continue"
     },
+    "orDivider": "or",
+    "switchToCreate": "Create a new school",
+    "switchToJoin": "Join a school",
     "fields": {
       "schoolName": "School name",
       "schoolNamePlaceholder": "Ace Tennis Academy",
       "slug": "School handle",
       "slugHelp": "A unique identifier for your school. You can change it later.",
       "inviteLink": "Invitation link",
-      "invitePlaceholder": "https://…/invite/…"
+      "invitePlaceholder": "Paste your link here"
     },
     "errors": {
       "nameRequired": "Please enter your school's name.",
