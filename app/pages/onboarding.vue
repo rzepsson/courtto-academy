@@ -43,6 +43,17 @@ async function onCreate(event: FormSubmitEvent<CreateSchoolForm>) {
   }
 
   await authClient.organization.setActive({ organizationId: data.id })
+
+  // Seed the school's regional defaults from the browser (time zone / language),
+  // so it doesn't start as Poland regardless of location. Best-effort: on failure
+  // the server's safe defaults still apply, so never block onboarding.
+  try {
+    const regional = deriveRegionalDefaults(detectBrowserRegional())
+    await $fetch('/api/school/profile', { method: 'PATCH', body: regional })
+  } catch {
+    // ignore — the profile keeps the server-side defaults
+  }
+
   await Promise.all([refreshAuthSession(), refreshAppContext()])
   await navigateTo('/school')
 }

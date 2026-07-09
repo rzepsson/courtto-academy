@@ -10,17 +10,14 @@ import {
   isPhoneLike,
   isSport
 } from '../../../shared/org-profile'
+import { REGIONAL_FALLBACK, isValidTimezone } from '../../../shared/regional'
 
 // Sensible defaults for the regional fields so a school that never opened
 // settings still behaves correctly (notification timing, billing currency).
-// Poland-first, since that's the initial market. Text/contact fields default to
-// null (empty in the UI); only these operational fields get a real default.
-const PROFILE_DEFAULTS = {
-  timezone: 'Europe/Warsaw',
-  locale: 'pl',
-  currency: 'PLN',
-  country: 'PL'
-} as const
+// Onboarding seeds these from the browser (see shared/regional.ts); this is the
+// last-resort fallback (e.g. orgs created via the API). Text/contact fields
+// default to null (empty in the UI); only these operational fields get a value.
+const PROFILE_DEFAULTS = REGIONAL_FALLBACK
 
 // Returns the profile as a fully-shaped, defaulted object even when no row
 // exists yet — the settings form always binds against a complete state.
@@ -137,15 +134,6 @@ export function normalizeOrgProfilePatch(body: Record<string, unknown>): Partial
   }
 
   return patch
-}
-
-function isValidTimezone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en', { timeZone: value })
-    return true
-  } catch {
-    return false
-  }
 }
 
 // Insert-or-update the profile for an org. Accepts a partial patch (settings
