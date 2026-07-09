@@ -22,6 +22,14 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2025-01-15',
 
+  // Nitro's built-in WebSocket (crossws) powers the live notification channel at
+  // /api/notifications/ws. Enhancement only — the REST feed stays authoritative.
+  nitro: {
+    experimental: {
+      websocket: true
+    }
+  },
+
   eslint: {
     config: {
       stylistic: {

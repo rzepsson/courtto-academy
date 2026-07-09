@@ -1,5 +1,5 @@
-import { relations } from 'drizzle-orm'
-import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core'
+import { relations, sql } from 'drizzle-orm'
+import { pgTable, text, timestamp, boolean, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core'
 import { organization, user } from './schema'
 
 // App-owned tables live here, NOT in schema.ts — that file is regenerated (and
@@ -94,6 +94,60 @@ export const orgProfile = pgTable('org_profile', {
 export const orgProfileRelations = relations(orgProfile, ({ one }) => ({
   organization: one(organization, {
     fields: [orgProfile.organizationId],
+    references: [organization.id]
+  })
+}))
+
+// Per-user notification inbox. Each row is one recipient's own copy, with its
+// own read/dismissed state — notifications are never shared across users. The
+// row carries a stable machine `type` + JSON `data` (interpolation params),
+// never localized text (rule 5); the client renders the copy.
+//
+// `organizationId` tags the notification with the school it belongs to (null =
+// account-level). The bell scopes to the active org + account-level items, so a
+// user who owns one school and coaches at another never sees the two contexts
+// mixed. Both FKs cascade: deleting a user or an org clears their notifications.
+export const notification = pgTable(
+  'notification',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id').references(() => organization.id, { onDelete: 'cascade' }),
+    type: text('type').notNull(),
+    // Interpolation params for the localized title/body and any render metadata.
+    data: jsonb('data').$type<Record<string, string | number | null>>(),
+    // Deep link the bell navigates to on click (null = not clickable).
+    link: text('link'),
+    // null = unread; set when the user opens the bell (marks the scope read).
+    readAt: timestamp('read_at'),
+    // System-managed notifications set this false: no `x`, skipped by "clear
+    // all", resolved programmatically when their condition clears.
+    dismissible: boolean('dismissible').default(true).notNull(),
+    // Set on singleton/system notifications so they're created at most once per
+    // (user, key) — see the partial unique index below. null for transient ones.
+    dedupeKey: text('dedupe_key'),
+    createdAt: timestamp('created_at').defaultNow().notNull()
+  },
+  table => [
+    // Primary access path: a user's inbox, newest first.
+    index('notification_user_created_idx').on(table.userId, table.createdAt.desc()),
+    // Idempotency for system/singleton notifications, without constraining the
+    // transient ones (which leave dedupeKey null).
+    uniqueIndex('notification_user_dedupe_uidx')
+      .on(table.userId, table.dedupeKey)
+      .where(sql`${table.dedupeKey} is not null`)
+  ]
+)
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+  user: one(user, {
+    fields: [notification.userId],
+    references: [user.id]
+  }),
+  organization: one(organization, {
+    fields: [notification.organizationId],
     references: [organization.id]
   })
 }))

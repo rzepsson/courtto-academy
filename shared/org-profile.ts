@@ -46,3 +46,40 @@ export function isPhoneLike(value: string): boolean {
   const digits = value.replace(/[^\d]/g, '')
   return /^[+()\d\s-]+$/.test(value) && digits.length >= 6 && digits.length <= 20
 }
+
+// The essential fields a school must fill in before it's considered ready to
+// operate. Operational fields (timezone/locale/currency) are excluded on
+// purpose — they carry safe defaults and never block. These four have no usable
+// default: a contact identity for outbound notifications, at least one declared
+// sport (drives terminology), and a basic location.
+export const REQUIRED_PROFILE_FIELDS = ['contactEmail', 'sports', 'city', 'country'] as const
+export type RequiredProfileField = (typeof REQUIRED_PROFILE_FIELDS)[number]
+
+export interface ProfileCompletion {
+  complete: boolean
+  missing: RequiredProfileField[]
+}
+
+// Single source of truth for "is this school ready to operate?" — derived from
+// the actual profile data rather than a stored flag, so it can never drift out
+// of sync. Drives both the setup-notification lifecycle (created on org
+// creation, resolved the moment this returns complete) and the settings
+// checklist. `profile` is the defaulted shape from getOrgProfile, so absent
+// values arrive as null / empty array.
+export function computeProfileCompletion(profile: {
+  contactEmail?: string | null
+  sports?: readonly string[] | null
+  city?: string | null
+  country?: string | null
+}): ProfileCompletion {
+  const filled = (value: string | null | undefined) => typeof value === 'string' && value.trim().length > 0
+
+  const missing = REQUIRED_PROFILE_FIELDS.filter((field) => {
+    if (field === 'sports') {
+      return !profile.sports || profile.sports.length === 0
+    }
+    return !filled(profile[field])
+  })
+
+  return { complete: missing.length === 0, missing }
+}

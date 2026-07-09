@@ -53,6 +53,26 @@ export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect
 // against this so a new column is wired through in one place.
 export type OrgProfileInput = Omit<OrgProfile, 'organizationId' | 'createdAt' | 'updatedAt'>
 
+export type NotificationRow = typeof import('./app-schema').notification.$inferSelect
+
+// The client-facing shape of a notification. `data` is the interpolation params
+// for the localized title/body; the server never sends rendered text.
+export interface NotificationDto {
+  id: string
+  type: string
+  organizationId: string | null
+  data: Record<string, string | number | null> | null
+  link: string | null
+  read: boolean
+  dismissible: boolean
+  createdAt: Date
+}
+
+export interface NotificationFeed {
+  notifications: NotificationDto[]
+  unreadCount: number
+}
+
 export interface JoinCodeTarget {
   organizationId: string
   organization: OrganizationSummary

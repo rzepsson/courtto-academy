@@ -4,6 +4,7 @@ import { organization } from 'better-auth/plugins'
 import { db } from './db'
 import * as schema from '../database/schema'
 import { getFirstMembershipOrganizationId } from './services/membership'
+import { notifyOrgSetupIncomplete } from './services/notifications'
 import { ac, roles } from '../../shared/permissions'
 
 export const auth = betterAuth({
@@ -45,7 +46,22 @@ export const auth = betterAuth({
       creatorRole: 'owner',
       // Invites are delivered as copyable links (no mail provider yet),
       // so give schools a full week before they expire.
-      invitationExpiresIn: 60 * 60 * 24 * 7
+      invitationExpiresIn: 60 * 60 * 24 * 7,
+      organizationHooks: {
+        // Nudge the new owner to finish the essential school data. Non-dismissible
+        // and deduped; resolved automatically once the profile is complete (see
+        // the profile PATCH handler). Best-effort — a notification failure must
+        // never fail organization creation.
+        afterCreateOrganization: async ({ organization: org, user: owner }) => {
+          try {
+            await notifyOrgSetupIncomplete(owner.id, org.id, org.name)
+          } catch (error) {
+            // Don't fail org creation over a notification, but do surface it —
+            // a silent swallow would hide a broken emit.
+            console.error('[notifications] afterCreateOrganization emit failed', error)
+          }
+        }
+      }
     })
   ],
   experimental: {

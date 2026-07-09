@@ -15,6 +15,7 @@ export function useSignOut() {
     try {
       await authClient.signOut()
       clearAppContext()
+      clearNotificationsCache()
       await refreshAuthSession()
       await navigateTo('/login')
     } finally {

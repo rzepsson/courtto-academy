@@ -321,6 +321,11 @@
     },
     "settings": {
       "tagline": "Zarządzaj profilem szkoły, danymi kontaktowymi i preferencjami.",
+      "checklist": {
+        "title": "Przygotuj szkołę do pracy",
+        "subtitle": "Uzupełnij te podstawowe dane, aby szkoła była gotowa do działania.",
+        "progress": "{done} z {total} gotowe"
+      },
       "general": {
         "title": "Ogólne",
         "subtitle": "Nazwa, identyfikator i logo Twojej szkoły."
@@ -439,5 +444,23 @@
   },
   "dashboard": {
     "comingSoon": "Już wkrótce"
+  },
+  "notifications": {
+    "title": "Powiadomienia",
+    "empty": "Wszystko na bieżąco.",
+    "clearAll": "Wyczyść",
+    "dismiss": "Odrzuć",
+    "fallback": {
+      "title": "Powiadomienie",
+      "body": "Masz nowe powiadomienie."
+    },
+    "types": {
+      "org": {
+        "setup_incomplete": {
+          "title": "Dokończ konfigurację szkoły {schoolName}",
+          "body": "Uzupełnij dane kontaktowe, sporty i lokalizację w ustawieniach, aby szkoła była gotowa do pracy."
+        }
+      }
+    }
   }
 }

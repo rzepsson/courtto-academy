@@ -321,6 +321,11 @@
     },
     "settings": {
       "tagline": "Manage your school's profile, contact details and preferences.",
+      "checklist": {
+        "title": "Get your school ready",
+        "subtitle": "Add these essentials so your school is ready to operate.",
+        "progress": "{done} of {total} done"
+      },
       "general": {
         "title": "General",
         "subtitle": "Your school's name, handle and logo."
@@ -439,5 +444,23 @@
   },
   "dashboard": {
     "comingSoon": "Coming soon"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "You're all caught up.",
+    "clearAll": "Clear all",
+    "dismiss": "Dismiss",
+    "fallback": {
+      "title": "Notification",
+      "body": "You have a new notification."
+    },
+    "types": {
+      "org": {
+        "setup_incomplete": {
+          "title": "Finish setting up {schoolName}",
+          "body": "Add your contact details, sports and location in settings so your school is ready to operate."
+        }
+      }
+    }
   }
 }

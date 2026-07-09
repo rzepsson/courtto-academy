@@ -165,8 +165,7 @@ function dateLabel(value: string) {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <LocaleSwitcher />
-          <ColorModeButton />
+          <AppHeaderControls />
           <PressButton
             :block="false"
             size="md"

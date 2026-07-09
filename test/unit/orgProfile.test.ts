@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isEmailLike, isHttpUrlLike, isPhoneLike, isSport } from '../../shared/org-profile'
+import { computeProfileCompletion, isEmailLike, isHttpUrlLike, isPhoneLike, isSport } from '../../shared/org-profile'
 import { validateProfileFields, type ProfileFormState } from '../../app/utils/orgProfile'
 
 const t = (key: string) => key
@@ -67,6 +67,39 @@ describe('isSport', () => {
     expect(isSport('tennis')).toBe(true)
     expect(isSport('padel')).toBe(true)
     expect(isSport('golf')).toBe(false)
+  })
+})
+
+describe('computeProfileCompletion', () => {
+  const ready = {
+    contactEmail: 'club@courtto.pl',
+    sports: ['tennis'],
+    city: 'Warsaw',
+    country: 'PL'
+  }
+
+  it('is complete when every required field is filled', () => {
+    expect(computeProfileCompletion(ready)).toEqual({ complete: true, missing: [] })
+  })
+
+  it('flags each missing required field', () => {
+    const result = computeProfileCompletion({ contactEmail: null, sports: [], city: '  ', country: null })
+    expect(result.complete).toBe(false)
+    expect(result.missing).toEqual(['contactEmail', 'sports', 'city', 'country'])
+  })
+
+  it('treats an empty sports array as missing but a non-empty one as present', () => {
+    expect(computeProfileCompletion({ ...ready, sports: [] }).missing).toEqual(['sports'])
+    expect(computeProfileCompletion({ ...ready, sports: ['padel'] }).complete).toBe(true)
+  })
+
+  it('ignores operational fields with safe defaults (timezone/locale/currency)', () => {
+    // Only the four required fields matter; nothing else can block readiness.
+    expect(computeProfileCompletion(ready).complete).toBe(true)
+  })
+
+  it('treats whitespace-only text as empty', () => {
+    expect(computeProfileCompletion({ ...ready, contactEmail: '   ' }).missing).toEqual(['contactEmail'])
   })
 })
 

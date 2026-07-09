@@ -24,8 +24,7 @@ const modules = computed(() => [
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <LocaleSwitcher />
-          <ColorModeButton />
+          <AppHeaderControls />
         </template>
       </UDashboardNavbar>
     </template>

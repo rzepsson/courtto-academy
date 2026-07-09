@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { formatDate, formatJoinCode } from '../../app/utils/format'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { formatDate, formatJoinCode, formatRelativeTime } from '../../app/utils/format'
 
 describe('formatDate', () => {
   const date = new Date('2026-07-07T12:00:00Z')
@@ -19,6 +19,36 @@ describe('formatDate', () => {
 
   it('respects a custom dateStyle', () => {
     expect(formatDate(date, 'en-US', 'short')).toBe('7/7/26')
+  })
+})
+
+describe('formatRelativeTime', () => {
+  const now = new Date('2026-07-09T12:00:00Z')
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(now)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('renders very recent times as "now"', () => {
+    expect(formatRelativeTime(new Date(now.getTime() - 5_000), 'en-US')).toBe('now')
+  })
+
+  it('renders minutes and hours ago', () => {
+    expect(formatRelativeTime(new Date(now.getTime() - 5 * 60_000), 'en-US')).toBe('5 minutes ago')
+    expect(formatRelativeTime(new Date(now.getTime() - 3 * 3_600_000), 'en-US')).toBe('3 hours ago')
+  })
+
+  it('renders days ago', () => {
+    expect(formatRelativeTime(new Date(now.getTime() - 2 * 86_400_000), 'en-US')).toBe('2 days ago')
+  })
+
+  it('falls back to an absolute date beyond a week', () => {
+    expect(formatRelativeTime(new Date(now.getTime() - 30 * 86_400_000), 'en-US')).toBe('Jun 9, 2026')
   })
 })
 

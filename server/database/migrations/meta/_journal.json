@@ -29,6 +29,13 @@
       "when": 1783544011176,
       "tag": "0003_careful_genesis",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783586339901,
+      "tag": "0004_third_lockjaw",
+      "breakpoints": true
     }
   ]
 }

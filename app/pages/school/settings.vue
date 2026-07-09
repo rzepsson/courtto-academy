@@ -150,6 +150,11 @@ function applyProfile(profile: OrgProfileInput | undefined | null) {
 
 watch(profileData, value => applyProfile(value?.profile), { immediate: true })
 
+// Readiness checklist — derived from the persisted profile (baseline), so it
+// updates in step with the `org.setup_incomplete` notification (both resolve on
+// save), never on unsaved edits.
+const completion = computed(() => computeProfileCompletion(baseline))
+
 const saving = reactive<Record<SectionName, boolean>>({
   public: false, contact: false, location: false, regional: false, business: false
 })
@@ -418,8 +423,7 @@ async function onDelete() {
           <UDashboardSidebarCollapse />
         </template>
         <template #right>
-          <LocaleSwitcher />
-          <ColorModeButton />
+          <AppHeaderControls />
         </template>
       </UDashboardNavbar>
     </template>
@@ -467,6 +471,17 @@ async function onDelete() {
             <p class="mb-10 max-w-2xl text-sm text-muted">
               {{ t('school.settings.tagline') }}
             </p>
+          </MotionReveal>
+
+          <MotionReveal
+            v-if="!completion.complete"
+            :delay="0.02"
+            class="mb-12"
+          >
+            <SchoolSetupChecklist
+              :missing="completion.missing"
+              @navigate="scrollToSection"
+            />
           </MotionReveal>
 
           <div class="flex flex-col gap-12">

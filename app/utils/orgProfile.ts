@@ -1,8 +1,8 @@
 import type { FormError } from '@nuxt/ui'
 import { isEmailLike, isHttpUrlLike, isPhoneLike } from '~~/shared/org-profile'
 
-export { SPORTS, PROFILE_LOCALES } from '~~/shared/org-profile'
-export type { Sport, ProfileLocale } from '~~/shared/org-profile'
+export { SPORTS, PROFILE_LOCALES, REQUIRED_PROFILE_FIELDS, computeProfileCompletion } from '~~/shared/org-profile'
+export type { Sport, ProfileLocale, RequiredProfileField, ProfileCompletion } from '~~/shared/org-profile'
 
 // The client-side shape of the editable profile — a flat record of strings
 // (nullable server values render as ''); `sports` is a string[].
