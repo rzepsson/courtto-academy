@@ -67,7 +67,8 @@
     "copyFailed": "Nie udało się skopiować do schowka",
     "done": "Gotowe",
     "cancel": "Anuluj",
-    "save": "Zapisz zmiany"
+    "save": "Zapisz zmiany",
+    "discard": "Odrzuć"
   },
   "nav": {
     "overview": "Przegląd",
@@ -374,7 +375,13 @@
       },
       "sports": {
         "tennis": "Tenis",
-        "padel": "Padel"
+        "padel": "Padel",
+        "squash": "Squash",
+        "badminton": "Badminton",
+        "pickleball": "Pickleball",
+        "tableTennis": "Tenis stołowy",
+        "beachTennis": "Tenis plażowy",
+        "racquetball": "Racquetball"
       },
       "languages": {
         "pl": "Polski",
@@ -383,6 +390,12 @@
       "saved": "Zapisano ustawienia",
       "logoUpdated": "Zaktualizowano logo",
       "deleted": "Szkoła usunięta",
+      "unsaved": {
+        "title": "Niezapisane zmiany",
+        "description": "Masz zmiany, które nie zostały zapisane. Jeśli teraz wyjdziesz, przepadną.",
+        "stay": "Zostań na stronie",
+        "leave": "Wyjdź bez zapisywania"
+      },
       "danger": {
         "title": "Strefa zagrożenia",
         "subtitle": "Nieodwracalne akcje dla tej szkoły.",

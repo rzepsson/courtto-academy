@@ -67,7 +67,8 @@
     "copyFailed": "Could not copy to clipboard",
     "done": "Done",
     "cancel": "Cancel",
-    "save": "Save changes"
+    "save": "Save changes",
+    "discard": "Discard"
   },
   "nav": {
     "overview": "Overview",
@@ -374,7 +375,13 @@
       },
       "sports": {
         "tennis": "Tennis",
-        "padel": "Padel"
+        "padel": "Padel",
+        "squash": "Squash",
+        "badminton": "Badminton",
+        "pickleball": "Pickleball",
+        "tableTennis": "Table tennis",
+        "beachTennis": "Beach tennis",
+        "racquetball": "Racquetball"
       },
       "languages": {
         "pl": "Polish",
@@ -383,6 +390,12 @@
       "saved": "Settings saved",
       "logoUpdated": "Logo updated",
       "deleted": "School deleted",
+      "unsaved": {
+        "title": "Unsaved changes",
+        "description": "You have changes that haven't been saved. If you leave now, they'll be lost.",
+        "stay": "Stay on page",
+        "leave": "Leave without saving"
+      },
       "danger": {
         "title": "Danger zone",
         "subtitle": "Irreversible actions for this school.",

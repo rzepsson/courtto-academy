@@ -4,8 +4,9 @@ import type { FormError } from '@nuxt/ui'
 // One settings section in the enterprise two-column layout: the section
 // title/description sit in a narrow left column, the form (or free content) in a
 // wider card on the right. The `id` anchors the section for the sticky side-nav.
-// When `form` is true (default) the slot is wrapped in a UForm with a
-// right-aligned, press-animated Save button that's disabled until dirty.
+// When `form` is true (default) the slot is wrapped in a UForm whose action row
+// (Discard + Save) only slides into existence while the section is dirty, so a
+// pristine page shows no button noise at all.
 withDefaults(defineProps<{
   id: string
   title: string
@@ -20,10 +21,10 @@ withDefaults(defineProps<{
 }>(), {
   tone: 'default',
   form: true,
-  dirty: true
+  dirty: false
 })
 
-const emit = defineEmits<{ submit: [] }>()
+const emit = defineEmits<{ submit: [], discard: [] }>()
 const { t } = useI18n()
 </script>
 
@@ -62,20 +63,39 @@ const { t } = useI18n()
         >
           <slot />
 
-          <div class="flex justify-end pt-1">
+          <AnimatePresence>
             <Motion
-              :while-press="{ scale: 0.97 }"
-              :transition="{ type: 'spring', stiffness: 500, damping: 30 }"
+              v-if="dirty"
+              :initial="{ opacity: 0, height: 0 }"
+              :animate="{ opacity: 1, height: 'auto' }"
+              :exit="{ opacity: 0, height: 0 }"
+              :transition="{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }"
+              class="overflow-hidden"
             >
-              <UButton
-                type="submit"
-                size="lg"
-                :loading="saving"
-                :disabled="!dirty"
-                :label="saveLabel ?? t('common.save')"
-              />
+              <div class="flex justify-end gap-2 pt-1">
+                <UButton
+                  type="button"
+                  size="lg"
+                  color="neutral"
+                  variant="ghost"
+                  :disabled="saving"
+                  :label="t('common.discard')"
+                  @click="emit('discard')"
+                />
+                <Motion
+                  :while-press="{ scale: 0.97 }"
+                  :transition="{ type: 'spring', stiffness: 500, damping: 30 }"
+                >
+                  <UButton
+                    type="submit"
+                    size="lg"
+                    :loading="saving"
+                    :label="saveLabel ?? t('common.save')"
+                  />
+                </Motion>
+              </div>
             </Motion>
-          </div>
+          </AnimatePresence>
         </UForm>
 
         <slot v-else />

@@ -170,6 +170,16 @@ const locationDirty = computed(() => isDirty(LOCATION_KEYS))
 const regionalDirty = computed(() => isDirty(REGIONAL_KEYS))
 const businessDirty = computed(() => isDirty(BUSINESS_KEYS))
 
+function discardSection(keys: readonly SectionKey[]) {
+  for (const key of keys) {
+    if (key === 'sports') {
+      state.sports = [...baseline.sports]
+    } else {
+      state[key] = baseline[key] as never
+    }
+  }
+}
+
 async function saveSection(keys: readonly SectionKey[], section: SectionName) {
   if (!orgId.value) {
     return
@@ -230,6 +240,16 @@ watch(active, (value) => {
 const generalDirty = computed(() =>
   general.name !== (active.value?.organization.name ?? '')
   || general.slug !== (active.value?.organization.slug ?? '')
+)
+
+function discardGeneral() {
+  general.name = active.value?.organization.name ?? ''
+  general.slug = active.value?.organization.slug ?? ''
+}
+
+const anyDirty = computed(() =>
+  generalDirty.value || publicDirty.value || contactDirty.value
+  || locationDirty.value || regionalDirty.value || businessDirty.value
 )
 
 const savingGeneral = ref(false)
@@ -308,6 +328,46 @@ async function removeLogo() {
   }
 }
 
+// --- Unsaved-changes guard (in-app route leave + browser unload) ---
+const leaveOpen = ref(false)
+let resolveLeave: ((leave: boolean) => void) | null = null
+// Set before intentional programmatic navigation (e.g. after deleting the
+// school) so the guard doesn't trap the redirect over now-stale form state.
+let bypassGuard = false
+
+onBeforeRouteLeave(() => {
+  if (bypassGuard || !anyDirty.value) {
+    return true
+  }
+  leaveOpen.value = true
+  return new Promise<boolean>((resolve) => {
+    resolveLeave = resolve
+  })
+})
+
+function confirmLeave() {
+  resolveLeave?.(true)
+  resolveLeave = null
+  leaveOpen.value = false
+}
+
+// Closing the modal any other way (Cancel, ESC, backdrop) means "stay".
+watch(leaveOpen, (open) => {
+  if (!open && resolveLeave) {
+    resolveLeave(false)
+    resolveLeave = null
+  }
+})
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  if (anyDirty.value) {
+    event.preventDefault()
+  }
+}
+
+onMounted(() => window.addEventListener('beforeunload', onBeforeUnload))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', onBeforeUnload))
+
 // --- Danger zone ---
 const deleteOpen = ref(false)
 const deleteConfirmation = ref('')
@@ -341,6 +401,7 @@ async function onDelete() {
 
   deleteOpen.value = false
   toast.add({ title: t('school.settings.deleted'), color: 'neutral' })
+  bypassGuard = true
   await Promise.all([refreshAuthSession(), refreshAppContext()])
   await navigateTo('/dashboard')
 }
@@ -420,6 +481,7 @@ async function onDelete() {
                 :dirty="generalDirty"
                 :saving="savingGeneral"
                 @submit="onSaveGeneral({ data: general } as FormSubmitEvent<GeneralForm>)"
+                @discard="discardGeneral"
               >
                 <UFormField
                   :label="t('school.settings.logo.label')"
@@ -505,6 +567,7 @@ async function onDelete() {
                 :dirty="publicDirty"
                 :saving="saving.public"
                 @submit="saveSection(PUBLIC_KEYS, 'public')"
+                @discard="discardSection(PUBLIC_KEYS)"
               >
                 <UFormField
                   :label="t('school.settings.publicProfile.description')"
@@ -558,6 +621,7 @@ async function onDelete() {
                 :dirty="contactDirty"
                 :saving="saving.contact"
                 @submit="saveSection(CONTACT_KEYS, 'contact')"
+                @discard="discardSection(CONTACT_KEYS)"
               >
                 <div class="grid gap-5 sm:grid-cols-2">
                   <UFormField
@@ -635,6 +699,7 @@ async function onDelete() {
                 :dirty="locationDirty"
                 :saving="saving.location"
                 @submit="saveSection(LOCATION_KEYS, 'location')"
+                @discard="discardSection(LOCATION_KEYS)"
               >
                 <UFormField
                   :label="t('school.settings.location.addressLine1')"
@@ -704,6 +769,7 @@ async function onDelete() {
                 :dirty="regionalDirty"
                 :saving="saving.regional"
                 @submit="saveSection(REGIONAL_KEYS, 'regional')"
+                @discard="discardSection(REGIONAL_KEYS)"
               >
                 <UFormField
                   :label="t('school.settings.regional.timezone')"
@@ -759,6 +825,7 @@ async function onDelete() {
                 :dirty="businessDirty"
                 :saving="saving.business"
                 @submit="saveSection(BUSINESS_KEYS, 'business')"
+                @discard="discardSection(BUSINESS_KEYS)"
               >
                 <UFormField
                   :label="t('school.settings.business.legalName')"
@@ -812,6 +879,29 @@ async function onDelete() {
           </div>
         </div>
       </div>
+
+      <UModal
+        v-model:open="leaveOpen"
+        :title="t('school.settings.unsaved.title')"
+        :description="t('school.settings.unsaved.description')"
+      >
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              :label="t('school.settings.unsaved.stay')"
+              @click="leaveOpen = false"
+            />
+            <UButton
+              color="error"
+              variant="subtle"
+              :label="t('school.settings.unsaved.leave')"
+              @click="confirmLeave"
+            />
+          </div>
+        </template>
+      </UModal>
 
       <UModal
         v-model:open="deleteOpen"

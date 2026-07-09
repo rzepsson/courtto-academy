@@ -3,7 +3,7 @@
 // never disagree on allowed sports, locales or length caps. Keep this free of
 // Nuxt/Node imports — it must load in any context.
 
-export const SPORTS = ['tennis', 'padel'] as const
+export const SPORTS = ['tennis', 'padel', 'squash', 'badminton', 'pickleball', 'tableTennis', 'beachTennis', 'racquetball'] as const
 export type Sport = (typeof SPORTS)[number]
 
 export function isSport(value: string): value is Sport {
