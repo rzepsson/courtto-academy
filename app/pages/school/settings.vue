@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { ProfileFormState } from '~/utils/orgProfile'
+import type { ProfileFormState, ProfileSection } from '~/utils/orgProfile'
 import type { OrgProfileInput } from '~~/server/database/types'
 
 definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
@@ -103,14 +103,15 @@ function scrollToSection(id: string) {
 }
 
 // --- Section field groups (also used for dirty-checks and PATCH bodies) ---
-const PUBLIC_KEYS = ['description', 'sports'] as const
-const CONTACT_KEYS = ['contactEmail', 'contactPhone', 'websiteUrl', 'instagramUrl', 'facebookUrl'] as const
-const LOCATION_KEYS = ['addressLine1', 'addressLine2', 'city', 'postalCode', 'country'] as const
-const REGIONAL_KEYS = ['timezone', 'locale', 'currency'] as const
-const BUSINESS_KEYS = ['legalName', 'taxId'] as const
+// Sourced from the shared schema so the form's grouping, dirty-checks, PATCH
+// bodies and validation all derive from one definition.
+const PUBLIC_KEYS = PROFILE_SECTION_FIELDS.public
+const CONTACT_KEYS = PROFILE_SECTION_FIELDS.contact
+const LOCATION_KEYS = PROFILE_SECTION_FIELDS.location
+const REGIONAL_KEYS = PROFILE_SECTION_FIELDS.regional
+const BUSINESS_KEYS = PROFILE_SECTION_FIELDS.business
 
 type SectionKey = keyof ProfileFormState
-type SectionName = 'public' | 'contact' | 'location' | 'regional' | 'business'
 
 function emptyProfile(): ProfileFormState {
   return {
@@ -155,7 +156,7 @@ watch(profileData, value => applyProfile(value?.profile), { immediate: true })
 // save), never on unsaved edits.
 const completion = computed(() => computeProfileCompletion(baseline))
 
-const saving = reactive<Record<SectionName, boolean>>({
+const saving = reactive<Record<ProfileSection, boolean>>({
   public: false, contact: false, location: false, regional: false, business: false
 })
 
@@ -185,7 +186,7 @@ function discardSection(keys: readonly SectionKey[]) {
   }
 }
 
-async function saveSection(keys: readonly SectionKey[], section: SectionName) {
+async function saveSection(keys: readonly SectionKey[], section: ProfileSection) {
   if (!orgId.value) {
     return
   }
@@ -205,9 +206,9 @@ async function saveSection(keys: readonly SectionKey[], section: SectionName) {
   }
 }
 
-const validatePublic = () => validateProfileFields(PUBLIC_KEYS, state, t)
-const validateContact = () => validateProfileFields(CONTACT_KEYS, state, t)
-const validateLocation = () => validateProfileFields(LOCATION_KEYS, state, t)
+// Localized per-section validation schemas bound to each card's UForm; rebuilt
+// when the UI language changes so error messages follow it.
+const sectionSchemas = computed(() => profileSectionSchemas(t))
 
 function toggleSport(sport: string) {
   const index = state.sports.indexOf(sport)
@@ -578,7 +579,7 @@ async function onDelete() {
                 :title="t('school.settings.publicProfile.title')"
                 :subtitle="t('school.settings.publicProfile.subtitle')"
                 :state="state"
-                :validate="validatePublic"
+                :schema="sectionSchemas.public"
                 :dirty="publicDirty"
                 :saving="saving.public"
                 @submit="saveSection(PUBLIC_KEYS, 'public')"
@@ -632,7 +633,7 @@ async function onDelete() {
                 :title="t('school.settings.contact.title')"
                 :subtitle="t('school.settings.contact.subtitle')"
                 :state="state"
-                :validate="validateContact"
+                :schema="sectionSchemas.contact"
                 :dirty="contactDirty"
                 :saving="saving.contact"
                 @submit="saveSection(CONTACT_KEYS, 'contact')"
@@ -710,7 +711,7 @@ async function onDelete() {
                 :title="t('school.settings.location.title')"
                 :subtitle="t('school.settings.location.subtitle')"
                 :state="state"
-                :validate="validateLocation"
+                :schema="sectionSchemas.location"
                 :dirty="locationDirty"
                 :saving="saving.location"
                 @submit="saveSection(LOCATION_KEYS, 'location')"
@@ -781,6 +782,7 @@ async function onDelete() {
                 :title="t('school.settings.regional.title')"
                 :subtitle="t('school.settings.regional.subtitle')"
                 :state="state"
+                :schema="sectionSchemas.regional"
                 :dirty="regionalDirty"
                 :saving="saving.regional"
                 @submit="saveSection(REGIONAL_KEYS, 'regional')"
@@ -837,6 +839,7 @@ async function onDelete() {
                 :title="t('school.settings.business.title')"
                 :subtitle="t('school.settings.business.subtitle')"
                 :state="state"
+                :schema="sectionSchemas.business"
                 :dirty="businessDirty"
                 :saving="saving.business"
                 @submit="saveSection(BUSINESS_KEYS, 'business')"

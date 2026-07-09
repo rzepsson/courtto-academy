@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FormError } from '@nuxt/ui'
+import type { FormError, FormSchema } from '@nuxt/ui'
 
 // One settings section in the enterprise two-column layout: the section
 // title/description sit in a narrow left column, the form (or free content) in a
@@ -7,6 +7,10 @@ import type { FormError } from '@nuxt/ui'
 // When `form` is true (default) the slot is wrapped in a UForm whose action row
 // (Discard + Save) only slides into existence while the section is dirty, so a
 // pristine page shows no button noise at all.
+//
+// Validation is either a `schema` (a Standard Schema — the profile sections bind
+// their slice of the shared Zod schema) or a `validate` function (the general
+// section, whose name/slug rules aren't part of that schema). Pass at most one.
 withDefaults(defineProps<{
   id: string
   title: string
@@ -14,6 +18,7 @@ withDefaults(defineProps<{
   tone?: 'default' | 'danger'
   form?: boolean
   state?: Record<string, unknown>
+  schema?: FormSchema
   validate?: (state: unknown) => FormError[] | Promise<FormError[]>
   dirty?: boolean
   saving?: boolean
@@ -57,6 +62,7 @@ const { t } = useI18n()
         <UForm
           v-if="form"
           :state="state ?? {}"
+          :schema="schema"
           :validate="validate"
           class="flex flex-col gap-5"
           @submit="emit('submit')"

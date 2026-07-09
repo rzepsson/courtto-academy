@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm'
-import { pgTable, text, timestamp, boolean, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, timestamp, boolean, integer, jsonb, index, uniqueIndex } from 'drizzle-orm/pg-core'
 import { organization, user } from './schema'
 
 // App-owned tables live here, NOT in schema.ts — that file is regenerated (and
@@ -94,6 +94,70 @@ export const orgProfile = pgTable('org_profile', {
 export const orgProfileRelations = relations(orgProfile, ({ one }) => ({
   organization: one(organization, {
     fields: [orgProfile.organizationId],
+    references: [organization.id]
+  })
+}))
+
+// A single court (or table) belonging to a facility. App-owned — facility-core,
+// NOT Academy: the future Courtto marketplace books these exact rows, so nothing
+// here references lessons/coaches/students. Axes are kept orthogonal (see
+// CLAUDE.md): `status` is the day-to-day operational state (active/maintenance)
+// while `archivedAt` is the lifecycle (soft-delete) — a court is soft-archived
+// rather than hard-deleted so historical schedule/booking references stay valid.
+// The white-line PATTERN is derived from `sport` (shared/courts.ts), never
+// stored; only the surface/line colours are per-court.
+export const court = pgTable(
+  'court',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    // One of the org's declared sports (shared SPORTS); validated ⊂ orgProfile.sports
+    // on write. Drives terminology (court vs table) and the rendered geometry.
+    sport: text('sport').notNull(),
+    // Surface key valid for `sport` (shared SURFACES_BY_SPORT); null when the
+    // discipline has no surface concept (table tennis) or it's unspecified.
+    surface: text('surface'),
+    environment: text('environment').default('indoor').notNull(),
+    status: text('status').default('active').notNull(),
+    // Visual customisation for the diagram — surface fill + line colour (#rrggbb).
+    surfaceColor: text('surface_color').notNull(),
+    lineColor: text('line_color').default('#ffffff').notNull(),
+    // Display order within the facility (drag-reorder); assigned max+1 on create.
+    sortOrder: integer('sort_order').default(0).notNull(),
+    // Lightweight intra-facility grouping ("Hala A") without a separate table; a
+    // formal courtZone table is a clean future extension if needed.
+    zone: text('zone'),
+    // Seam for the future Courtto marketplace — whether this court may be exposed
+    // publicly for booking. Unused by Academy today.
+    bookable: boolean('bookable').default(false).notNull(),
+    notes: text('notes'),
+    // Soft-delete: null = active roster, set = archived (retained for history).
+    archivedAt: timestamp('archived_at'),
+    // Audit; nulled rather than cascade-deleted if the creator leaves the school.
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [
+    // Primary access path: a facility's roster in display order.
+    index('court_org_sort_idx').on(table.organizationId, table.sortOrder),
+    // No two active courts share a (case-insensitive) name within a facility;
+    // archived rows are exempt so a name frees up once a court is retired.
+    uniqueIndex('court_org_name_uidx')
+      .on(table.organizationId, sql`lower(${table.name})`)
+      .where(sql`${table.archivedAt} is null`)
+  ]
+)
+
+export const courtRelations = relations(court, ({ one }) => ({
+  organization: one(organization, {
+    fields: [court.organizationId],
     references: [organization.id]
   })
 }))

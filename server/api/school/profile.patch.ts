@@ -6,13 +6,7 @@ import { computeProfileCompletion } from '../../../shared/org-profile'
 // DB. `org_profile` is an app-owned table, so the service writes it directly.
 export default defineEventHandler(async (event) => {
   const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
-  const body = await readBody<Record<string, unknown>>(event)
-
-  if (!body || typeof body !== 'object') {
-    throw createError({ statusCode: 400, statusMessage: 'Expected an object body' })
-  }
-
-  const patch = normalizeOrgProfilePatch(body)
+  const patch = await readValidatedBody(event, normalizeOrgProfilePatch)
   const profile = await upsertOrgProfile(membership.organization.id, patch)
 
   // Readiness is derived, so recompute against the full saved profile and let it

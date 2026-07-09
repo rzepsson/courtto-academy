@@ -13,7 +13,6 @@ const joinedLabel = computed(() =>
 
 const modules = computed(() => [
   { title: t('nav.schedule'), description: t('school.modules.schedule'), icon: 'i-lucide-calendar-days' },
-  { title: t('nav.courts'), description: t('school.modules.courts'), icon: 'i-lucide-map-pin' },
   { title: t('nav.payments'), description: t('school.modules.payments'), icon: 'i-lucide-credit-card' }
 ])
 </script>

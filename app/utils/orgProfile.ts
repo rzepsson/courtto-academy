@@ -1,69 +1,51 @@
-import type { FormError } from '@nuxt/ui'
-import { isEmailLike, isHttpUrlLike, isPhoneLike } from '~~/shared/org-profile'
+import {
+  orgProfileSectionSchemas,
+  type ProfileErrorCode,
+  type ProfileField
+} from '~~/shared/org-profile-schema'
 
-export { SPORTS, PROFILE_LOCALES, REQUIRED_PROFILE_FIELDS, computeProfileCompletion } from '~~/shared/org-profile'
+export {
+  SPORTS,
+  PROFILE_LOCALES,
+  REQUIRED_PROFILE_FIELDS,
+  computeProfileCompletion
+} from '~~/shared/org-profile'
 export type { Sport, ProfileLocale, RequiredProfileField, ProfileCompletion } from '~~/shared/org-profile'
 
-// The client-side shape of the editable profile — a flat record of strings
-// (nullable server values render as ''); `sports` is a string[].
-export interface ProfileFormState {
-  description: string
-  sports: string[]
-  contactEmail: string
-  contactPhone: string
-  websiteUrl: string
-  instagramUrl: string
-  facebookUrl: string
-  addressLine1: string
-  addressLine2: string
-  city: string
-  postalCode: string
-  country: string
-  timezone: string
-  locale: string
-  currency: string
-  legalName: string
-  taxId: string
+export {
+  PROFILE_SECTIONS,
+  PROFILE_SECTION_FIELDS,
+  type ProfileSection
+} from '~~/shared/org-profile-schema'
+
+// The client-side shape of the editable profile: a flat form-binding record where
+// nullable server values render as '' and `sports` is a string[]. Derived from the
+// schema's fields, so adding a profile field flows here automatically.
+export type ProfileFormState = {
+  [K in ProfileField]: K extends 'sports' ? string[] : string
 }
 
-// Per-field format checks. Every profile field is optional, so an empty value
-// is always valid — only non-empty values are format-checked. Returns the i18n
-// key of the error, or null when valid. Fields without an entry never error.
-const VALIDATORS: Partial<Record<keyof ProfileFormState, (value: string) => boolean>> = {
-  contactEmail: isEmailLike,
-  contactPhone: isPhoneLike,
-  websiteUrl: isHttpUrlLike,
-  instagramUrl: isHttpUrlLike,
-  facebookUrl: isHttpUrlLike
+// Maps each stable schema error code to its localized message key (rule 5). The
+// server emits the raw codes; only the form surfaces them, so the mapping lives
+// on the client. Format-specific codes get a specific message; the rest — only
+// reachable by a crafted request, since the form's inputs constrain them — fall
+// back to a generic "invalid" string.
+const PROFILE_ERROR_KEYS: Record<ProfileErrorCode, string> = {
+  tooLong: 'school.settings.errors.tooLong',
+  email: 'school.settings.errors.email',
+  phone: 'school.settings.errors.phone',
+  url: 'school.settings.errors.url',
+  sport: 'school.settings.errors.invalid',
+  country: 'school.settings.errors.invalid',
+  currency: 'school.settings.errors.invalid',
+  locale: 'school.settings.errors.invalid',
+  timezone: 'school.settings.errors.invalid'
 }
 
-const ERROR_KEYS: Partial<Record<keyof ProfileFormState, string>> = {
-  contactEmail: 'school.settings.errors.email',
-  contactPhone: 'school.settings.errors.phone',
-  websiteUrl: 'school.settings.errors.url',
-  instagramUrl: 'school.settings.errors.url',
-  facebookUrl: 'school.settings.errors.url'
-}
-
-// Validate only the given section's fields, so saving one card never surfaces
-// (or is blocked by) another section's errors. Empty optional fields pass.
-export function validateProfileFields(
-  fields: readonly (keyof ProfileFormState)[],
-  state: ProfileFormState,
-  t: (key: string) => string
-): FormError[] {
-  const errors: FormError[] = []
-
-  for (const name of fields) {
-    const raw = state[name]
-    if (typeof raw !== 'string' || !raw.trim()) {
-      continue
-    }
-    const isValid = VALIDATORS[name]
-    if (isValid && !isValid(raw.trim())) {
-      errors.push({ name, message: t(ERROR_KEYS[name] ?? 'school.settings.errors.invalid') })
-    }
-  }
-
-  return errors
+// Localized per-section validation schemas for the settings form. Each card binds
+// its section's schema to `UForm :schema`, so validation reads from the same
+// rules the server enforces. Rebuilt per locale (call inside a computed) so error
+// messages follow the UI language.
+export function profileSectionSchemas(t: (key: string) => string) {
+  return orgProfileSectionSchemas(code => t(PROFILE_ERROR_KEYS[code]))
 }

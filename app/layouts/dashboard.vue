@@ -17,8 +17,8 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
       return [[
         { label: t('nav.overview'), icon: 'i-lucide-layout-dashboard', to: '/school' },
         { label: t('nav.members'), icon: 'i-lucide-users', to: '/school/members' },
+        { label: t('nav.courts'), icon: 'i-lucide-land-plot', to: '/school/courts' },
         soon(t('nav.schedule'), 'i-lucide-calendar-days'),
-        soon(t('nav.courts'), 'i-lucide-land-plot'),
         soon(t('nav.payments'), 'i-lucide-credit-card')
       ], [
         { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/school/settings' }

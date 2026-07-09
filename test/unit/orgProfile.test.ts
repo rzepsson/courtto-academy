@@ -1,30 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { computeProfileCompletion, isEmailLike, isHttpUrlLike, isPhoneLike, isSport } from '../../shared/org-profile'
-import { validateProfileFields, type ProfileFormState } from '../../app/utils/orgProfile'
+import {
+  orgProfilePatchSchema,
+  orgProfileSchema,
+  orgProfileSectionSchema,
+  type ProfileErrorCode
+} from '../../shared/org-profile-schema'
 
-const t = (key: string) => key
+// Identity resolver: the message is the raw error code, so assertions read the
+// stable code the client later localizes.
+const code = (c: ProfileErrorCode) => c
+const schema = orgProfileSchema(code)
+const patch = orgProfilePatchSchema(code)
 
-function blank(overrides: Partial<ProfileFormState> = {}): ProfileFormState {
-  return {
-    description: '',
-    sports: [],
-    contactEmail: '',
-    contactPhone: '',
-    websiteUrl: '',
-    instagramUrl: '',
-    facebookUrl: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    postalCode: '',
-    country: '',
-    timezone: '',
-    locale: '',
-    currency: '',
-    legalName: '',
-    taxId: '',
-    ...overrides
-  }
+// Collect (path, message) pairs from a failed parse for terse assertions.
+function issues(result: { success: boolean, error?: { issues: { path: PropertyKey[], message: string }[] } }) {
+  return result.success ? [] : result.error!.issues.map(i => ({ field: i.path.join('.'), code: i.message }))
 }
 
 describe('isEmailLike', () => {
@@ -94,7 +85,6 @@ describe('computeProfileCompletion', () => {
   })
 
   it('ignores operational fields with safe defaults (timezone/locale/currency)', () => {
-    // Only the four required fields matter; nothing else can block readiness.
     expect(computeProfileCompletion(ready).complete).toBe(true)
   })
 
@@ -103,29 +93,83 @@ describe('computeProfileCompletion', () => {
   })
 })
 
-describe('validateProfileFields', () => {
+describe('orgProfileSchema — normalization', () => {
+  it('trims text and collapses empties to null', () => {
+    const result = patch.parse({ description: '  Hello  ', city: '   ', contactEmail: '  club@courtto.pl ' })
+    expect(result).toEqual({ description: 'Hello', city: null, contactEmail: 'club@courtto.pl' })
+  })
+
+  it('uppercases country and currency, preserving null for empties', () => {
+    expect(patch.parse({ country: ' pl ', currency: 'pln' })).toEqual({ country: 'PL', currency: 'PLN' })
+    expect(patch.parse({ country: '' })).toEqual({ country: null })
+  })
+
+  it('dedupes sports', () => {
+    expect(patch.parse({ sports: ['tennis', 'tennis', 'padel'] })).toEqual({ sports: ['tennis', 'padel'] })
+  })
+})
+
+describe('orgProfilePatchSchema — partial semantics', () => {
+  it('returns only the keys present in the body, so sections save independently', () => {
+    expect(Object.keys(patch.parse({ city: 'Warsaw' }))).toEqual(['city'])
+  })
+
+  it('accepts an empty patch', () => {
+    expect(patch.parse({})).toEqual({})
+  })
+})
+
+describe('orgProfileSchema — format validation', () => {
+  it('rejects a malformed email with the `email` code on the field', () => {
+    expect(issues(schema.pick({ contactEmail: true }).safeParse({ contactEmail: 'nope' })))
+      .toEqual([{ field: 'contactEmail', code: 'email' }])
+  })
+
+  it('rejects a malformed URL with the `url` code', () => {
+    expect(issues(schema.pick({ websiteUrl: true }).safeParse({ websiteUrl: 'courtto.pl' })))
+      .toEqual([{ field: 'websiteUrl', code: 'url' }])
+  })
+
+  it('rejects a malformed phone with the `phone` code', () => {
+    expect(issues(schema.pick({ contactPhone: true }).safeParse({ contactPhone: '123' })))
+      .toEqual([{ field: 'contactPhone', code: 'phone' }])
+  })
+
+  it('rejects an unknown sport with the `sport` code', () => {
+    expect(issues(schema.pick({ sports: true }).safeParse({ sports: ['golf'] })))
+      .toEqual([{ field: 'sports', code: 'sport' }])
+  })
+
+  it('rejects an unknown locale and a bad timezone', () => {
+    expect(issues(schema.pick({ locale: true }).safeParse({ locale: 'de' })))
+      .toEqual([{ field: 'locale', code: 'locale' }])
+    expect(issues(schema.pick({ timezone: true }).safeParse({ timezone: 'Mars/Phobos' })))
+      .toEqual([{ field: 'timezone', code: 'timezone' }])
+  })
+
+  it('rejects over-length text with the `tooLong` code', () => {
+    expect(issues(schema.pick({ taxId: true }).safeParse({ taxId: 'x'.repeat(50) })))
+      .toEqual([{ field: 'taxId', code: 'tooLong' }])
+  })
+
   it('passes when optional fields are empty', () => {
-    expect(validateProfileFields(['contactEmail', 'websiteUrl'], blank(), t)).toEqual([])
+    const result = patch.safeParse({ contactEmail: '', websiteUrl: '', contactPhone: '' })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('orgProfileSectionSchema — isolation', () => {
+  it('validates only its own section and strips other fields', () => {
+    // A bad website is present, but the contact section is validated on its own
+    // fields; the description belongs to another section and is stripped.
+    const contact = orgProfileSectionSchema('contact', code)
+    const result = contact.parse({ contactEmail: 'club@courtto.pl', description: 'ignored' })
+    expect(result).toEqual({ contactEmail: 'club@courtto.pl' })
   })
 
-  it('flags a malformed email in the section', () => {
-    const errors = validateProfileFields(['contactEmail'], blank({ contactEmail: 'nope' }), t)
-    expect(errors).toEqual([{ name: 'contactEmail', message: 'school.settings.errors.email' }])
-  })
-
-  it('only validates the requested fields', () => {
-    // A bad website is present but the Contact section (email/phone) is clean.
-    const state = blank({ websiteUrl: 'not-a-url', contactEmail: 'club@courtto.pl' })
-    expect(validateProfileFields(['contactEmail', 'contactPhone'], state, t)).toEqual([])
-  })
-
-  it('validates multiple URL fields', () => {
-    const state = blank({ instagramUrl: 'nope', facebookUrl: 'https://fb.com/club' })
-    const errors = validateProfileFields(['instagramUrl', 'facebookUrl'], state, t)
-    expect(errors).toEqual([{ name: 'instagramUrl', message: 'school.settings.errors.url' }])
-  })
-
-  it('ignores fields that have no validator (free text)', () => {
-    expect(validateProfileFields(['description', 'city'], blank({ description: 'x', city: 'y' }), t)).toEqual([])
+  it('surfaces a section field error', () => {
+    const contact = orgProfileSectionSchema('contact', code)
+    expect(issues(contact.safeParse({ instagramUrl: 'nope' })))
+      .toEqual([{ field: 'instagramUrl', code: 'url' }])
   })
 })

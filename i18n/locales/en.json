@@ -54,7 +54,9 @@
       "INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION": "The person who sent this invitation is no longer with the school.",
       "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "You're the only owner — assign another owner before leaving.",
       "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "This school has reached its member limit.",
-      "INVITATION_LIMIT_REACHED": "This school has reached its invitation limit."
+      "INVITATION_LIMIT_REACHED": "This school has reached its invitation limit.",
+      "COURT_NAME_TAKEN": "A court with this name already exists.",
+      "COURT_SPORT_NOT_OFFERED": "This sport isn't one your facility offers. Add it in settings first."
     }
   },
   "common": {
@@ -91,6 +93,106 @@
     "admin": "Manages members, invitations and school settings.",
     "coach": "Runs trainings and works with groups.",
     "student": "Trains at your school and follows their schedule."
+  },
+  "courts": {
+    "tagline": "Set up the courts and tables at your facility. Each one is drawn to its sport — pick a surface colour to match reality.",
+    "add": "Add court",
+    "archivedBadge": "Archived",
+    "archived": "Court archived",
+    "restored": "Court restored",
+    "deleted": "Court deleted",
+    "noActive": "No active courts yet.",
+    "unit": {
+      "court": "Court",
+      "table": "Table"
+    },
+    "status": {
+      "active": "Active",
+      "maintenance": "Maintenance"
+    },
+    "environments": {
+      "indoor": "Indoor",
+      "outdoor": "Outdoor",
+      "covered": "Covered"
+    },
+    "surfaces": {
+      "clay": "Clay",
+      "hard": "Hard",
+      "grass": "Grass",
+      "carpet": "Carpet",
+      "artificialGrass": "Artificial grass",
+      "concrete": "Concrete",
+      "porous": "Porous",
+      "wood": "Wood",
+      "synthetic": "Synthetic",
+      "acrylic": "Acrylic",
+      "sand": "Sand"
+    },
+    "actions": {
+      "menu": "Court actions",
+      "edit": "Edit",
+      "archive": "Archive",
+      "restore": "Restore",
+      "delete": "Delete permanently"
+    },
+    "empty": {
+      "title": "No courts yet",
+      "description": "Add your first court or table to start building your facility."
+    },
+    "noSports": {
+      "title": "Declare your sports first",
+      "description": "A court's discipline must be one your facility offers. Add at least one sport in settings, then come back.",
+      "action": "Go to settings"
+    },
+    "archivedSection": {
+      "title": "Archived",
+      "hint": "Kept for history — restore anytime, or delete permanently."
+    },
+    "deleteConfirm": {
+      "title": "Delete court permanently",
+      "description": "Permanently delete {name}?",
+      "warningTitle": "This can't be undone",
+      "warningBody": "The court and its entire history — assigned groups, schedule and bookings — will be permanently removed. To keep the history, archive it instead."
+    },
+    "errors": {
+      "archiveFailed": "Could not archive the court",
+      "restoreFailed": "Could not restore the court",
+      "deleteFailed": "Could not delete the court",
+      "reorderFailed": "Could not save the new order"
+    },
+    "form": {
+      "createTitle": "Add court",
+      "editTitle": "Edit court",
+      "subtitle": "Name it, pick the discipline and surface, and preview it live.",
+      "previewName": "New court",
+      "name": "Name",
+      "namePlaceholder": "e.g. Court 1",
+      "sport": "Discipline",
+      "surface": "Surface",
+      "surfaceNone": "Not specified",
+      "environment": "Environment",
+      "surfaceColor": "Surface colour",
+      "lineColor": "Line colour",
+      "customColor": "Custom colour",
+      "zone": "Zone",
+      "zoneHelp": "Optional grouping, e.g. a hall or area.",
+      "zonePlaceholder": "e.g. Hall A",
+      "maintenance": "Under maintenance",
+      "maintenanceHelp": "Mark the court temporarily unavailable.",
+      "notes": "Notes",
+      "notesPlaceholder": "Internal notes (optional)",
+      "create": "Create court",
+      "save": "Save changes",
+      "created": "Court created",
+      "updated": "Court updated",
+      "errors": {
+        "nameRequired": "Enter a court name",
+        "tooLong": "This is too long",
+        "invalid": "Invalid value",
+        "color": "Enter a valid colour",
+        "saveFailed": "Could not save the court"
+      }
+    }
   },
   "orgSwitcher": {
     "label": "Switch school",
@@ -417,6 +519,7 @@
         "email": "Enter a valid email address",
         "phone": "Enter a valid phone number",
         "url": "Enter a valid URL (starting with http:// or https://)",
+        "tooLong": "This value is too long",
         "invalid": "This value is invalid"
       }
     }

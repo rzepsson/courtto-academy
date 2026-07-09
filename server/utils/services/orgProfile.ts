@@ -2,15 +2,8 @@ import { eq } from 'drizzle-orm'
 import { db } from '../db'
 import { orgProfile } from '../../database/app-schema'
 import type { OrgProfileInput } from '../../database/types'
-import {
-  PROFILE_LIMITS,
-  PROFILE_LOCALES,
-  isEmailLike,
-  isHttpUrlLike,
-  isPhoneLike,
-  isSport
-} from '../../../shared/org-profile'
-import { REGIONAL_FALLBACK, isValidTimezone } from '../../../shared/regional'
+import { orgProfilePatchSchema } from '../../../shared/org-profile-schema'
+import { REGIONAL_FALLBACK } from '../../../shared/regional'
 
 // Sensible defaults for the regional fields so a school that never opened
 // settings still behaves correctly (notification timing, billing currency).
@@ -49,91 +42,22 @@ export async function getOrgProfile(organizationId: string): Promise<OrgProfileI
   }
 }
 
-// Trim, collapse empties to null, and cap length. Returns undefined when the
-// key wasn't in the request so we never overwrite a stored value with null on a
-// partial section save.
-function cleanText(raw: unknown, max: number): string | null {
-  if (typeof raw !== 'string') {
-    throw createError({ statusCode: 400, statusMessage: 'Expected a string' })
-  }
-  const trimmed = raw.trim()
-  if (!trimmed) {
-    return null
-  }
-  if (trimmed.length > max) {
-    throw createError({ statusCode: 400, statusMessage: 'Value too long' })
-  }
-  return trimmed
-}
+// Built once with the identity message resolver: a validation failure here is
+// defense-in-depth behind the form, so the raw error code (never shown to a user)
+// is enough — the client already localizes and blocks bad input before submit.
+const patchSchema = orgProfilePatchSchema(code => code)
 
-function bad(message: string): never {
-  throw createError({ statusCode: 400, statusMessage: message })
-}
-
-// Validate + normalize an untrusted PATCH body into a partial profile patch.
-// Only keys actually present in the body are returned, so each settings section
-// updates independently without clobbering the others. Throws 400 on bad input.
-export function normalizeOrgProfilePatch(body: Record<string, unknown>): Partial<OrgProfileInput> {
-  const patch: Partial<OrgProfileInput> = {}
-  const has = (key: string) => Object.prototype.hasOwnProperty.call(body, key)
-
-  if (has('description')) patch.description = cleanText(body.description, PROFILE_LIMITS.description)
-  if (has('contactPhone')) {
-    patch.contactPhone = cleanText(body.contactPhone, PROFILE_LIMITS.short)
-    if (patch.contactPhone && !isPhoneLike(patch.contactPhone)) bad('Invalid phone')
+// Validate + normalize an untrusted PATCH body into a partial profile patch,
+// against the shared schema that also powers the settings form. Only keys
+// actually present in the body survive, so each section updates independently
+// without clobbering the others. Throws 400 on bad input. Shaped as a
+// `readValidatedBody` validator (takes the raw parsed body).
+export function normalizeOrgProfilePatch(body: unknown): Partial<OrgProfileInput> {
+  const result = patchSchema.safeParse(body)
+  if (!result.success) {
+    throw createError({ statusCode: 400, statusMessage: 'Invalid profile', data: { code: 'INVALID_PROFILE' } })
   }
-  if (has('addressLine1')) patch.addressLine1 = cleanText(body.addressLine1, PROFILE_LIMITS.short)
-  if (has('addressLine2')) patch.addressLine2 = cleanText(body.addressLine2, PROFILE_LIMITS.short)
-  if (has('city')) patch.city = cleanText(body.city, PROFILE_LIMITS.short)
-  if (has('postalCode')) patch.postalCode = cleanText(body.postalCode, PROFILE_LIMITS.short)
-  if (has('legalName')) patch.legalName = cleanText(body.legalName, PROFILE_LIMITS.name)
-  if (has('taxId')) patch.taxId = cleanText(body.taxId, PROFILE_LIMITS.taxId)
-
-  if (has('contactEmail')) {
-    patch.contactEmail = cleanText(body.contactEmail, PROFILE_LIMITS.email)
-    if (patch.contactEmail && !isEmailLike(patch.contactEmail)) bad('Invalid email')
-  }
-
-  for (const key of ['websiteUrl', 'instagramUrl', 'facebookUrl'] as const) {
-    if (has(key)) {
-      const value = cleanText(body[key], PROFILE_LIMITS.url)
-      if (value && !isHttpUrlLike(value)) bad(`Invalid URL: ${key}`)
-      patch[key] = value
-    }
-  }
-
-  if (has('country')) {
-    const value = cleanText(body.country, 2)
-    if (value && !/^[A-Za-z]{2}$/.test(value)) bad('Invalid country')
-    patch.country = value ? value.toUpperCase() : null
-  }
-
-  if (has('timezone')) {
-    const value = cleanText(body.timezone, 64)
-    if (value && !isValidTimezone(value)) bad('Invalid timezone')
-    patch.timezone = value
-  }
-
-  if (has('currency')) {
-    const value = cleanText(body.currency, 3)
-    if (value && !/^[A-Za-z]{3}$/.test(value)) bad('Invalid currency')
-    patch.currency = value ? value.toUpperCase() : null
-  }
-
-  if (has('locale')) {
-    const value = cleanText(body.locale, 5)
-    if (value && !(PROFILE_LOCALES as readonly string[]).includes(value)) bad('Invalid locale')
-    patch.locale = value
-  }
-
-  if (has('sports')) {
-    if (!Array.isArray(body.sports)) bad('sports must be an array')
-    const sports = [...new Set(body.sports.map(String))]
-    if (!sports.every(isSport)) bad('Invalid sport')
-    patch.sports = sports
-  }
-
-  return patch
+  return result.data
 }
 
 // Insert-or-update the profile for an org. Accepts a partial patch (settings

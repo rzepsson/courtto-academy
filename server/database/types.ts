@@ -53,6 +53,34 @@ export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect
 // against this so a new column is wired through in one place.
 export type OrgProfileInput = Omit<OrgProfile, 'organizationId' | 'createdAt' | 'updatedAt'>
 
+export type Court = typeof import('./app-schema').court.$inferSelect
+
+// The writable subset of a court — everything an admin sets in the builder.
+// Both the normalized PATCH/POST body and the service `set` are typed against
+// this, so a new column is wired through in one place. Managed fields (id,
+// organizationId, sortOrder, archivedAt, audit/timestamps) are excluded.
+export interface CourtWritable {
+  name: string
+  sport: string
+  surface: string | null
+  environment: string
+  status: string
+  surfaceColor: string
+  lineColor: string
+  zone: string | null
+  bookable: boolean
+  notes: string | null
+}
+
+// The client-facing court shape — the roster and builder bind against this. Org
+// id and audit columns (createdBy) are never sent to the client.
+export interface CourtDto extends CourtWritable {
+  id: string
+  sortOrder: number
+  archivedAt: Date | null
+  createdAt: Date
+}
+
 export type NotificationRow = typeof import('./app-schema').notification.$inferSelect
 
 // The client-facing shape of a notification. `data` is the interpolation params

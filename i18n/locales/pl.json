@@ -54,7 +54,9 @@
       "INVITER_IS_NO_LONGER_A_MEMBER_OF_THE_ORGANIZATION": "Osoba, która wysłała to zaproszenie, nie należy już do szkoły.",
       "YOU_CANNOT_LEAVE_THE_ORGANIZATION_AS_THE_ONLY_OWNER": "Jesteś jedynym właścicielem — przypisz innego właściciela przed odejściem.",
       "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "Ta szkoła osiągnęła limit członków.",
-      "INVITATION_LIMIT_REACHED": "Ta szkoła osiągnęła limit zaproszeń."
+      "INVITATION_LIMIT_REACHED": "Ta szkoła osiągnęła limit zaproszeń.",
+      "COURT_NAME_TAKEN": "Kort o tej nazwie już istnieje.",
+      "COURT_SPORT_NOT_OFFERED": "Ten sport nie jest oferowany przez placówkę. Najpierw dodaj go w ustawieniach."
     }
   },
   "common": {
@@ -91,6 +93,106 @@
     "admin": "Zarządza członkami, zaproszeniami i ustawieniami szkoły.",
     "coach": "Prowadzi treningi i pracuje z grupami.",
     "student": "Trenuje w Twojej szkole i korzysta ze swojego grafiku."
+  },
+  "courts": {
+    "tagline": "Skonfiguruj korty i stoły w swojej placówce. Każdy jest rysowany zgodnie z dyscypliną — dobierz kolor nawierzchni, by pasował do rzeczywistości.",
+    "add": "Dodaj kort",
+    "archivedBadge": "Zarchiwizowany",
+    "archived": "Kort zarchiwizowany",
+    "restored": "Kort przywrócony",
+    "deleted": "Kort usunięty",
+    "noActive": "Brak aktywnych kortów.",
+    "unit": {
+      "court": "Kort",
+      "table": "Stół"
+    },
+    "status": {
+      "active": "Aktywny",
+      "maintenance": "Konserwacja"
+    },
+    "environments": {
+      "indoor": "Kryty",
+      "outdoor": "Odkryty",
+      "covered": "Zadaszony"
+    },
+    "surfaces": {
+      "clay": "Mączka (ceglana)",
+      "hard": "Twarda (hard)",
+      "grass": "Trawa",
+      "carpet": "Dywan",
+      "artificialGrass": "Sztuczna trawa",
+      "concrete": "Beton",
+      "porous": "Nawierzchnia porowata",
+      "wood": "Parkiet",
+      "synthetic": "Syntetyczna",
+      "acrylic": "Akrylowa",
+      "sand": "Piasek"
+    },
+    "actions": {
+      "menu": "Akcje kortu",
+      "edit": "Edytuj",
+      "archive": "Archiwizuj",
+      "restore": "Przywróć",
+      "delete": "Usuń trwale"
+    },
+    "empty": {
+      "title": "Brak kortów",
+      "description": "Dodaj pierwszy kort lub stół, aby zbudować swoją placówkę."
+    },
+    "noSports": {
+      "title": "Najpierw zadeklaruj sporty",
+      "description": "Dyscyplina kortu musi być jedną z tych, które oferuje placówka. Dodaj przynajmniej jeden sport w ustawieniach i wróć tutaj.",
+      "action": "Przejdź do ustawień"
+    },
+    "archivedSection": {
+      "title": "Zarchiwizowane",
+      "hint": "Zachowane dla historii — przywróć w każdej chwili lub usuń trwale."
+    },
+    "deleteConfirm": {
+      "title": "Usuń kort na stałe",
+      "description": "Usunąć trwale {name}?",
+      "warningTitle": "Tej operacji nie można cofnąć",
+      "warningBody": "Kort i cała jego historia — przypisane grupy, grafik i rezerwacje — zostaną trwale usunięte. Aby zachować historię, zarchiwizuj go zamiast usuwać."
+    },
+    "errors": {
+      "archiveFailed": "Nie udało się zarchiwizować kortu",
+      "restoreFailed": "Nie udało się przywrócić kortu",
+      "deleteFailed": "Nie udało się usunąć kortu",
+      "reorderFailed": "Nie udało się zapisać nowej kolejności"
+    },
+    "form": {
+      "createTitle": "Dodaj kort",
+      "editTitle": "Edytuj kort",
+      "subtitle": "Nazwij go, wybierz dyscyplinę i nawierzchnię, a podgląd zobaczysz na żywo.",
+      "previewName": "Nowy kort",
+      "name": "Nazwa",
+      "namePlaceholder": "np. Kort 1",
+      "sport": "Dyscyplina",
+      "surface": "Nawierzchnia",
+      "surfaceNone": "Nie określono",
+      "environment": "Otoczenie",
+      "surfaceColor": "Kolor nawierzchni",
+      "lineColor": "Kolor linii",
+      "customColor": "Kolor własny",
+      "zone": "Strefa",
+      "zoneHelp": "Opcjonalne grupowanie, np. hala lub obszar.",
+      "zonePlaceholder": "np. Hala A",
+      "maintenance": "W trakcie konserwacji",
+      "maintenanceHelp": "Oznacz kort jako tymczasowo niedostępny.",
+      "notes": "Notatki",
+      "notesPlaceholder": "Notatki wewnętrzne (opcjonalnie)",
+      "create": "Utwórz kort",
+      "save": "Zapisz zmiany",
+      "created": "Kort utworzony",
+      "updated": "Kort zaktualizowany",
+      "errors": {
+        "nameRequired": "Podaj nazwę kortu",
+        "tooLong": "Zbyt długa wartość",
+        "invalid": "Nieprawidłowa wartość",
+        "color": "Podaj prawidłowy kolor",
+        "saveFailed": "Nie udało się zapisać kortu"
+      }
+    }
   },
   "orgSwitcher": {
     "label": "Zmień szkołę",
@@ -417,6 +519,7 @@
         "email": "Podaj poprawny adres e-mail",
         "phone": "Podaj poprawny numer telefonu",
         "url": "Podaj poprawny adres URL (zaczynający się od http:// lub https://)",
+        "tooLong": "Ta wartość jest za długa",
         "invalid": "Ta wartość jest nieprawidłowa"
       }
     }
