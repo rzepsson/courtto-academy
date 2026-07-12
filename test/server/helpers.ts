@@ -1,11 +1,12 @@
 import { env } from 'node:process'
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 // `auth` and `db` are plain module-level singletons designed to load outside
 // Nuxt (the `auth` CLI does the same), so we can import them directly. They read
 // DATABASE_URL, which vitest.config.ts pins to TEST_DATABASE_URL for this
 // project — writes land in the disposable test database, never the dev one.
 import { auth } from '../../server/utils/auth'
 import { db } from '../../server/utils/db'
+import { member } from '../../server/database/schema'
 import type { OrgRole } from '../../shared/permissions'
 
 // The whole server suite is gated on this — without a real test database the
@@ -69,6 +70,20 @@ export async function createOrg(user: SeededUser, input: { name: string, slug: s
   }
 
   return org.id
+}
+
+// Adds a user to an org programmatically (server-only Better Auth API — rule 4,
+// no direct insert) and returns the created membership id. Used to seed coaches
+// and students for schedule/enrolment tests.
+export async function addMember(organizationId: string, userId: string, role: OrgRole): Promise<string> {
+  await auth.api.addMember({ body: { userId, organizationId, role } })
+  const [row] = await db
+    .select({ id: member.id })
+    .from(member)
+    .where(and(eq(member.organizationId, organizationId), eq(member.userId, userId)))
+    .limit(1)
+  if (!row) throw new Error('addMember: membership not found after insert')
+  return row.id
 }
 
 export async function invite(

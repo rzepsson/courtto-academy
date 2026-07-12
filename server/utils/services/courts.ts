@@ -6,6 +6,7 @@ import type { CourtDto } from '../../database/types'
 import type { Sport } from '../../../shared/org-profile'
 import { DEFAULT_SURFACE_COLOR, isCourtSport, isValidSurfaceFor } from '../../../shared/courts'
 import { courtCreateSchema, courtPatchSchema } from '../../../shared/courts-schema'
+import { pgErrorCode } from '../pgError'
 import { getOrgProfile } from './orgProfile'
 
 // Court is app-owned (facility core), so this service writes it with Drizzle
@@ -51,9 +52,10 @@ function conflict(message: string, code: string): never {
 }
 
 // Postgres unique_violation — raised by the partial unique index when a second
-// active court reuses a (case-insensitive) name within the facility.
+// active court reuses a (case-insensitive) name within the facility. Uses
+// pgErrorCode so it survives Drizzle wrapping the PostgresError in `.cause`.
 function isUniqueViolation(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && (error as { code?: string }).code === '23505'
+  return pgErrorCode(error) === '23505'
 }
 
 // A court's sport must be one the facility actually offers (orgProfile.sports).

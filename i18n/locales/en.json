@@ -56,7 +56,27 @@
       "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "This school has reached its member limit.",
       "INVITATION_LIMIT_REACHED": "This school has reached its invitation limit.",
       "COURT_NAME_TAKEN": "A court with this name already exists.",
-      "COURT_SPORT_NOT_OFFERED": "This sport isn't one your facility offers. Add it in settings first."
+      "COURT_SPORT_NOT_OFFERED": "This sport isn't one your facility offers. Add it in settings first.",
+      "INVALID_LESSON": "Some lesson details are invalid. Please review the form.",
+      "SCHEDULE_SPORT_INVALID": "Please choose a valid sport.",
+      "SCHEDULE_SPORT_NOT_OFFERED": "This sport isn't one your facility offers. Add it in settings first.",
+      "SCHEDULE_COURT_NOT_FOUND": "The selected court no longer exists.",
+      "SCHEDULE_COURT_SPORT_MISMATCH": "This court isn't set up for the lesson's sport.",
+      "SCHEDULE_COACH_NOT_FOUND": "The selected coach is no longer a member of this school.",
+      "SCHEDULE_COACH_INVALID_ROLE": "A student can't be assigned as the coach.",
+      "SCHEDULE_CAPACITY_RANGE": "The minimum capacity can't exceed the maximum.",
+      "SCHEDULE_NO_OCCURRENCES": "This recurrence produces no sessions in range. Check the start date and repeat rule.",
+      "SCHEDULE_COURT_CONFLICT": "That court is already booked for part of this time.",
+      "SCHEDULE_COACH_CONFLICT": "That coach is already teaching during part of this time.",
+      "SCHEDULE_INVALID_RANGE": "Invalid date range.",
+      "SCHEDULE_SESSION_CANCELLED": "This occurrence is cancelled — restore it before editing.",
+      "SCHEDULE_SERIES_NOT_ACTIVE": "This lesson series is cancelled — you can't restore its occurrences.",
+      "SCHEDULE_STUDENT_NOT_FOUND": "That student isn't a member of this school.",
+      "SCHEDULE_ENROLLMENT_CLOSED": "Enrolment is closed for this lesson.",
+      "SCHEDULE_ENROLLMENT_UNAVAILABLE": "This lesson isn't accepting enrolments right now.",
+      "SCHEDULE_ALREADY_ENROLLED": "Already enrolled in this series.",
+      "SCHEDULE_ATTENDANCE_FORBIDDEN": "You can only manage attendance for your own sessions.",
+      "SCHEDULE_ATTENDANCE_INVALID": "Some attendance entries are invalid."
     }
   },
   "common": {
@@ -70,7 +90,8 @@
     "done": "Done",
     "cancel": "Cancel",
     "save": "Save changes",
-    "discard": "Discard"
+    "discard": "Discard",
+    "loading": "Loading…"
   },
   "nav": {
     "overview": "Overview",
@@ -192,6 +213,125 @@
         "color": "Enter a valid colour",
         "saveFailed": "Could not save the court"
       }
+    }
+  },
+  "schedule": {
+    "tagline": "Plan lessons across your courts. Drag to move, click a slot to add.",
+    "coachTagline": "Your teaching schedule. Open a lesson to take attendance.",
+    "myTagline": "Your lessons. Open one for the details.",
+    "add": "Add lesson",
+    "noCourts": {
+      "title": "Add a court first",
+      "description": "The calendar places lessons on your courts — add at least one to start scheduling.",
+      "action": "Go to courts"
+    },
+    "calendar": {
+      "allCourts": "All courts",
+      "otherCourt": "Other",
+      "day": "Day",
+      "week": "Week",
+      "today": "Today",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "types": {
+      "group": "Group",
+      "individual": "Individual",
+      "open": "Open court"
+    },
+    "sessionStatus": {
+      "scheduled": "Scheduled",
+      "rescheduled": "Moved",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "attendanceStatus": {
+      "present": "Present",
+      "absent": "Absent",
+      "excused": "Excused",
+      "late": "Late"
+    },
+    "rosterSource": {
+      "series": "Enrolled",
+      "session": "Drop-in"
+    },
+    "weekdays": {
+      "MO": "Mon",
+      "TU": "Tue",
+      "WE": "Wed",
+      "TH": "Thu",
+      "FR": "Fri",
+      "SA": "Sat",
+      "SU": "Sun"
+    },
+    "session": {
+      "title": "Lesson",
+      "when": "When",
+      "court": "Court",
+      "coach": "Coach",
+      "noCoach": "No coach",
+      "overridden": "Edited",
+      "reschedule": "Reschedule",
+      "cancel": "Cancel",
+      "restore": "Restore",
+      "cancelled": "Occurrence cancelled",
+      "restored": "Occurrence restored",
+      "rescheduled": "Occurrence updated",
+      "myStatusIntro": "You're enrolled in this lesson."
+    },
+    "attendance": {
+      "title": "Attendance",
+      "save": "Save",
+      "saved": "Attendance saved",
+      "empty": "No students enrolled yet."
+    },
+    "form": {
+      "createTitle": "New lesson",
+      "subtitle": "Set the time, court, coach and how it repeats.",
+      "title": "Title",
+      "titlePlaceholder": "e.g. Junior group",
+      "type": "Type",
+      "sport": "Sport",
+      "court": "Court",
+      "courtNone": "Pick a court",
+      "coach": "Coach",
+      "noCoach": "No coach",
+      "dtStart": "Starts",
+      "duration": "Duration (min)",
+      "repeat": "Repeats",
+      "freq": {
+        "none": "Does not repeat",
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly"
+      },
+      "capacityMax": "Max participants",
+      "capacityHelp": "Leave empty for no limit.",
+      "capacityNone": "No limit",
+      "color": "Colour",
+      "enrollmentOpen": "Open for enrolment",
+      "enrollmentOpenHelp": "Students can join while this is on.",
+      "create": "Create lesson",
+      "created": "Lesson created",
+      "errors": {
+        "required": "Required.",
+        "tooLong": "Too long.",
+        "invalid": "Invalid value.",
+        "color": "Pick a valid colour.",
+        "rrule": "Unsupported repeat rule.",
+        "dtStart": "Enter a valid date and time.",
+        "duration": "Enter a valid duration.",
+        "capacity": "The minimum can't exceed the maximum.",
+        "saveFailed": "Could not save the lesson"
+      }
+    },
+    "errors": {
+      "moveFailed": "Could not move the lesson",
+      "cancelFailed": "Could not cancel the lesson",
+      "restoreFailed": "Could not restore the lesson",
+      "rescheduleFailed": "Could not reschedule the lesson",
+      "rosterFailed": "Could not load the roster",
+      "attendanceFailed": "Could not save attendance"
     }
   },
   "orgSwitcher": {

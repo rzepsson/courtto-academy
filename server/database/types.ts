@@ -117,3 +117,171 @@ export interface InvitationLanding {
   inviterName: string
   organization: OrganizationSummary
 }
+
+// ─── Schedule ──────────────────────────────────────────────────────────────
+// Row types (full table shape) + client-facing DTOs. Like CourtDto, the DTOs
+// drop organizationId and audit columns and keep enum-ish fields as plain
+// strings (validated by the shared schema / service). Client dates arrive
+// serialized; the client binds against a *View shape with string dates.
+
+export type Reservation = typeof import('./app-schema').reservation.$inferSelect
+export type LessonSeries = typeof import('./app-schema').lessonSeries.$inferSelect
+export type LessonSession = typeof import('./app-schema').lessonSession.$inferSelect
+export type LessonException = typeof import('./app-schema').lessonException.$inferSelect
+export type Enrollment = typeof import('./app-schema').enrollment.$inferSelect
+export type Attendance = typeof import('./app-schema').attendance.$inferSelect
+
+// CORE — the occupancy primitive. `bookedBy*` seams stay server-side.
+export interface ReservationDto {
+  id: string
+  courtId: string
+  startsAt: Date
+  endsAt: Date
+  status: string
+  kind: string
+  title: string | null
+  note: string | null
+  createdAt: Date
+}
+
+export interface LessonSeriesDto {
+  id: string
+  type: string
+  sport: string
+  title: string
+  color: string
+  level: string | null
+  ageGroup: string | null
+  notes: string | null
+  coachMemberId: string | null
+  assistantCoachMemberId: string | null
+  defaultCourtId: string | null
+  timezone: string
+  rrule: string | null
+  dtStart: string
+  durationMin: number
+  capacityMin: number | null
+  capacityMax: number | null
+  enrollmentOpen: boolean
+  visibility: string
+  status: string
+  materializedUntil: Date | null
+  createdAt: Date
+}
+
+export interface LessonSessionDto {
+  id: string
+  seriesId: string
+  reservationId: string
+  occurrenceStart: Date
+  startsAt: Date
+  endsAt: Date
+  coachMemberId: string | null
+  courtId: string | null
+  capacityMax: number | null
+  status: string
+  cancelReason: string | null
+  overridden: boolean
+  notes: string | null
+}
+
+export interface EnrollmentDto {
+  id: string
+  studentMemberId: string
+  seriesId: string | null
+  sessionId: string | null
+  status: string
+  waitlistPos: number | null
+  createdAt: Date
+}
+
+export interface AttendanceDto {
+  id: string
+  sessionId: string
+  studentMemberId: string
+  status: string
+  markedBy: string | null
+  markedAt: Date
+}
+
+// A materialized occurrence flattened with the series display fields and its
+// reservation status — the calendar/roster read shape (avoids an N+1 to the
+// series). `seriesTitle`/`type`/`sport`/`color` come from the parent series.
+export interface ScheduleSessionDto {
+  id: string
+  seriesId: string
+  reservationId: string
+  startsAt: Date
+  endsAt: Date
+  occurrenceStart: Date
+  status: string
+  overridden: boolean
+  coachMemberId: string | null
+  courtId: string | null
+  capacityMax: number | null
+  notes: string | null
+  reservationStatus: string
+  seriesTitle: string
+  type: string
+  sport: string
+  color: string
+}
+
+// A series with its materialized sessions — the create result and detail view.
+export interface LessonDetail {
+  series: LessonSeriesDto
+  sessions: LessonSessionDto[]
+}
+
+// Outcome of extending a recurring series' materialization horizon: how many
+// occurrences were newly created vs skipped (court/coach conflict), and the new
+// horizon. materializedUntil is null only for a non-recurring series.
+export interface ExtendResult {
+  created: number
+  skipped: number
+  materializedUntil: Date | null
+}
+
+// Outcome of one materialization sweep (the scheduled job that rolls every active
+// recurring series' horizon forward). `ok` ran; `busy` means another sweep on this
+// instance was still running and this tick was skipped. `capped` is true when more
+// series were due than the per-run cap (harmless — the 120-day horizon means being
+// one run behind never starves a series; the rest are picked up next run).
+export interface MaterializationSweepResult {
+  status: 'ok' | 'busy'
+  processed: number
+  created: number
+  skipped: number
+  failed: number
+  capped: boolean
+}
+
+// An enrolment with the student's display fields — the staff-facing list shape.
+export interface EnrollmentView {
+  id: string
+  studentMemberId: string
+  studentName: string
+  studentEmail: string
+  seriesId: string | null
+  sessionId: string | null
+  status: string
+  waitlistPos: number | null
+  createdAt: Date
+}
+
+// One expected attendee of a session (an enrolled student) with their marked
+// attendance, if any. `source` distinguishes a series enrolment from a per-
+// session drop-in. The attendance sheet a coach/admin fills in.
+export interface RosterEntry {
+  studentMemberId: string
+  studentName: string
+  studentEmail: string
+  source: 'series' | 'session'
+  attendanceStatus: string | null
+}
+
+// A session as a student sees it on their own schedule — the calendar shape plus
+// the student's own enrolment status for it (enrolled | waitlisted).
+export interface StudentSessionView extends ScheduleSessionDto {
+  enrollmentStatus: string
+}

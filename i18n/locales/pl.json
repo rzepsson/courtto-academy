@@ -56,7 +56,27 @@
       "ORGANIZATION_MEMBERSHIP_LIMIT_REACHED": "Ta szkoła osiągnęła limit członków.",
       "INVITATION_LIMIT_REACHED": "Ta szkoła osiągnęła limit zaproszeń.",
       "COURT_NAME_TAKEN": "Kort o tej nazwie już istnieje.",
-      "COURT_SPORT_NOT_OFFERED": "Ten sport nie jest oferowany przez placówkę. Najpierw dodaj go w ustawieniach."
+      "COURT_SPORT_NOT_OFFERED": "Ten sport nie jest oferowany przez placówkę. Najpierw dodaj go w ustawieniach.",
+      "INVALID_LESSON": "Część danych zajęć jest nieprawidłowa. Sprawdź formularz.",
+      "SCHEDULE_SPORT_INVALID": "Wybierz prawidłowy sport.",
+      "SCHEDULE_SPORT_NOT_OFFERED": "Ten sport nie jest oferowany przez placówkę. Najpierw dodaj go w ustawieniach.",
+      "SCHEDULE_COURT_NOT_FOUND": "Wybrany kort już nie istnieje.",
+      "SCHEDULE_COURT_SPORT_MISMATCH": "Ten kort nie jest przeznaczony do sportu tych zajęć.",
+      "SCHEDULE_COACH_NOT_FOUND": "Wybrany trener nie jest już członkiem tej szkoły.",
+      "SCHEDULE_COACH_INVALID_ROLE": "Uczeń nie może zostać przypisany jako trener.",
+      "SCHEDULE_CAPACITY_RANGE": "Minimalna liczba miejsc nie może przekraczać maksymalnej.",
+      "SCHEDULE_NO_OCCURRENCES": "Ta reguła powtarzania nie tworzy żadnych zajęć w zakresie. Sprawdź datę startu i regułę.",
+      "SCHEDULE_COURT_CONFLICT": "Ten kort jest już zarezerwowany w części tego czasu.",
+      "SCHEDULE_COACH_CONFLICT": "Ten trener prowadzi już zajęcia w części tego czasu.",
+      "SCHEDULE_INVALID_RANGE": "Nieprawidłowy zakres dat.",
+      "SCHEDULE_SESSION_CANCELLED": "To wystąpienie jest odwołane — przywróć je przed edycją.",
+      "SCHEDULE_SERIES_NOT_ACTIVE": "Ta seria zajęć jest odwołana — nie można przywracać jej wystąpień.",
+      "SCHEDULE_STUDENT_NOT_FOUND": "Ten uczeń nie jest członkiem tej szkoły.",
+      "SCHEDULE_ENROLLMENT_CLOSED": "Zapisy na te zajęcia są zamknięte.",
+      "SCHEDULE_ENROLLMENT_UNAVAILABLE": "Te zajęcia nie przyjmują teraz zapisów.",
+      "SCHEDULE_ALREADY_ENROLLED": "Już zapisano na tę serię.",
+      "SCHEDULE_ATTENDANCE_FORBIDDEN": "Możesz zarządzać obecnością tylko na własnych zajęciach.",
+      "SCHEDULE_ATTENDANCE_INVALID": "Część wpisów obecności jest nieprawidłowa."
     }
   },
   "common": {
@@ -70,7 +90,8 @@
     "done": "Gotowe",
     "cancel": "Anuluj",
     "save": "Zapisz zmiany",
-    "discard": "Odrzuć"
+    "discard": "Odrzuć",
+    "loading": "Ładowanie…"
   },
   "nav": {
     "overview": "Przegląd",
@@ -192,6 +213,125 @@
         "color": "Podaj prawidłowy kolor",
         "saveFailed": "Nie udało się zapisać kortu"
       }
+    }
+  },
+  "schedule": {
+    "tagline": "Planuj zajęcia na swoich kortach. Przeciągnij, by przenieść, kliknij slot, by dodać.",
+    "coachTagline": "Twój grafik zajęć. Otwórz zajęcia, by sprawdzić obecność.",
+    "myTagline": "Twoje zajęcia. Otwórz, by zobaczyć szczegóły.",
+    "add": "Dodaj zajęcia",
+    "noCourts": {
+      "title": "Najpierw dodaj kort",
+      "description": "Kalendarz umieszcza zajęcia na kortach — dodaj przynajmniej jeden, aby zacząć planowanie.",
+      "action": "Przejdź do kortów"
+    },
+    "calendar": {
+      "allCourts": "Wszystkie korty",
+      "otherCourt": "Inne",
+      "day": "Dzień",
+      "week": "Tydzień",
+      "today": "Dziś",
+      "previous": "Poprzedni",
+      "next": "Następny"
+    },
+    "types": {
+      "group": "Grupowe",
+      "individual": "Indywidualne",
+      "open": "Otwarty kort"
+    },
+    "sessionStatus": {
+      "scheduled": "Zaplanowane",
+      "rescheduled": "Przeniesione",
+      "completed": "Zakończone",
+      "cancelled": "Odwołane"
+    },
+    "attendanceStatus": {
+      "present": "Obecny",
+      "absent": "Nieobecny",
+      "excused": "Usprawiedliwiony",
+      "late": "Spóźniony"
+    },
+    "rosterSource": {
+      "series": "Zapisany",
+      "session": "Drop-in"
+    },
+    "weekdays": {
+      "MO": "Pon",
+      "TU": "Wt",
+      "WE": "Śr",
+      "TH": "Czw",
+      "FR": "Pt",
+      "SA": "Sob",
+      "SU": "Nd"
+    },
+    "session": {
+      "title": "Zajęcia",
+      "when": "Kiedy",
+      "court": "Kort",
+      "coach": "Trener",
+      "noCoach": "Bez trenera",
+      "overridden": "Zmienione",
+      "reschedule": "Przełóż",
+      "cancel": "Odwołaj",
+      "restore": "Przywróć",
+      "cancelled": "Wystąpienie odwołane",
+      "restored": "Wystąpienie przywrócone",
+      "rescheduled": "Wystąpienie zaktualizowane",
+      "myStatusIntro": "Jesteś zapisany na te zajęcia."
+    },
+    "attendance": {
+      "title": "Obecność",
+      "save": "Zapisz",
+      "saved": "Obecność zapisana",
+      "empty": "Brak zapisanych uczniów."
+    },
+    "form": {
+      "createTitle": "Nowe zajęcia",
+      "subtitle": "Ustaw czas, kort, trenera i sposób powtarzania.",
+      "title": "Nazwa",
+      "titlePlaceholder": "np. Grupa młodzieżowa",
+      "type": "Typ",
+      "sport": "Sport",
+      "court": "Kort",
+      "courtNone": "Wybierz kort",
+      "coach": "Trener",
+      "noCoach": "Bez trenera",
+      "dtStart": "Początek",
+      "duration": "Czas trwania (min)",
+      "repeat": "Powtarzanie",
+      "freq": {
+        "none": "Bez powtarzania",
+        "daily": "Codziennie",
+        "weekly": "Co tydzień",
+        "monthly": "Co miesiąc"
+      },
+      "capacityMax": "Maks. uczestników",
+      "capacityHelp": "Zostaw puste, by bez limitu.",
+      "capacityNone": "Bez limitu",
+      "color": "Kolor",
+      "enrollmentOpen": "Zapisy otwarte",
+      "enrollmentOpenHelp": "Uczniowie mogą dołączać, gdy włączone.",
+      "create": "Utwórz zajęcia",
+      "created": "Zajęcia utworzone",
+      "errors": {
+        "required": "Wymagane.",
+        "tooLong": "Zbyt długie.",
+        "invalid": "Nieprawidłowa wartość.",
+        "color": "Wybierz prawidłowy kolor.",
+        "rrule": "Nieobsługiwana reguła powtarzania.",
+        "dtStart": "Podaj prawidłową datę i godzinę.",
+        "duration": "Podaj prawidłowy czas trwania.",
+        "capacity": "Minimum nie może przekraczać maksimum.",
+        "saveFailed": "Nie udało się zapisać zajęć"
+      }
+    },
+    "errors": {
+      "moveFailed": "Nie udało się przenieść zajęć",
+      "cancelFailed": "Nie udało się odwołać zajęć",
+      "restoreFailed": "Nie udało się przywrócić zajęć",
+      "rescheduleFailed": "Nie udało się przełożyć zajęć",
+      "rosterFailed": "Nie udało się wczytać listy",
+      "attendanceFailed": "Nie udało się zapisać obecności"
     }
   },
   "orgSwitcher": {

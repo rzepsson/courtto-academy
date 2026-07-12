@@ -18,7 +18,7 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
         { label: t('nav.overview'), icon: 'i-lucide-layout-dashboard', to: '/school' },
         { label: t('nav.members'), icon: 'i-lucide-users', to: '/school/members' },
         { label: t('nav.courts'), icon: 'i-lucide-land-plot', to: '/school/courts' },
-        soon(t('nav.schedule'), 'i-lucide-calendar-days'),
+        { label: t('nav.schedule'), icon: 'i-lucide-calendar-days', to: '/school/schedule' },
         soon(t('nav.payments'), 'i-lucide-credit-card')
       ], [
         { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/school/settings' }
@@ -26,13 +26,13 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
     case 'coach':
       return [[
         { label: t('nav.overview'), icon: 'i-lucide-layout-dashboard', to: '/coach' },
-        soon(t('nav.schedule'), 'i-lucide-calendar-days'),
+        { label: t('nav.schedule'), icon: 'i-lucide-calendar-days', to: '/coach/schedule' },
         soon(t('nav.groups'), 'i-lucide-users')
       ]]
     default:
       return [[
         { label: t('nav.mySchools'), icon: 'i-lucide-home', to: '/my' },
-        soon(t('nav.lessons'), 'i-lucide-calendar-days'),
+        { label: t('nav.lessons'), icon: 'i-lucide-calendar-days', to: '/my/lessons' },
         soon(t('nav.payments'), 'i-lucide-credit-card')
       ]]
   }

@@ -43,6 +43,20 @@
       "when": 1783602754764,
       "tag": "0005_add_court",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783623406623,
+      "tag": "0006_greedy_onslaught",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783768463091,
+      "tag": "0007_wise_bishop",
+      "breakpoints": true
     }
   ]
 }

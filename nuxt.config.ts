@@ -24,9 +24,17 @@ export default defineNuxtConfig({
 
   // Nitro's built-in WebSocket (crossws) powers the live notification channel at
   // /api/notifications/ws. Enhancement only — the REST feed stays authoritative.
+  // `tasks` enables the scheduled job runner: schedule:materialize rolls every
+  // recurring lesson series' materialization horizon forward nightly (03:15) so
+  // "every Monday 17:00" never runs out of concrete sessions. The sweep is
+  // idempotent and bounded; see server/utils/services/schedule.ts.
   nitro: {
     experimental: {
-      websocket: true
+      websocket: true,
+      tasks: true
+    },
+    scheduledTasks: {
+      '15 3 * * *': ['schedule:materialize']
     }
   },
 
