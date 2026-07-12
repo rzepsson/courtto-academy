@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
 
-// Calendar navigation: prev/next/today + a day/week toggle + the current label.
-const view = defineModel<'day' | 'week'>('view', { required: true })
+// Calendar navigation: prev/next/today + a day/week/agenda toggle + the current
+// label. Agenda navigates by week, like the week grid.
+const view = defineModel<ScheduleView>('view', { required: true })
 const anchorAt = defineModel<string>('anchorAt', { required: true })
 
 const props = defineProps<{ timezone: string }>()
@@ -24,9 +25,25 @@ function shift(direction: number) {
   anchorAt.value = next.toISO()!
 }
 
+const viewOptions = [
+  { value: 'day' as const, label: 'schedule.calendar.day' },
+  { value: 'week' as const, label: 'schedule.calendar.week' },
+  { value: 'agenda' as const, label: 'schedule.calendar.agenda' }
+]
+
 function today() {
   anchorAt.value = DateTime.now().setZone(props.timezone).toISO()!
 }
+
+// The label doubles as a date picker: picking a day jumps the anchor there (in
+// day view that day; in week/agenda the week containing it).
+const anchorDate = computed({
+  get: () => DateTime.fromISO(anchorAt.value, { zone: props.timezone }).toFormat('yyyy-MM-dd'),
+  set: (date: string) => {
+    const dt = DateTime.fromISO(date, { zone: props.timezone })
+    if (dt.isValid) anchorAt.value = dt.toISO()!
+  }
+})
 </script>
 
 <template>
@@ -54,23 +71,22 @@ function today() {
         :label="t('schedule.calendar.today')"
         @click="today"
       />
-      <p class="text-sm font-medium text-highlighted">
-        {{ label }}
-      </p>
+      <AppDatePicker
+        v-model="anchorDate"
+        :label="label"
+        variant="ghost"
+        icon="i-lucide-calendar"
+      />
     </div>
 
     <UFieldGroup>
       <UButton
-        :color="view === 'day' ? 'primary' : 'neutral'"
-        :variant="view === 'day' ? 'solid' : 'subtle'"
-        :label="t('schedule.calendar.day')"
-        @click="view = 'day'"
-      />
-      <UButton
-        :color="view === 'week' ? 'primary' : 'neutral'"
-        :variant="view === 'week' ? 'solid' : 'subtle'"
-        :label="t('schedule.calendar.week')"
-        @click="view = 'week'"
+        v-for="option in viewOptions"
+        :key="option.value"
+        :color="view === option.value ? 'primary' : 'neutral'"
+        :variant="view === option.value ? 'solid' : 'subtle'"
+        :label="t(option.label)"
+        @click="view = option.value"
       />
     </UFieldGroup>
   </div>

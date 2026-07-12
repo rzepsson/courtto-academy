@@ -12,6 +12,7 @@ const props = defineProps<{
   view: 'day' | 'week'
   anchorAt: string
   courts?: { id: string, name: string }[] // day view columns
+  coaches?: { id: string, name: string }[] // resolves the coach shown on a block
   editable?: boolean
   loading?: boolean
 }>()
@@ -25,6 +26,15 @@ const emit = defineEmits<{
 const { t, locale } = useI18n()
 
 const anchor = computed(() => DateTime.fromISO(props.anchorAt, { zone: props.timezone }))
+
+const coachNames = computed(() => new Map((props.coaches ?? []).map(c => [c.id, c.name])))
+function coachNameOf(id: string | null): string | null {
+  return id ? coachNames.value.get(id) ?? null : null
+}
+
+// The visible hour band expands past the default to fit early/late lessons, so
+// nothing is ever clipped off-grid.
+const band = computed(() => computeBand(props.sessions, props.timezone))
 
 interface Column { id: string, label: string, sublabel?: string, dt: DateTime, courtId: string | null, isToday: boolean }
 
@@ -98,7 +108,7 @@ const layout = computed(() => {
     )
     out.set(key, lanes.map(({ item, lane, laneCount }) => {
       const startMin = localMinutes(item.startsAt, props.timezone)
-      const geom = blockGeometry(startMin, startMin + durationMinutes(item.startsAt, item.endsAt))
+      const geom = blockGeometry(startMin, startMin + durationMinutes(item.startsAt, item.endsAt), band.value)
       const widthPct = 100 / laneCount
       return { session: item, top: geom.top, height: geom.height, leftPct: lane * widthPct, widthPct }
     }))
@@ -107,14 +117,14 @@ const layout = computed(() => {
 })
 
 const hours = computed(() =>
-  Array.from({ length: CALENDAR.dayEndHour - CALENDAR.dayStartHour + 1 }, (_, i) => CALENDAR.dayStartHour + i)
+  Array.from({ length: band.value.endHour - band.value.startHour + 1 }, (_, i) => band.value.startHour + i)
 )
-const bodyHeight = computed(() => gridHeightPx())
+const bodyHeight = computed(() => gridHeightPx(band.value))
 
 const nowTop = computed(() => {
   const minutes = nowZoned.value.hour * 60 + nowZoned.value.minute
-  const bandStart = CALENDAR.dayStartHour * 60
-  const bandEnd = CALENDAR.dayEndHour * 60
+  const bandStart = band.value.startHour * 60
+  const bandEnd = band.value.endHour * 60
   if (minutes < bandStart || minutes > bandEnd) return null
   return (minutes - bandStart) / 60 * CALENDAR.pxPerHour
 })
@@ -124,7 +134,7 @@ const dragging = ref<ScheduleSessionView | null>(null)
 const dragGrabOffset = ref(0) // where inside the block the drag started (px)
 
 function localFromOffset(column: Column, offsetY: number): string {
-  const minutes = offsetToMinutes(offsetY)
+  const minutes = offsetToMinutes(offsetY, band.value)
   return localDateTimeStamp(column.dt.set({ hour: Math.floor(minutes / 60), minute: minutes % 60, second: 0, millisecond: 0 }))
 }
 
@@ -166,6 +176,20 @@ function onColumnClick(event: MouseEvent, column: Column) {
     <div class="min-w-fit">
       <!-- Column headers -->
       <div class="sticky top-0 z-20 flex border-b border-default bg-default/95 backdrop-blur">
+        <!-- Loading pill: anchored just under the sticky header, so it stays in
+             view while the grid (kept visible, dimmed) refetches. -->
+        <div
+          v-if="loading"
+          class="pointer-events-none absolute inset-x-0 top-full z-30 flex justify-center pt-2"
+        >
+          <span class="inline-flex items-center gap-2 rounded-full bg-elevated px-3 py-1.5 text-xs font-medium text-muted shadow-sm ring-1 ring-default">
+            <UIcon
+              name="i-lucide-loader-circle"
+              class="size-3.5 animate-spin"
+            />
+            {{ t('common.loading') }}
+          </span>
+        </div>
         <div class="w-14 shrink-0" />
         <div
           v-for="col in columns"
@@ -190,7 +214,10 @@ function onColumnClick(event: MouseEvent, column: Column) {
       </div>
 
       <!-- Time grid -->
-      <div class="flex">
+      <div
+        class="flex transition-opacity duration-200"
+        :class="loading && 'opacity-60'"
+      >
         <!-- Hour gutter -->
         <div
           class="w-14 shrink-0"
@@ -224,7 +251,7 @@ function onColumnClick(event: MouseEvent, column: Column) {
             v-for="h in hours"
             :key="h"
             class="absolute inset-x-0 border-t border-default/60"
-            :style="{ top: `${(h - CALENDAR.dayStartHour) * CALENDAR.pxPerHour}px` }"
+            :style="{ top: `${(h - band.startHour) * CALENDAR.pxPerHour}px` }"
           />
 
           <!-- Current-time indicator -->
@@ -259,21 +286,11 @@ function onColumnClick(event: MouseEvent, column: Column) {
               :session="entry.session"
               :timezone="timezone"
               :dense="entry.height < 34"
+              :coach-name="coachNameOf(entry.session.coachMemberId)"
             />
           </button>
         </div>
       </div>
-    </div>
-
-    <div
-      v-if="loading"
-      class="flex items-center justify-center gap-2 border-t border-default py-3 text-sm text-muted"
-    >
-      <UIcon
-        name="i-lucide-loader-circle"
-        class="size-4 animate-spin"
-      />
-      {{ t('common.loading') }}
     </div>
   </div>
 </template>

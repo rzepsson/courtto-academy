@@ -3,6 +3,7 @@ import {
   cancelEnrollment,
   enrollInSeries,
   enrollInSession,
+  getSeriesEnrollmentSummary,
   getSessionRoster,
   listSeriesEnrollments,
   listStudentSessions,
@@ -263,6 +264,32 @@ describe.skipIf(!hasTestDb)('enrolment + attendance service', () => {
 
     const cancelled = await cancelEnrollment(school.orgId, e1!.id, s1)
     expect(cancelled?.status).toBe('cancelled')
+  })
+
+  it('lets staff enrol into a closed series (byStaff), while self-enrol stays blocked', async () => {
+    const school = await seedSchool()
+    const s1 = await makeStudent(school.orgId)
+    const closed = await makeLesson(school, { enrollmentOpen: false })
+
+    // A student self-enrolling is still blocked when enrolment is closed.
+    await expect(enrollInSeries(school.orgId, closed.series.id, s1))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_ENROLLMENT_CLOSED' } })
+
+    // An owner/admin adding the student bypasses the closed policy.
+    const staffAdd = await enrollInSeries(school.orgId, closed.series.id, s1, true)
+    expect(staffAdd?.status).toBe('enrolled')
+  })
+
+  it('summarises a series capacity for the staff panel, scoped to the tenant', async () => {
+    const a = await seedSchool()
+    const b = await seedSchool()
+    const lesson = await makeLesson(a, { capacityMax: 6, enrollmentOpen: false })
+
+    const summary = await getSeriesEnrollmentSummary(a.orgId, lesson.series.id)
+    expect(summary).toEqual({ capacityMax: 6, enrollmentOpen: false })
+
+    // Another tenant can't read this series' summary.
+    expect(await getSeriesEnrollmentSummary(b.orgId, lesson.series.id)).toBeNull()
   })
 
   it('never enrols, rosters or cancels across tenants', async () => {

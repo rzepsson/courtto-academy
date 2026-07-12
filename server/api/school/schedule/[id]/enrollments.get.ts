@@ -1,7 +1,8 @@
 import { AREA_ROLES } from '../../../../../shared/permissions'
 
-// The full enrolment list for a series (enrolled + waitlisted, in queue order),
-// with student display fields. School roles only.
+// The series' capacity context + its full enrolment list (enrolled + waitlisted,
+// in queue order) with student display fields — the staff enrolment panel feed.
+// School roles only. 404 when the series isn't this facility's.
 export default defineEventHandler(async (event) => {
   const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
@@ -10,6 +11,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing lesson id' })
   }
 
-  const enrollments = await listSeriesEnrollments(membership.organization.id, id)
-  return { enrollments }
+  const orgId = membership.organization.id
+  const series = await getSeriesEnrollmentSummary(orgId, id)
+  if (!series) {
+    throw createError({ statusCode: 404, statusMessage: 'Lesson not found', data: { code: 'SCHEDULE_NOT_FOUND' } })
+  }
+
+  const enrollments = await listSeriesEnrollments(orgId, id)
+  return { series, enrollments }
 })

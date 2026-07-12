@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import type { ScheduleSessionDto, LessonSessionDto, LessonSeriesDto, StudentSessionView } from '~~/server/database/types'
 import { LESSON_TYPES } from '~~/shared/schedule'
-import { scheduleSeriesSchema, type ScheduleErrorCode } from '~~/shared/schedule-schema'
+import { scheduleSeriesSchema, scheduleSeriesMetadataPatchSchema, type ScheduleErrorCode } from '~~/shared/schedule-schema'
 
 // Client-facing schedule domain: re-exports of the shared schedule constants,
 // the string-dated view types, the form↔schema binding, and the pure grid/time
@@ -58,8 +58,53 @@ export function scheduleFormSchema(t: (key: string) => string) {
   return scheduleSeriesSchema(code => t(SCHEDULE_ERROR_KEYS[code]))
 }
 
+// The edit form binds this — the metadata subset the server accepts on PATCH
+// (title/colour/capacity/enrolment policy; structural fields aren't editable).
+export function scheduleMetadataFormSchema(t: (key: string) => string) {
+  return scheduleSeriesMetadataPatchSchema(code => t(SCHEDULE_ERROR_KEYS[code]))
+}
+
 export function lessonTypeOptions(t: (key: string) => string): { value: string, label: string }[] {
   return LESSON_TYPES.map(value => ({ value, label: t(`schedule.types.${value}`) }))
+}
+
+// ── Recurrence (pure) ────────────────────────────────────────────────────────
+
+// iCalendar weekday tokens, Monday-first (matches the week grid + start weekday).
+export const SCHEDULE_WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const
+export type Weekday = (typeof SCHEDULE_WEEKDAYS)[number]
+
+export type RecurrenceFreq = 'none' | 'daily' | 'weekly' | 'monthly'
+
+// Compile the compact recurrence controls into a supported RRULE (or null for a
+// one-off). Weekly with no explicit day falls back to the start's weekday, so the
+// series repeats on its own day. Shared by the create form and the edit panel.
+export function buildRRule(freq: RecurrenceFreq, byday: string[], startWeekday: string): string | null {
+  switch (freq) {
+    case 'daily': return 'FREQ=DAILY'
+    case 'monthly': return 'FREQ=MONTHLY'
+    case 'weekly': {
+      const days = byday.length ? byday : [startWeekday]
+      return `FREQ=WEEKLY;BYDAY=${days.join(',')}`
+    }
+    default: return null
+  }
+}
+
+// The inverse: derive the compact controls from a stored RRULE, so the edit panel
+// opens showing the series' current recurrence. Unknown/unsupported rules degrade
+// to a one-off ('none').
+export function parseRecurrence(rrule: string | null): { freq: RecurrenceFreq, byday: string[] } {
+  if (!rrule) return { freq: 'none', byday: [] }
+  const upper = rrule.toUpperCase()
+  if (/\bFREQ=DAILY\b/.test(upper)) return { freq: 'daily', byday: [] }
+  if (/\bFREQ=MONTHLY\b/.test(upper)) return { freq: 'monthly', byday: [] }
+  if (/\bFREQ=WEEKLY\b/.test(upper)) {
+    const match = upper.match(/BYDAY=([A-Z,]+)/)
+    const byday = match ? match[1]!.split(',').filter((d): d is Weekday => (SCHEDULE_WEEKDAYS as readonly string[]).includes(d)) : []
+    return { freq: 'weekly', byday }
+  }
+  return { freq: 'none', byday: [] }
 }
 
 // Sentinel for the "no coach" select option. Reka's USelect throws on an item
@@ -77,10 +122,59 @@ export function coachSelectOptions(
   return [{ value: NO_COACH_VALUE, label: noCoachLabel }, ...coaches.map(c => ({ value: c.id, label: c.name }))]
 }
 
+// The calendar's three layouts: day/week are the resource grid, agenda is the
+// grouped list. Day fetches a day window; week and agenda fetch the week window.
+export type ScheduleView = 'day' | 'week' | 'agenda'
+
+// ── Filters (pure) ───────────────────────────────────────────────────────────
+
+// The calendar's client-side filter model. Each list is "empty = no constraint"
+// (match all); a non-empty list keeps only sessions matching one of its values.
+// `coachMemberIds` may include NO_COACH_VALUE to match unassigned sessions.
+export interface ScheduleFilterState {
+  coachMemberIds: string[]
+  courtIds: string[]
+  sports: string[]
+  types: string[]
+  status: 'all' | 'active' | 'cancelled'
+}
+
+export const EMPTY_SCHEDULE_FILTERS: ScheduleFilterState = {
+  coachMemberIds: [],
+  courtIds: [],
+  sports: [],
+  types: [],
+  status: 'all'
+}
+
+// True when any constraint is set — drives the "clear" affordance.
+export function isScheduleFilterActive(f: ScheduleFilterState): boolean {
+  return f.coachMemberIds.length > 0
+    || f.courtIds.length > 0
+    || f.sports.length > 0
+    || f.types.length > 0
+    || f.status !== 'all'
+}
+
+export function sessionMatchesFilters(session: ScheduleSessionView, f: ScheduleFilterState): boolean {
+  if (f.coachMemberIds.length) {
+    const key = session.coachMemberId ?? NO_COACH_VALUE
+    if (!f.coachMemberIds.includes(key)) return false
+  }
+  if (f.courtIds.length && (session.courtId === null || !f.courtIds.includes(session.courtId))) return false
+  if (f.sports.length && !f.sports.includes(session.sport)) return false
+  if (f.types.length && !f.types.includes(session.type)) return false
+  if (f.status === 'active' && session.status === 'cancelled') return false
+  if (f.status === 'cancelled' && session.status !== 'cancelled') return false
+  return true
+}
+
 // ── Grid / time math (pure) ──────────────────────────────────────────────────
 
-// The visible time band on the day/week grid, and the pixel scale. Kept generous
-// enough for early-morning and late-evening lessons without endless scroll.
+// The DEFAULT visible time band on the day/week grid, and the pixel scale. Kept
+// generous enough for typical lessons; the grid auto-expands past it (see
+// `computeBand`) when a lesson starts earlier or ends later, so nothing is ever
+// clipped off-grid.
 export const CALENDAR = {
   dayStartHour: 7,
   dayEndHour: 23,
@@ -88,15 +182,24 @@ export const CALENDAR = {
   snapMinutes: 15
 } as const
 
+// The hour range a grid renders. Defaults to the CALENDAR band; widened per-view
+// to fit outlier lessons. `startHour`/`endHour` are whole hours in [0, 24].
+export interface CalendarBand {
+  startHour: number
+  endHour: number
+}
+
+export const DEFAULT_BAND: CalendarBand = { startHour: CALENDAR.dayStartHour, endHour: CALENDAR.dayEndHour }
+
 // Minimum block height so a very short (or clamped-to-edge) lesson stays clickable.
 const MIN_BLOCK_PX = 16
 
-export function gridMinutes(): number {
-  return (CALENDAR.dayEndHour - CALENDAR.dayStartHour) * 60
+export function gridMinutes(band: CalendarBand = DEFAULT_BAND): number {
+  return (band.endHour - band.startHour) * 60
 }
 
-export function gridHeightPx(): number {
-  return (CALENDAR.dayEndHour - CALENDAR.dayStartHour) * CALENDAR.pxPerHour
+export function gridHeightPx(band: CalendarBand = DEFAULT_BAND): number {
+  return (band.endHour - band.startHour) * CALENDAR.pxPerHour
 }
 
 // Minutes since local midnight for an instant, in the given IANA zone.
@@ -110,13 +213,13 @@ export function localDayKey(iso: string, timezone: string): string {
   return DateTime.fromISO(iso, { zone: timezone }).toFormat('yyyy-MM-dd')
 }
 
-// A block's top/height in pixels within the day band. Clamped so a block that
+// A block's top/height in pixels within the given band. Clamped so a block that
 // starts before / ends after the visible band — or exactly at the band end —
 // still renders a visible, clickable sliver at the edge rather than off-grid.
-export function blockGeometry(startMin: number, endMin: number): { top: number, height: number } {
-  const bandStart = CALENDAR.dayStartHour * 60
-  const bandEnd = CALENDAR.dayEndHour * 60
-  const maxTop = gridHeightPx() - MIN_BLOCK_PX
+export function blockGeometry(startMin: number, endMin: number, band: CalendarBand = DEFAULT_BAND): { top: number, height: number } {
+  const bandStart = band.startHour * 60
+  const bandEnd = band.endHour * 60
+  const maxTop = gridHeightPx(band) - MIN_BLOCK_PX
   const top = Math.min(Math.max((Math.max(startMin, bandStart) - bandStart) / 60 * CALENDAR.pxPerHour, 0), maxTop)
   const bottom = (Math.min(endMin, bandEnd) - bandStart) / 60 * CALENDAR.pxPerHour
   return { top, height: Math.max(bottom - top, MIN_BLOCK_PX) }
@@ -127,10 +230,38 @@ export function snapMinutes(minutes: number): number {
   return Math.round(minutes / CALENDAR.snapMinutes) * CALENDAR.snapMinutes
 }
 
-// Convert a pixel offset within the day band to a snapped minutes-since-midnight.
-export function offsetToMinutes(offsetPx: number): number {
-  const raw = CALENDAR.dayStartHour * 60 + (offsetPx / CALENDAR.pxPerHour) * 60
+// Every 'HH:mm' on the grid increment across a day — the options for the
+// time picker in the date+time field. 96 entries at 15-min spacing.
+export function quarterHourTimes(): string[] {
+  const out: string[] = []
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += CALENDAR.snapMinutes) {
+      out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`)
+    }
+  }
+  return out
+}
+
+// Convert a pixel offset within the band to a snapped minutes-since-midnight.
+export function offsetToMinutes(offsetPx: number, band: CalendarBand = DEFAULT_BAND): number {
+  const raw = band.startHour * 60 + (offsetPx / CALENDAR.pxPerHour) * 60
   return snapMinutes(raw)
+}
+
+// The hour band a set of sessions needs: the DEFAULT band, widened to fit any
+// lesson that starts before it or ends after it (clamped to a full day). So the
+// grid shows 07–23 normally, but a 06:00 or 22:30–00:00 lesson expands it rather
+// than being clipped. Sessions are read in the given zone.
+export function computeBand(sessions: ScheduleSessionView[], timezone: string): CalendarBand {
+  let startHour = DEFAULT_BAND.startHour
+  let endHour = DEFAULT_BAND.endHour
+  for (const s of sessions) {
+    const startMin = localMinutes(s.startsAt, timezone)
+    const endMin = Math.min(startMin + durationMinutes(s.startsAt, s.endsAt), 24 * 60)
+    startHour = Math.min(startHour, Math.floor(startMin / 60))
+    endHour = Math.max(endHour, Math.ceil(endMin / 60))
+  }
+  return { startHour: Math.max(0, startHour), endHour: Math.min(24, endHour) }
 }
 
 export interface LaneItem<T> {
@@ -184,6 +315,29 @@ export function computeLanes<T>(
   if (cluster.length > 0) flush()
 
   return result
+}
+
+// ── Agenda grouping (pure) ───────────────────────────────────────────────────
+
+export interface AgendaDay {
+  key: string // local 'yyyy-MM-dd'
+  sessions: ScheduleSessionView[]
+}
+
+// Group sessions into ascending local days, each day's sessions sorted by start.
+// Days with no sessions are omitted — the agenda lists only what's scheduled.
+export function groupSessionsByDay(sessions: ScheduleSessionView[], timezone: string): AgendaDay[] {
+  const byDay = new Map<string, ScheduleSessionView[]>()
+  for (const s of sessions) {
+    const key = localDayKey(s.startsAt, timezone)
+    ;(byDay.get(key) ?? byDay.set(key, []).get(key)!).push(s)
+  }
+  return [...byDay.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, list]) => ({
+      key,
+      sessions: list.sort((a, b) => (a.startsAt < b.startsAt ? -1 : a.startsAt > b.startsAt ? 1 : 0))
+    }))
 }
 
 // ── Range helpers (fetch windows) ────────────────────────────────────────────

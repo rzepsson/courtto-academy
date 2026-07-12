@@ -91,7 +91,8 @@
     "cancel": "Anuluj",
     "save": "Zapisz zmiany",
     "discard": "Odrzuć",
-    "loading": "Ładowanie…"
+    "loading": "Ładowanie…",
+    "search": "Szukaj…"
   },
   "nav": {
     "overview": "Przegląd",
@@ -230,9 +231,27 @@
       "otherCourt": "Inne",
       "day": "Dzień",
       "week": "Tydzień",
+      "agenda": "Agenda",
       "today": "Dziś",
       "previous": "Poprzedni",
       "next": "Następny"
+    },
+    "agenda": {
+      "empty": "Brak zajęć do wyświetlenia.",
+      "count": "{n} zajęć"
+    },
+    "filters": {
+      "allCoaches": "Wszyscy trenerzy",
+      "allCourts": "Wszystkie korty",
+      "allSports": "Wszystkie sporty",
+      "allTypes": "Wszystkie typy",
+      "clear": "Wyczyść",
+      "empty": "Żadne zajęcia nie pasują do filtrów.",
+      "status": {
+        "all": "Wszystkie statusy",
+        "active": "Aktywne",
+        "cancelled": "Odwołane"
+      }
     },
     "types": {
       "group": "Grupowe",
@@ -271,6 +290,7 @@
       "coach": "Trener",
       "noCoach": "Bez trenera",
       "overridden": "Zmienione",
+      "edit": "Edytuj zajęcia",
       "reschedule": "Przełóż",
       "cancel": "Odwołaj",
       "restore": "Przywróć",
@@ -279,11 +299,49 @@
       "rescheduled": "Wystąpienie zaktualizowane",
       "myStatusIntro": "Jesteś zapisany na te zajęcia."
     },
+    "edit": {
+      "title": "Edytuj zajęcia",
+      "subtitle": "Zaktualizuj szczegóły grupy, trenera i kort.",
+      "saved": "Zajęcia zaktualizowane",
+      "scheduleTitle": "Czas i powtarzanie",
+      "scheduleHint": "Zmień godziny zajęć i sposób ich powtarzania.",
+      "changeSchedule": "Zmień harmonogram",
+      "noFuture": "Te zajęcia nie mają nadchodzących wystąpień do przełożenia.",
+      "scheduleWarning": "To wygeneruje na nowo wszystkie nadchodzące wystąpienia. Ręcznie przesunięte lub odwołane przyszłe sesje — oraz drop-iny na nich — zostaną zresetowane. Zapisy na grupę pozostają.",
+      "applySchedule": "Zastosuj nowy harmonogram",
+      "scheduleSaved": "Harmonogram zaktualizowany",
+      "errors": {
+        "loadFailed": "Nie udało się wczytać zajęć",
+        "saveFailed": "Nie udało się zapisać zmian",
+        "scheduleFailed": "Nie udało się zaktualizować harmonogramu"
+      }
+    },
     "attendance": {
       "title": "Obecność",
       "save": "Zapisz",
       "saved": "Obecność zapisana",
       "empty": "Brak zapisanych uczniów."
+    },
+    "enrollment": {
+      "title": "Zapisy",
+      "count": "{n} zapisanych",
+      "countOf": "{n} / {max}",
+      "pickStudent": "Dodaj ucznia…",
+      "searchStudent": "Szukaj po nazwisku…",
+      "allEnrolled": "Wszyscy zapisani",
+      "add": "Dodaj",
+      "added": "Uczeń zapisany",
+      "waitlisted": "Dodano do listy rezerwowej",
+      "removed": "Zapis usunięty",
+      "remove": "Usuń z grupy",
+      "closedStaffCanAdd": "Samodzielne zapisy wyłączone — uczniowie nie dołączą sami, ale Ty możesz ich dodać.",
+      "empty": "Brak zapisanych uczniów.",
+      "waitlistTitle": "Lista rezerwowa ({n})",
+      "errors": {
+        "loadFailed": "Nie udało się wczytać zapisów",
+        "addFailed": "Nie udało się zapisać ucznia",
+        "removeFailed": "Nie udało się usunąć zapisu"
+      }
     },
     "form": {
       "createTitle": "Nowe zajęcia",

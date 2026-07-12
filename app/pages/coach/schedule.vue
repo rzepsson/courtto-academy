@@ -9,7 +9,7 @@ const { t } = useI18n()
 // The school timezone arrives with the sessions; start from the viewer's zone so
 // the first window is sensible, then adopt the school's.
 const timezone = ref(Intl.DateTimeFormat().resolvedOptions().timeZone)
-const view = ref<'day' | 'week'>('week')
+const view = ref<ScheduleView>('week')
 const anchorISO = ref(new Date().toISOString())
 
 const range = computed(() => {
@@ -70,10 +70,18 @@ function onSelect(session: ScheduleSessionView) {
         </MotionReveal>
 
         <MotionReveal :delay="0.1">
-          <ScheduleCalendar
+          <ScheduleAgenda
+            v-if="view === 'agenda'"
             :sessions="sessions"
             :timezone="timezone"
-            :view="view"
+            :loading="loading"
+            @select="onSelect"
+          />
+          <ScheduleCalendar
+            v-else
+            :sessions="sessions"
+            :timezone="timezone"
+            :view="view === 'week' ? 'week' : 'day'"
             :anchor-at="anchorISO"
             :loading="loading"
             @select="onSelect"

@@ -145,6 +145,14 @@ export function scheduleSeriesMetadataPatchSchema(msg: ScheduleMessageResolver) 
   return scheduleSeriesSchema(msg).pick(mask as Record<SeriesMetadataField, true>).partial()
 }
 
+// Editing a series' STRUCTURE — its wall-clock start, duration and recurrence.
+// Unlike metadata this re-materializes future occurrences, so it's its own
+// endpoint. dtStart/durationMin are required (a full replacement of the schedule);
+// rrule is null for a one-off. Court/coach/sport/type stay put (separate edits).
+export function seriesScheduleSchema(msg: ScheduleMessageResolver) {
+  return scheduleSeriesSchema(msg).pick({ dtStart: true, durationMin: true, rrule: true })
+}
+
 // A non-empty id that can be omitted (absent = keep) but not cleared.
 function optionalId(msg: ScheduleMessageResolver) {
   return z.string().trim().min(1, msg('required')).max(SCHEDULE_LIMITS.id, msg('tooLong')).optional()

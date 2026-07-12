@@ -22,8 +22,6 @@ const toast = useToast()
 const { toastError } = useApiError()
 const form = useTemplateRef('form')
 
-const WEEKDAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'] as const
-
 const state = reactive({
   type: 'group',
   sport: 'tennis',
@@ -86,35 +84,15 @@ const sportOptions = computed(() =>
   props.allowedSports.filter(isCourtSport).map(s => ({ value: s as string, label: t(`school.settings.sports.${s}`) }))
 )
 const typeOptions = computed(() => lessonTypeOptions(t))
-const freqOptions = computed(() => [
-  { value: 'none', label: t('schedule.form.freq.none') },
-  { value: 'daily', label: t('schedule.form.freq.daily') },
-  { value: 'weekly', label: t('schedule.form.freq.weekly') },
-  { value: 'monthly', label: t('schedule.form.freq.monthly') }
-])
 
 const startWeekday = computed(() => {
   const dt = DateTime.fromISO(state.dtStart, { zone: props.timezone })
-  return dt.isValid ? WEEKDAYS[dt.weekday - 1]! : 'MO'
+  return dt.isValid ? SCHEDULE_WEEKDAYS[dt.weekday - 1]! : 'MO'
 })
 
-const rrule = computed<string | null>(() => {
-  switch (state.freq) {
-    case 'daily': return 'FREQ=DAILY'
-    case 'monthly': return 'FREQ=MONTHLY'
-    case 'weekly': {
-      const days = state.byday.length ? state.byday : [startWeekday.value]
-      return `FREQ=WEEKLY;BYDAY=${days.join(',')}`
-    }
-    default: return null
-  }
-})
+const rrule = computed<string | null>(() => buildRRule(state.freq, state.byday, startWeekday.value))
 
 const formSchema = computed(() => scheduleFormSchema(t))
-
-function toggleDay(day: string) {
-  state.byday = state.byday.includes(day) ? state.byday.filter(d => d !== day) : [...state.byday, day]
-}
 
 async function onSubmit() {
   saving.value = true
@@ -209,11 +187,13 @@ async function onSubmit() {
             name="defaultCourtId"
             required
           >
-            <USelect
+            <USelectMenu
               v-model="state.defaultCourtId"
               value-key="value"
               :items="courtOptions"
               :placeholder="t('schedule.form.courtNone')"
+              :search-input="{ placeholder: t('common.search') }"
+              icon="i-lucide-land-plot"
               size="lg"
               class="w-full"
             />
@@ -222,10 +202,12 @@ async function onSubmit() {
             :label="t('schedule.form.coach')"
             name="coachMemberId"
           >
-            <USelect
+            <USelectMenu
               v-model="state.coachMemberId"
               value-key="value"
               :items="coachOptions"
+              :search-input="{ placeholder: t('common.search') }"
+              icon="i-lucide-user-round"
               size="lg"
               class="w-full"
             />
@@ -237,12 +219,11 @@ async function onSubmit() {
             :label="t('schedule.form.dtStart')"
             name="dtStart"
             required
+            class="sm:col-span-2"
           >
-            <UInput
+            <AppDateTimeField
               v-model="state.dtStart"
-              type="datetime-local"
               size="lg"
-              class="w-full"
             />
           </UFormField>
           <UFormField
@@ -266,31 +247,12 @@ async function onSubmit() {
           :label="t('schedule.form.repeat')"
           name="freq"
         >
-          <USelect
-            v-model="state.freq"
-            value-key="value"
-            :items="freqOptions"
-            size="lg"
-            class="w-full"
+          <ScheduleRecurrencePicker
+            v-model:freq="state.freq"
+            v-model:byday="state.byday"
+            :start-weekday="startWeekday"
           />
         </UFormField>
-        <div
-          v-if="state.freq === 'weekly'"
-          class="flex flex-wrap gap-1.5"
-        >
-          <button
-            v-for="day in WEEKDAYS"
-            :key="day"
-            type="button"
-            class="rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors"
-            :class="(state.byday.length ? state.byday.includes(day) : day === startWeekday)
-              ? 'bg-primary text-inverted ring-primary'
-              : 'bg-default text-muted ring-default hover:text-default hover:ring-inverted/20'"
-            @click="toggleDay(day)"
-          >
-            {{ t(`schedule.weekdays.${day}`) }}
-          </button>
-        </div>
 
         <div class="grid gap-5 sm:grid-cols-2">
           <UFormField

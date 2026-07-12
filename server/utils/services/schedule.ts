@@ -19,6 +19,7 @@ import {
   scheduleSeriesCreateSchema,
   scheduleSeriesMetadataPatchSchema,
   seriesAssignmentSchema,
+  seriesScheduleSchema,
   sessionUpdateSchema
 } from '../../../shared/schedule-schema'
 import { pgErrorCode, pgErrorConstraint } from '../pgError'
@@ -85,6 +86,7 @@ const createSchema = scheduleSeriesCreateSchema(code => code)
 const metadataPatchSchema = scheduleSeriesMetadataPatchSchema(code => code)
 const sessionSchema = sessionUpdateSchema(code => code)
 const assignmentSchema = seriesAssignmentSchema(code => code)
+const scheduleSchema = seriesScheduleSchema(code => code)
 
 function bad(message: string, code: string): never {
   throw createError({ statusCode: 400, statusMessage: message, data: { code } })
@@ -489,6 +491,150 @@ export async function updateSeriesMetadata(
       .update(lessonSeries)
       .set(set)
       .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+  }
+
+  return getSeries(organizationId, seriesId)
+}
+
+// Edit a series' STRUCTURE — wall-clock start, duration and recurrence — by
+// re-materializing the FUTURE from the new schedule. Policy ("this & following"):
+// past/in-progress sessions (startsAt < now) stay as history; every future
+// session + its reservation is deleted and regenerated, so any single-occurrence
+// overrides/exceptions and per-session drop-in enrolments from now on are reset
+// (deleting a session cascades its drop-ins + attendance). SERIES enrolments are
+// untouched (they reference the series, not sessions), so the group carries over.
+// Court/coach/sport stay put (separate assignment edit). Conflicts are enforced
+// by the same EXCLUDE backstops as create — the whole change is atomic. Null when
+// the series isn't this facility's.
+export async function updateSeriesSchedule(
+  organizationId: string,
+  seriesId: string,
+  body: unknown
+): Promise<LessonDetail | null> {
+  const parsed = scheduleSchema.safeParse(body)
+  if (!parsed.success) bad('Invalid schedule', 'INVALID_LESSON')
+  const values = parsed.data
+
+  const [series] = await db
+    .select({
+      timezone: lessonSeries.timezone,
+      sport: lessonSeries.sport,
+      defaultCourtId: lessonSeries.defaultCourtId,
+      coachMemberId: lessonSeries.coachMemberId,
+      status: lessonSeries.status,
+      createdBy: lessonSeries.createdBy
+    })
+    .from(lessonSeries)
+    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .limit(1)
+  if (!series) return null
+  if (series.status !== 'active') bad('This series is not active', 'SCHEDULE_SERIES_INACTIVE')
+  const courtId = series.defaultCourtId
+  if (!courtId) bad('This series has no court', 'SCHEDULE_COURT_UNAVAILABLE')
+
+  // The court must still be active and match the series' sport (same guard as
+  // create/extend) — a schedule change can't silently re-book an archived court.
+  const [courtRow] = await db
+    .select({ archivedAt: court.archivedAt, sport: court.sport })
+    .from(court)
+    .where(and(eq(court.organizationId, organizationId), eq(court.id, courtId)))
+    .limit(1)
+  if (!courtRow || courtRow.archivedAt || courtRow.sport !== series.sport) {
+    bad('The series court is unavailable', 'SCHEDULE_COURT_UNAVAILABLE')
+  }
+
+  const timezone = series.timezone
+  const startInstant = localDateTimeToInstant(values.dtStart, timezone)
+  const now = new Date()
+  // A one-off can't be re-timed into the past (there'd be no future occurrence);
+  // a recurring series anchored in the past is fine — it rolls from now.
+  if (!values.rrule && startInstant.getTime() < now.getTime()) {
+    bad('The start must be in the future', 'SCHEDULE_DTSTART_PAST')
+  }
+
+  const windowStart = values.rrule ? new Date(Math.max(now.getTime(), startInstant.getTime())) : startInstant
+  const windowEnd = new Date(windowStart.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
+  const occurrences = expandOccurrences({
+    dtStart: values.dtStart,
+    timezone,
+    durationMin: values.durationMin,
+    rrule: values.rrule ?? null,
+    from: windowStart,
+    to: windowEnd
+  })
+  if (occurrences.length === 0) bad('No occurrences in the scheduling window', 'SCHEDULE_NO_OCCURRENCES')
+
+  const reservationRows = occurrences.map(occ => ({
+    id: randomUUID(),
+    organizationId,
+    courtId,
+    startsAt: occ.startsAt,
+    endsAt: occ.endsAt,
+    status: 'confirmed',
+    kind: 'lesson',
+    createdBy: series.createdBy
+  }))
+  const sessionRows = occurrences.map((occ, i) => ({
+    id: randomUUID(),
+    organizationId,
+    seriesId,
+    reservationId: reservationRows[i]!.id,
+    occurrenceStart: occ.occurrenceStart,
+    startsAt: occ.startsAt,
+    endsAt: occ.endsAt,
+    coachMemberId: series.coachMemberId,
+    courtId,
+    status: 'scheduled',
+    overridden: false
+  }))
+
+  try {
+    await db.transaction(async (tx) => {
+      // Delete the future only (startsAt >= now). Deleting a session cascades its
+      // drop-in enrolments + attendance; the reservation FK points the other way,
+      // so those are removed explicitly after (the app-schema lifecycle contract).
+      const future = await tx
+        .select({ id: lessonSession.id, reservationId: lessonSession.reservationId })
+        .from(lessonSession)
+        .where(and(
+          eq(lessonSession.organizationId, organizationId),
+          eq(lessonSession.seriesId, seriesId),
+          gte(lessonSession.startsAt, now)
+        ))
+      if (future.length > 0) {
+        await tx.delete(lessonSession).where(and(
+          eq(lessonSession.organizationId, organizationId),
+          inArray(lessonSession.id, future.map(f => f.id))
+        ))
+        await tx.delete(reservation).where(and(
+          eq(reservation.organizationId, organizationId),
+          inArray(reservation.id, future.map(f => f.reservationId))
+        ))
+      }
+      // Future divergences no longer map to the new pattern.
+      await tx.delete(lessonException).where(and(
+        eq(lessonException.organizationId, organizationId),
+        eq(lessonException.seriesId, seriesId),
+        gte(lessonException.occurrenceStart, now)
+      ))
+
+      await tx
+        .update(lessonSeries)
+        .set({
+          dtStart: values.dtStart,
+          durationMin: values.durationMin,
+          rrule: values.rrule ?? null,
+          materializedUntil: windowEnd
+        })
+        .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+
+      await tx.insert(reservation).values(reservationRows)
+      await tx.insert(lessonSession).values(sessionRows)
+    })
+  } catch (error) {
+    if (coachOverlapViolation(error)) conflict('Coach is already teaching at this time', 'SCHEDULE_COACH_CONFLICT')
+    if (courtOverlapViolation(error)) conflict('Court already booked at this time', 'SCHEDULE_COURT_CONFLICT')
+    throw error
   }
 
   return getSeries(organizationId, seriesId)

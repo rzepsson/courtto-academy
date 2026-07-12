@@ -3,7 +3,7 @@ import { and, asc, count, eq, gte, inArray, lt, max, ne, or } from 'drizzle-orm'
 import { db } from '../db'
 import { attendance, enrollment, lessonSeries, lessonSession, reservation } from '../../database/app-schema'
 import { member, user } from '../../database/schema'
-import type { EnrollmentDto, EnrollmentView, RosterEntry, StudentSessionView } from '../../database/types'
+import type { EnrollmentDto, EnrollmentView, RosterEntry, SeriesEnrollmentSummary, StudentSessionView } from '../../database/types'
 import { isAttendanceStatus } from '../../../shared/schedule'
 
 // Academy enrolment + attendance service. App-owned tables, written with Drizzle
@@ -53,11 +53,13 @@ async function nextWaitlistPos(tx: Tx, where: ReturnType<typeof and>): Promise<n
 
 // Enrol a student in a whole series (the recurring path). Idempotent while
 // active; a previously cancelled enrolment is re-activated. Null when the series
-// isn't this facility's.
+// isn't this facility's. `byStaff` lets an owner/admin add a student even when
+// self-enrolment is closed — `enrollmentOpen` only gates student self-service.
 export async function enrollInSeries(
   organizationId: string,
   seriesId: string,
-  studentMemberId: string
+  studentMemberId: string,
+  byStaff = false
 ): Promise<EnrollmentDto | null> {
   await requireStudentMember(organizationId, studentMemberId)
 
@@ -70,7 +72,7 @@ export async function enrollInSeries(
       .for('update')
     if (!series) return null
     if (series.status !== 'active') bad('This series is not accepting enrolments', 'SCHEDULE_ENROLLMENT_UNAVAILABLE')
-    if (!series.enrollmentOpen) bad('Enrolment is closed for this series', 'SCHEDULE_ENROLLMENT_CLOSED')
+    if (!series.enrollmentOpen && !byStaff) bad('Enrolment is closed for this series', 'SCHEDULE_ENROLLMENT_CLOSED')
 
     const [existing] = await tx
       .select(ENROLLMENT_COLUMNS)
@@ -123,7 +125,8 @@ export async function enrollInSeries(
 export async function enrollInSession(
   organizationId: string,
   sessionId: string,
-  studentMemberId: string
+  studentMemberId: string,
+  byStaff = false
 ): Promise<EnrollmentDto | null> {
   await requireStudentMember(organizationId, studentMemberId)
 
@@ -147,7 +150,7 @@ export async function enrollInSession(
       .for('update')
     if (!series) return null
     if (series.status !== 'active') bad('This series is not accepting enrolments', 'SCHEDULE_ENROLLMENT_UNAVAILABLE')
-    if (!series.enrollmentOpen) bad('Enrolment is closed for this series', 'SCHEDULE_ENROLLMENT_CLOSED')
+    if (!series.enrollmentOpen && !byStaff) bad('Enrolment is closed for this series', 'SCHEDULE_ENROLLMENT_CLOSED')
 
     // Only a confirmed series SEAT blocks a drop-in; a series-waitlisted student
     // (no seat) may still drop into a specific session that has room.
@@ -293,6 +296,22 @@ export async function cancelEnrollment(
 
     return cancelled!
   })
+}
+
+// The series-level capacity context for the staff enrolment panel. Null when the
+// series isn't this facility's — the caller 404s, so the panel can't leak or act
+// on another tenant's series.
+export async function getSeriesEnrollmentSummary(
+  organizationId: string,
+  seriesId: string
+): Promise<SeriesEnrollmentSummary | null> {
+  const [series] = await db
+    .select({ capacityMax: lessonSeries.capacityMax, enrollmentOpen: lessonSeries.enrollmentOpen })
+    .from(lessonSeries)
+    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .limit(1)
+  if (!series) return null
+  return { capacityMax: series.capacityMax, enrollmentOpen: series.enrollmentOpen }
 }
 
 // The full enrolment list for a series (enrolled + waitlisted, in queue order),

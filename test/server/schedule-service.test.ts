@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { DateTime } from 'luxon'
 import { and, eq, gt, inArray } from 'drizzle-orm'
@@ -14,8 +15,10 @@ import {
   runMaterializationSweep,
   updateLessonSession,
   updateSeriesAssignment,
-  updateSeriesMetadata
+  updateSeriesMetadata,
+  updateSeriesSchedule
 } from '../../server/utils/services/schedule'
+import { enrollInSeries, listSeriesEnrollments } from '../../server/utils/services/enrollment'
 import { pgErrorCode, pgErrorConstraint } from '../../server/utils/pgError'
 import { createCourt } from '../../server/utils/services/courts'
 import { upsertOrgProfile } from '../../server/utils/services/orgProfile'
@@ -592,5 +595,115 @@ describe.skipIf(!hasTestDb)('materialization sweep', () => {
     expect(result.status).toBe('ok')
     expect(result.processed).toBe(0)
     expect(result.created).toBe(0)
+  })
+
+  // ── Structural schedule edit (updateSeriesSchedule) ────────────────────────
+
+  const wide = () => ({ from: new Date(0), to: new Date(Date.now() + 300 * 86_400_000) })
+  const warsawHour = (d: Date) => DateTime.fromJSDate(d).setZone('Europe/Warsaw').hour
+
+  it('re-times a recurring series: future occurrences move to the new local time and duration', async () => {
+    const school = await seedSchool()
+    const created = await createLesson(
+      school.orgId,
+      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
+      school.owner.userId
+    )
+    const before = await listSessions(school.orgId, wide())
+    expect(before.length).toBeGreaterThan(0)
+    expect(before.every(s => warsawHour(s.startsAt) === 17)).toBe(true)
+
+    const updated = await updateSeriesSchedule(school.orgId, created.series.id, {
+      dtStart: '2020-01-06T09:00',
+      durationMin: 90,
+      rrule: 'FREQ=WEEKLY;BYDAY=MO'
+    })
+    expect(updated!.series.dtStart).toBe('2020-01-06T09:00')
+    expect(updated!.series.durationMin).toBe(90)
+
+    const after = await listSessions(school.orgId, wide())
+    expect(after.length).toBeGreaterThan(0)
+    expect(after.every(s => warsawHour(s.startsAt) === 9)).toBe(true)
+    expect(after.every(s => s.endsAt.getTime() - s.startsAt.getTime() === 90 * 60_000)).toBe(true)
+  })
+
+  it('preserves series enrolments across a schedule change', async () => {
+    const school = await seedSchool()
+    const created = await createLesson(
+      school.orgId,
+      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
+      school.owner.userId
+    )
+    await enrollInSeries(school.orgId, created.series.id, school.studentMemberId)
+
+    await updateSeriesSchedule(school.orgId, created.series.id, {
+      dtStart: '2020-01-06T18:00',
+      durationMin: 60,
+      rrule: 'FREQ=WEEKLY;BYDAY=WE'
+    })
+
+    const list = await listSeriesEnrollments(school.orgId, created.series.id)
+    expect(list).toHaveLength(1)
+    expect(list[0]).toMatchObject({ studentMemberId: school.studentMemberId, status: 'enrolled' })
+  })
+
+  it('keeps past sessions as history when re-timing', async () => {
+    const school = await seedSchool()
+    const created = await createLesson(
+      school.orgId,
+      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
+      school.owner.userId
+    )
+    // A session that already happened (inserted directly, as history would be).
+    const past = new Date(Date.now() - 7 * 86_400_000)
+    const pastEnd = new Date(past.getTime() + 60 * 60_000)
+    const resId = randomUUID()
+    const sessId = randomUUID()
+    await db.insert(reservation).values({
+      id: resId, organizationId: school.orgId, courtId: school.courtId,
+      startsAt: past, endsAt: pastEnd, status: 'confirmed', kind: 'lesson', createdBy: school.owner.userId
+    })
+    await db.insert(lessonSession).values({
+      id: sessId, organizationId: school.orgId, seriesId: created.series.id, reservationId: resId,
+      occurrenceStart: past, startsAt: past, endsAt: pastEnd,
+      coachMemberId: school.coachMemberId, courtId: school.courtId, status: 'scheduled', overridden: false
+    })
+
+    await updateSeriesSchedule(school.orgId, created.series.id, {
+      dtStart: '2020-01-06T08:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO'
+    })
+
+    const [survivor] = await db
+      .select({ id: lessonSession.id })
+      .from(lessonSession)
+      .where(and(eq(lessonSession.organizationId, school.orgId), eq(lessonSession.id, sessId)))
+    expect(survivor).toBeDefined()
+  })
+
+  it('rejects re-timing a one-off into the past', async () => {
+    const school = await seedSchool()
+    const created = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
+    await expect(updateSeriesSchedule(school.orgId, created.series.id, { dtStart: '2020-01-01T10:00', durationMin: 60, rrule: null }))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_DTSTART_PAST' } })
+  })
+
+  it('rejects a schedule change that double-books the court', async () => {
+    const school = await seedSchool()
+    await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
+    const b = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T19:00', title: 'Grupa B' }), school.owner.userId)
+    await expect(updateSeriesSchedule(school.orgId, b.series.id, { dtStart: '2026-09-07T17:00', durationMin: 60, rrule: null }))
+      .rejects.toMatchObject({ statusCode: 409, data: { code: 'SCHEDULE_COURT_CONFLICT' } })
+  })
+
+  it('never re-times another tenant’s series', async () => {
+    const a = await seedSchool()
+    const b = await seedSchool()
+    const created = await createLesson(
+      a.orgId,
+      lessonBody(a, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
+      a.owner.userId
+    )
+    expect(await updateSeriesSchedule(b.orgId, created.series.id, { dtStart: '2020-01-06T09:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO' }))
+      .toBeNull()
   })
 })

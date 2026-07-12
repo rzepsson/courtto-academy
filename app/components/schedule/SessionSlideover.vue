@@ -15,9 +15,10 @@ const props = defineProps<{
   area: 'school' | 'coach' | 'my'
   courts?: CourtView[]
   coaches?: { id: string, name: string }[]
+  students?: { id: string, name: string, email: string }[]
 }>()
 
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: [], edit: [session: ScheduleSessionView] }>()
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -243,6 +244,13 @@ async function saveReschedule() {
         >
           <div class="flex flex-wrap gap-2">
             <UButton
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-pencil"
+              :label="t('schedule.session.edit')"
+              @click="session && emit('edit', session)"
+            />
+            <UButton
               v-if="!cancelled"
               color="neutral"
               variant="subtle"
@@ -275,12 +283,11 @@ async function saveReschedule() {
             class="flex flex-col gap-4 rounded-lg bg-elevated/40 p-4 ring-1 ring-default"
           >
             <div class="grid gap-3 sm:grid-cols-2">
-              <UFormField :label="t('schedule.form.dtStart')">
-                <UInput
-                  v-model="edit.dtStart"
-                  type="datetime-local"
-                  class="w-full"
-                />
+              <UFormField
+                :label="t('schedule.form.dtStart')"
+                class="sm:col-span-2"
+              >
+                <AppDateTimeField v-model="edit.dtStart" />
               </UFormField>
               <UFormField :label="t('schedule.form.duration')">
                 <UInput
@@ -292,18 +299,22 @@ async function saveReschedule() {
                 />
               </UFormField>
               <UFormField :label="t('schedule.form.court')">
-                <USelect
+                <USelectMenu
                   v-model="edit.courtId"
                   value-key="value"
                   :items="courtOptions"
+                  :search-input="{ placeholder: t('common.search') }"
+                  icon="i-lucide-land-plot"
                   class="w-full"
                 />
               </UFormField>
               <UFormField :label="t('schedule.form.coach')">
-                <USelect
+                <USelectMenu
                   v-model="edit.coachMemberId"
                   value-key="value"
                   :items="coachOptions"
+                  :search-input="{ placeholder: t('common.search') }"
+                  icon="i-lucide-user-round"
                   class="w-full"
                 />
               </UFormField>
@@ -326,6 +337,15 @@ async function saveReschedule() {
             </div>
           </div>
         </div>
+
+        <!-- Enrolment management (school only). Series-scoped, so it stays
+             available even for a single cancelled occurrence. -->
+        <ScheduleEnrollmentManager
+          v-if="canManage"
+          :session="session"
+          :students="students ?? []"
+          @changed="loadRoster()"
+        />
 
         <!-- Roster + attendance -->
         <div

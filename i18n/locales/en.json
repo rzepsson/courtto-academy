@@ -91,7 +91,8 @@
     "cancel": "Cancel",
     "save": "Save changes",
     "discard": "Discard",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "search": "Search…"
   },
   "nav": {
     "overview": "Overview",
@@ -230,9 +231,27 @@
       "otherCourt": "Other",
       "day": "Day",
       "week": "Week",
+      "agenda": "Agenda",
       "today": "Today",
       "previous": "Previous",
       "next": "Next"
+    },
+    "agenda": {
+      "empty": "No lessons to show.",
+      "count": "{n} lessons"
+    },
+    "filters": {
+      "allCoaches": "All coaches",
+      "allCourts": "All courts",
+      "allSports": "All sports",
+      "allTypes": "All types",
+      "clear": "Clear",
+      "empty": "No lessons match your filters.",
+      "status": {
+        "all": "All statuses",
+        "active": "Active",
+        "cancelled": "Cancelled"
+      }
     },
     "types": {
       "group": "Group",
@@ -271,6 +290,7 @@
       "coach": "Coach",
       "noCoach": "No coach",
       "overridden": "Edited",
+      "edit": "Edit lesson",
       "reschedule": "Reschedule",
       "cancel": "Cancel",
       "restore": "Restore",
@@ -279,11 +299,49 @@
       "rescheduled": "Occurrence updated",
       "myStatusIntro": "You're enrolled in this lesson."
     },
+    "edit": {
+      "title": "Edit lesson",
+      "subtitle": "Update the group's details, coach and court.",
+      "saved": "Lesson updated",
+      "scheduleTitle": "Time & recurrence",
+      "scheduleHint": "Change when the lesson runs and how it repeats.",
+      "changeSchedule": "Change schedule",
+      "noFuture": "This lesson has no upcoming occurrences to reschedule.",
+      "scheduleWarning": "This regenerates every upcoming occurrence. Individually moved or cancelled future sessions — and any drop-ins on them — are reset. Group enrolments stay.",
+      "applySchedule": "Apply new schedule",
+      "scheduleSaved": "Schedule updated",
+      "errors": {
+        "loadFailed": "Could not load the lesson",
+        "saveFailed": "Could not save the changes",
+        "scheduleFailed": "Could not update the schedule"
+      }
+    },
     "attendance": {
       "title": "Attendance",
       "save": "Save",
       "saved": "Attendance saved",
       "empty": "No students enrolled yet."
+    },
+    "enrollment": {
+      "title": "Enrolment",
+      "count": "{n} enrolled",
+      "countOf": "{n} / {max}",
+      "pickStudent": "Add a student…",
+      "searchStudent": "Search by name…",
+      "allEnrolled": "Everyone's enrolled",
+      "add": "Add",
+      "added": "Student enrolled",
+      "waitlisted": "Added to the waitlist",
+      "removed": "Enrolment removed",
+      "remove": "Remove from group",
+      "closedStaffCanAdd": "Self-enrolment is off — students can't join on their own, but you can still add them.",
+      "empty": "No students enrolled yet.",
+      "waitlistTitle": "Waitlist ({n})",
+      "errors": {
+        "loadFailed": "Could not load enrolments",
+        "addFailed": "Could not enrol the student",
+        "removeFailed": "Could not remove the enrolment"
+      }
     },
     "form": {
       "createTitle": "New lesson",

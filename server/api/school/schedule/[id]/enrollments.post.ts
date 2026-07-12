@@ -1,7 +1,8 @@
 import { AREA_ROLES } from '../../../../../shared/permissions'
 
 // Enrol a student in a series (staff). Body: { studentMemberId }. Enrolled or
-// waitlisted depending on capacity. School roles only. 404 when not this org's.
+// waitlisted depending on capacity. Staff may add even when self-enrolment is
+// closed. School roles only. 404 when not this org's.
 export default defineEventHandler(async (event) => {
   const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
@@ -15,7 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing studentMemberId' })
   }
 
-  const result = await enrollInSeries(membership.organization.id, id, body.studentMemberId)
+  const result = await enrollInSeries(membership.organization.id, id, body.studentMemberId, true)
   if (!result) {
     throw createError({ statusCode: 404, statusMessage: 'Lesson not found' })
   }

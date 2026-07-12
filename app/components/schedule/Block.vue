@@ -9,6 +9,7 @@ const props = defineProps<{
   session: ScheduleSessionView
   timezone: string
   dense?: boolean
+  coachName?: string | null
 }>()
 
 const cancelled = computed(() =>
@@ -20,6 +21,9 @@ const timeLabel = computed(() => {
   const end = DateTime.fromISO(props.session.endsAt, { zone: props.timezone })
   return `${start.toFormat('HH:mm')}–${end.toFormat('HH:mm')}`
 })
+
+// The muted sub-line: time, plus the coach when one is resolved.
+const metaLabel = computed(() => props.coachName ? `${timeLabel.value} · ${props.coachName}` : timeLabel.value)
 
 // 6-digit hex + '22' alpha → a subtle fill; the full colour is the left accent.
 const style = computed(() => ({
@@ -47,7 +51,7 @@ const style = computed(() => ({
       v-if="!dense"
       class="truncate text-[11px] leading-tight text-muted"
     >
-      {{ timeLabel }}
+      {{ metaLabel }}
     </p>
   </div>
 </template>

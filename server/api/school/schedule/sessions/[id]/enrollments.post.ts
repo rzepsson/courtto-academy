@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Missing studentMemberId' })
   }
 
-  const result = await enrollInSession(membership.organization.id, id, body.studentMemberId)
+  const result = await enrollInSession(membership.organization.id, id, body.studentMemberId, true)
   if (!result) {
     throw createError({ statusCode: 404, statusMessage: 'Session not found' })
   }

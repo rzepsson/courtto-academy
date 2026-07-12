@@ -269,6 +269,14 @@ export interface EnrollmentView {
   createdAt: Date
 }
 
+// The series-level capacity context the staff enrolment panel needs alongside the
+// list: the seat cap (null = unlimited) and whether enrolment is open (closed
+// locks the group — staff adds are rejected too, matching the enrol service).
+export interface SeriesEnrollmentSummary {
+  capacityMax: number | null
+  enrollmentOpen: boolean
+}
+
 // One expected attendee of a session (an enrolled student) with their marked
 // attendance, if any. `source` distinguishes a series enrolment from a per-
 // session drop-in. The attendance sheet a coach/admin fills in.
