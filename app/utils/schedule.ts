@@ -1,7 +1,9 @@
 import { DateTime } from 'luxon'
-import type { ScheduleSessionDto, LessonSessionDto, LessonSeriesDto, StudentSessionView } from '~~/server/database/types'
+import type { ScheduleSessionDto, LessonSessionDto, LessonSeriesDto, StudentSessionView, ReservationDto } from '~~/server/database/types'
 import { LESSON_TYPES } from '~~/shared/schedule'
-import { scheduleSeriesSchema, scheduleSeriesMetadataPatchSchema, type ScheduleErrorCode } from '~~/shared/schedule-schema'
+import { scheduleSeriesSchema, scheduleSeriesCreateSchema, scheduleSeriesMetadataPatchSchema, type ScheduleErrorCode } from '~~/shared/schedule-schema'
+import { COURT_BLOCK_KINDS } from '~~/shared/reservation'
+import { courtBlockCreateSchema, type CourtBlockErrorCode } from '~~/shared/court-block-schema'
 
 // Client-facing schedule domain: re-exports of the shared schedule constants,
 // the string-dated view types, the form↔schema binding, and the pure grid/time
@@ -31,8 +33,7 @@ export type LessonSessionDetail = Omit<LessonSessionDto, 'startsAt' | 'endsAt' |
   occurrenceStart: string
 }
 
-export type LessonSeriesDetail = Omit<LessonSeriesDto, 'materializedUntil' | 'createdAt'> & {
-  materializedUntil: string | null
+export type LessonSeriesDetail = Omit<LessonSeriesDto, 'createdAt'> & {
   createdAt: string
 }
 
@@ -62,6 +63,12 @@ export function scheduleFormSchema(t: (key: string) => string) {
 // (title/colour/capacity/enrolment policy; structural fields aren't editable).
 export function scheduleMetadataFormSchema(t: (key: string) => string) {
   return scheduleSeriesMetadataPatchSchema(code => t(SCHEDULE_ERROR_KEYS[code]))
+}
+
+// The multi-slot create form binds this — group fields + a rules[] array (1..N
+// day/time slots). Same shared schema the server validates the POST body against.
+export function scheduleCreateFormSchema(t: (key: string) => string) {
+  return scheduleSeriesCreateSchema(code => t(SCHEDULE_ERROR_KEYS[code]))
 }
 
 export function lessonTypeOptions(t: (key: string) => string): { value: string, label: string }[] {
@@ -373,4 +380,73 @@ export function toLocalDateTimeInput(iso: string, timezone: string): string {
 
 export function durationMinutes(startsAt: string, endsAt: string): number {
   return Math.round((new Date(endsAt).getTime() - new Date(startsAt).getTime()) / 60_000)
+}
+
+// ── Court blocks (maintenance / closures) ────────────────────────────────────
+
+// The serialized reservation the calendar overlays as an "unavailable" band.
+// Client dates arrive as ISO strings, so it string-dates the ReservationDto.
+export type CourtBlockView = Omit<ReservationDto, 'startsAt' | 'endsAt' | 'createdAt'> & {
+  startsAt: string
+  endsAt: string
+  createdAt: string
+}
+
+const COURT_BLOCK_ERROR_KEYS: Record<CourtBlockErrorCode, string> = {
+  required: 'schedule.blocks.form.errors.required',
+  tooLong: 'schedule.blocks.form.errors.tooLong',
+  kind: 'schedule.blocks.form.errors.invalid',
+  datetime: 'schedule.blocks.form.errors.datetime',
+  range: 'schedule.blocks.form.errors.range',
+  maxSpan: 'schedule.blocks.form.errors.maxSpan'
+}
+
+// The block slideover binds this to `UForm :schema` — the same shared schema the
+// server validates the POST body against. Rebuilt per-locale (call in a computed).
+export function courtBlockFormSchema(t: (key: string) => string) {
+  return courtBlockCreateSchema(code => t(COURT_BLOCK_ERROR_KEYS[code]))
+}
+
+export function courtBlockKindOptions(t: (key: string) => string): { value: string, label: string }[] {
+  return COURT_BLOCK_KINDS.map(value => ({ value, label: t(`schedule.blocks.kinds.${value}`) }))
+}
+
+// A human range for a block, read in the org zone. A whole-day block (stored as
+// [00:00, next-00:00)) renders as inclusive dates; a timed one shows times. Shared
+// by the schedule detail modal and the court detail maintenance list.
+export function courtBlockRangeLabel(startsAt: string, endsAt: string, timezone: string, locale: string): string {
+  const start = DateTime.fromISO(startsAt, { zone: timezone }).setLocale(locale)
+  const end = DateTime.fromISO(endsAt, { zone: timezone }).setLocale(locale)
+  if (!start.isValid || !end.isValid) return ''
+  const wholeDay = start.hour === 0 && start.minute === 0 && end.hour === 0 && end.minute === 0
+  if (wholeDay) {
+    const last = end.minus({ days: 1 })
+    return last.hasSame(start, 'day')
+      ? start.toFormat('cccc, d LLLL yyyy')
+      : `${start.toFormat('d LLL')} – ${last.toFormat('d LLL yyyy')}`
+  }
+  return start.hasSame(end, 'day')
+    ? `${start.toFormat('d LLL, HH:mm')} – ${end.toFormat('HH:mm')}`
+    : `${start.toFormat('d LLL HH:mm')} – ${end.toFormat('d LLL HH:mm')}`
+}
+
+// Minutes-since-local-midnight [startMin, endMin) a block occupies on the given
+// local day ('yyyy-MM-dd'), or null if it doesn't intersect that day. A multi-day
+// block clamps to the day (0 / 1440), so each day renders only its own slice —
+// wall-clock minutes, matching localMinutes/blockGeometry the grid draws with.
+export function blockDaySpan(
+  startsAt: string,
+  endsAt: string,
+  dayKey: string,
+  timezone: string
+): { startMin: number, endMin: number } | null {
+  const dayStart = DateTime.fromISO(`${dayKey}T00:00`, { zone: timezone })
+  if (!dayStart.isValid) return null
+  const dayEnd = dayStart.plus({ days: 1 })
+  const blockStart = DateTime.fromISO(startsAt, { zone: timezone })
+  const blockEnd = DateTime.fromISO(endsAt, { zone: timezone })
+  if (blockEnd <= dayStart || blockStart >= dayEnd) return null
+  const startMin = blockStart <= dayStart ? 0 : blockStart.hour * 60 + blockStart.minute
+  const endMin = blockEnd >= dayEnd ? 24 * 60 : blockEnd.hour * 60 + blockEnd.minute
+  return { startMin, endMin }
 }

@@ -100,12 +100,13 @@ export const orgProfileRelations = relations(orgProfile, ({ one }) => ({
 
 // A single court (or table) belonging to a facility. App-owned — facility-core,
 // NOT Academy: the future Courtto marketplace books these exact rows, so nothing
-// here references lessons/coaches/students. Axes are kept orthogonal (see
-// CLAUDE.md): `status` is the day-to-day operational state (active/maintenance)
-// while `archivedAt` is the lifecycle (soft-delete) — a court is soft-archived
-// rather than hard-deleted so historical schedule/booking references stay valid.
-// The white-line PATTERN is derived from `sport` (shared/courts.ts), never
-// stored; only the surface/line colours are per-court.
+// here references lessons/coaches/students. `archivedAt` is the lifecycle axis
+// (soft-delete) — a court is soft-archived rather than hard-deleted so historical
+// schedule/booking references stay valid. Time-bounded unavailability (maintenance
+// / closures) is NOT a court flag: it's a standalone `reservation` block (see
+// COURT_BLOCK_KINDS), which the court-overlap EXCLUDE then enforces against
+// lessons. The white-line PATTERN is derived from `sport` (shared/courts.ts),
+// never stored; only the surface/line colours are per-court.
 export const court = pgTable(
   'court',
   {
@@ -121,7 +122,6 @@ export const court = pgTable(
     // discipline has no surface concept (table tennis) or it's unspecified.
     surface: text('surface'),
     environment: text('environment').default('indoor').notNull(),
-    status: text('status').default('active').notNull(),
     // Visual customisation for the diagram — surface fill + line colour (#rrggbb).
     surfaceColor: text('surface_color').notNull(),
     lineColor: text('line_color').default('#ffffff').notNull(),
@@ -312,16 +312,11 @@ export const lessonSeries = pgTable(
     level: text('level'),
     ageGroup: text('age_group'),
     notes: text('notes'),
-    // Lead + assistant (seam) coach — a school membership, nulled if they leave.
-    coachMemberId: text('coach_member_id').references(() => member.id, { onDelete: 'set null' }),
+    // Assistant coach — a seam (unused in v1 UI). The WHEN/WHERE/WHO-teaches of a
+    // group lives on its rules (lessonSeriesRule), not here.
     assistantCoachMemberId: text('assistant_coach_member_id').references(() => member.id, { onDelete: 'set null' }),
-    defaultCourtId: text('default_court_id').references(() => court.id, { onDelete: 'set null' }),
+    // IANA zone the group's wall-clock times resolve in (snapshotted at create).
     timezone: text('timezone').notNull(),
-    // RFC 5545 recurrence; null = single occurrence.
-    rrule: text('rrule'),
-    // Wall-clock local start, 'YYYY-MM-DDTHH:mm'.
-    dtStart: text('dt_start').notNull(),
-    durationMin: integer('duration_min').notNull(),
     capacityMin: integer('capacity_min'),
     capacityMax: integer('capacity_max'),
     enrollmentOpen: boolean('enrollment_open').default(true).notNull(),
@@ -329,9 +324,6 @@ export const lessonSeries = pgTable(
     enrollmentDeadlineMin: integer('enrollment_deadline_min'),
     visibility: text('visibility').default('members').notNull(),
     status: text('status').default('active').notNull(),
-    // How far the series has been materialized into concrete sessions (rolling
-    // horizon; extended lazily). Null before first materialization.
-    materializedUntil: timestamp('materialized_until', { withTimezone: true }),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
@@ -340,30 +332,83 @@ export const lessonSeries = pgTable(
       .notNull()
   },
   table => [
-    index('lesson_series_org_idx').on(table.organizationId),
-    index('lesson_series_coach_idx').on(table.coachMemberId),
-    // Drives the materialization sweep (services/schedule.ts `runMaterializationSweep`),
-    // which scans active recurring series by how far their horizon reaches. Partial
-    // to recurring series (rrule not null) — one-offs never need extending — so the
-    // index stays tiny regardless of how many single lessons exist.
-    index('lesson_series_materialization_idx')
+    index('lesson_series_org_idx').on(table.organizationId)
+  ]
+)
+
+export const lessonSeriesRelations = relations(lessonSeries, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [lessonSeries.organizationId],
+    references: [organization.id]
+  }),
+  rules: many(lessonSeriesRule)
+}))
+
+// ACADEMY — a single recurrence PATTERN of a series (the enrolment group). A
+// series has 1..N rules, so one group can meet at several different day/time
+// slots (e.g. Wed 15:00 on court 1 + Thu 13:00 on court 2) — something a single
+// RRULE can't express (RFC 5545 anchors every occurrence to DTSTART's time; the
+// standard's answer to "different times per day" is separate VEVENTs, i.e. these
+// rules). Each rule maps 1:1 to a VEVENT. WHEN + WHERE + WHO-teaches live here;
+// the series holds WHO-is-enrolled + WHAT (title/type/sport/capacity). Materialized
+// sessions point UP at their rule via `ruleId`, so divergence, propagation and the
+// rolling horizon (`materializedUntil`) are per-rule.
+export const lessonSeriesRule = pgTable(
+  'lesson_series_rule',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    seriesId: text('series_id')
+      .notNull()
+      .references(() => lessonSeries.id, { onDelete: 'cascade' }),
+    // RFC 5545 recurrence; null = a single occurrence for this rule.
+    rrule: text('rrule'),
+    // Wall-clock local start of this pattern, 'YYYY-MM-DDTHH:mm'.
+    dtStart: text('dt_start').notNull(),
+    durationMin: integer('duration_min').notNull(),
+    timezone: text('timezone').notNull(),
+    // Per-pattern resources — different rules of one group can run on different
+    // courts / with different coaches. Nulled (not cascaded away) if the court is
+    // removed or the coach leaves, mirroring the series columns they replace.
+    courtId: text('court_id').references(() => court.id, { onDelete: 'set null' }),
+    coachMemberId: text('coach_member_id').references(() => member.id, { onDelete: 'set null' }),
+    // How far this rule has been materialized (rolling horizon, extended lazily).
+    materializedUntil: timestamp('materialized_until', { withTimezone: true }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [
+    index('lesson_series_rule_org_idx').on(table.organizationId),
+    index('lesson_series_rule_series_idx').on(table.seriesId),
+    // Drives the materialization sweep once it scans rules (Phase 2). Partial to
+    // recurring rules, mirroring lesson_series_materialization_idx.
+    index('lesson_series_rule_materialization_idx')
       .on(table.materializedUntil)
       .where(sql`${table.rrule} is not null`)
   ]
 )
 
-export const lessonSeriesRelations = relations(lessonSeries, ({ one }) => ({
+export const lessonSeriesRuleRelations = relations(lessonSeriesRule, ({ one }) => ({
   organization: one(organization, {
-    fields: [lessonSeries.organizationId],
+    fields: [lessonSeriesRule.organizationId],
     references: [organization.id]
   }),
-  coach: one(member, {
-    fields: [lessonSeries.coachMemberId],
-    references: [member.id]
+  series: one(lessonSeries, {
+    fields: [lessonSeriesRule.seriesId],
+    references: [lessonSeries.id]
   }),
-  defaultCourt: one(court, {
-    fields: [lessonSeries.defaultCourtId],
+  court: one(court, {
+    fields: [lessonSeriesRule.courtId],
     references: [court.id]
+  }),
+  coach: one(member, {
+    fields: [lessonSeriesRule.coachMemberId],
+    references: [member.id]
   })
 }))
 
@@ -395,6 +440,10 @@ export const lessonSession = pgTable(
     seriesId: text('series_id')
       .notNull()
       .references(() => lessonSeries.id, { onDelete: 'cascade' }),
+    // The recurrence rule that produced this occurrence. Nullable during the
+    // expand phase (backfilled for existing rows); becomes the divergence/
+    // propagation anchor once services read rules (Phase 2), NOT NULL in Phase 4.
+    ruleId: text('rule_id').references(() => lessonSeriesRule.id, { onDelete: 'cascade' }),
     reservationId: text('reservation_id')
       .notNull()
       .references(() => reservation.id, { onDelete: 'cascade' }),
@@ -423,10 +472,15 @@ export const lessonSession = pgTable(
   table => [
     index('lesson_session_org_starts_idx').on(table.organizationId, table.startsAt),
     index('lesson_session_series_idx').on(table.seriesId),
+    index('lesson_session_rule_idx').on(table.ruleId),
     index('lesson_session_coach_starts_idx').on(table.coachMemberId, table.startsAt),
-    // A series produces at most one session per original occurrence — the guard
-    // that re-materialization never duplicates an occurrence.
-    uniqueIndex('lesson_session_series_occurrence_uidx').on(table.seriesId, table.occurrenceStart),
+    // A RULE produces at most one session per original occurrence — the guard that
+    // re-materialization never duplicates an occurrence. Keyed by rule (not series)
+    // so two slots of one group MAY share an instant on different courts (e.g. the
+    // group splits across two courts at the same hour). NULL rule_id (a detached
+    // historical session) is unconstrained, which is correct — those aren't
+    // materialized against.
+    uniqueIndex('lesson_session_rule_occurrence_uidx').on(table.ruleId, table.occurrenceStart),
     // A session must span a real (non-empty) interval — the same guard reservation
     // carries. Without it a zero-length range makes tstzrange(startsAt, endsAt)
     // EMPTY, and `empty && x` is false, silently defeating the coach-overlap
@@ -444,6 +498,10 @@ export const lessonSessionRelations = relations(lessonSession, ({ one }) => ({
   series: one(lessonSeries, {
     fields: [lessonSession.seriesId],
     references: [lessonSeries.id]
+  }),
+  rule: one(lessonSeriesRule, {
+    fields: [lessonSession.ruleId],
+    references: [lessonSeriesRule.id]
   }),
   reservation: one(reservation, {
     fields: [lessonSession.reservationId],
@@ -474,14 +532,20 @@ export const lessonException = pgTable(
     seriesId: text('series_id')
       .notNull()
       .references(() => lessonSeries.id, { onDelete: 'cascade' }),
+    // The rule this divergence belongs to (Phase 2 keys exceptions per rule).
+    // Nullable during expand; backfilled for existing rows.
+    ruleId: text('rule_id').references(() => lessonSeriesRule.id, { onDelete: 'cascade' }),
     occurrenceStart: timestamp('occurrence_start', { withTimezone: true }).notNull(),
     action: text('action').notNull(),
     sessionId: text('session_id').references(() => lessonSession.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull()
   },
   table => [
-    // At most one exception per (series, original occurrence).
-    uniqueIndex('lesson_exception_series_occurrence_uidx').on(table.seriesId, table.occurrenceStart)
+    // At most one exception per (rule, original occurrence) — keyed by rule, so
+    // each slot of a group keeps its own divergence ledger even when two slots
+    // share an instant (mirrors lesson_session_rule_occurrence_uidx). The unique
+    // index also serves ruleId-prefix lookups, so no separate rule index is needed.
+    uniqueIndex('lesson_exception_rule_occurrence_uidx').on(table.ruleId, table.occurrenceStart)
   ]
 )
 
@@ -493,6 +557,10 @@ export const lessonExceptionRelations = relations(lessonException, ({ one }) => 
   series: one(lessonSeries, {
     fields: [lessonException.seriesId],
     references: [lessonSeries.id]
+  }),
+  rule: one(lessonSeriesRule, {
+    fields: [lessonException.ruleId],
+    references: [lessonSeriesRule.id]
   }),
   session: one(lessonSession, {
     fields: [lessonException.sessionId],

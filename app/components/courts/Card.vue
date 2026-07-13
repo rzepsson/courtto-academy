@@ -1,37 +1,42 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { CourtView } from '~/utils/courts'
-import type { Sport } from '~~/shared/org-profile'
 
 // Presentational roster tile: the court diagram as hero, with its metadata and
 // (optionally) a management menu. Kept product-neutral apart from the menu, which
 // the parent wires — so the marketplace could reuse it read-only (`:menu="false"`).
+// `scheduleAction`/`blockAction` are opt-in, off-by-default admin affordances
+// (a "view in schedule" and a "block for maintenance" menu entry). Gating them
+// keeps the tile product-neutral: the marketplace reuses the card without ever
+// surfacing scheduling/maintenance-management concepts.
 const props = withDefaults(defineProps<{
   court: CourtView
   menu?: boolean
-}>(), { menu: false })
+  scheduleAction?: boolean
+  blockAction?: boolean
+  // When set, the title becomes a link to this route (the detail page). A plain
+  // route string, so the card stays product-neutral — the parent owns the target.
+  to?: string
+}>(), { menu: false, scheduleAction: false, blockAction: false })
 
-const emit = defineEmits<{ edit: [], archive: [], restore: [], delete: [] }>()
+const emit = defineEmits<{ edit: [], archive: [], restore: [], delete: [], schedule: [], block: [] }>()
 
 const { t } = useI18n()
 
 const archived = computed(() => props.court.archivedAt !== null)
-const unitLabel = computed(() => t(`courts.unit.${courtUnit(props.court.sport as Sport)}`))
-const sportLabel = computed(() => t(`school.settings.sports.${props.court.sport}`))
-
-// A concise metadata line: surface · environment · zone (only the parts present).
-const metaParts = computed(() => {
-  const parts: string[] = [sportLabel.value]
-  if (props.court.surface) parts.push(t(`courts.surfaces.${props.court.surface}`))
-  parts.push(t(`courts.environments.${props.court.environment}`))
-  if (props.court.zone) parts.push(props.court.zone)
-  return parts
-})
+const unitLabel = computed(() => courtUnitLabel(props.court.sport, t))
+const metaParts = computed(() => courtMetaParts(props.court, t))
 
 const menuItems = computed<DropdownMenuItem[][]>(() => {
   const primary: DropdownMenuItem[] = archived.value
     ? [{ label: t('courts.actions.restore'), icon: 'i-lucide-rotate-ccw', onSelect: () => emit('restore') }]
     : [
+        ...(props.scheduleAction
+          ? [{ label: t('courts.actions.viewSchedule'), icon: 'i-lucide-calendar-days', onSelect: () => emit('schedule') }]
+          : []),
+        ...(props.blockAction
+          ? [{ label: t('courts.actions.block'), icon: 'i-lucide-wrench', onSelect: () => emit('block') }]
+          : []),
         { label: t('courts.actions.edit'), icon: 'i-lucide-pencil', onSelect: () => emit('edit') },
         { label: t('courts.actions.archive'), icon: 'i-lucide-archive', onSelect: () => emit('archive') }
       ]
@@ -63,7 +68,17 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
     <!-- Metadata -->
     <div class="flex min-w-0 flex-col gap-2 p-3.5">
       <div class="flex items-center gap-2">
-        <p class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted">
+        <NuxtLink
+          v-if="to"
+          :to="to"
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted transition-colors hover:text-primary"
+        >
+          {{ court.name }}
+        </NuxtLink>
+        <p
+          v-else
+          class="min-w-0 flex-1 truncate text-sm font-semibold text-highlighted"
+        >
           {{ court.name }}
         </p>
         <UDropdownMenu
@@ -84,12 +99,8 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
       </div>
 
       <div class="flex flex-wrap items-center gap-1.5">
-        <CourtsStatusBadge
-          v-if="!archived"
-          :status="court.status"
-        />
         <UBadge
-          v-else
+          v-if="archived"
           :label="t('courts.archivedBadge')"
           color="neutral"
           variant="subtle"

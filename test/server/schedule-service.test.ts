@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { DateTime } from 'luxon'
 import { and, eq, gt, inArray } from 'drizzle-orm'
 import {
+  addSeriesRule,
   cancelLessonSession,
   cancelSeries,
   createLesson,
@@ -11,19 +12,19 @@ import {
   getSeries,
   listSessions,
   purgeSeries,
+  removeSeriesRule,
   restoreLessonSession,
   runMaterializationSweep,
   updateLessonSession,
-  updateSeriesAssignment,
   updateSeriesMetadata,
-  updateSeriesSchedule
+  updateSeriesRule
 } from '../../server/utils/services/schedule'
 import { enrollInSeries, listSeriesEnrollments } from '../../server/utils/services/enrollment'
 import { pgErrorCode, pgErrorConstraint } from '../../server/utils/pgError'
 import { createCourt } from '../../server/utils/services/courts'
 import { upsertOrgProfile } from '../../server/utils/services/orgProfile'
 import { db } from '../../server/utils/db'
-import { lessonSeries, lessonSession, reservation } from '../../server/database/app-schema'
+import { lessonException, lessonSeriesRule, lessonSession, reservation } from '../../server/database/app-schema'
 import { addMember, createOrg, hasTestDb, resetDb, signUp } from './helpers'
 import type { SeededUser } from './helpers'
 
@@ -90,9 +91,10 @@ describe.skipIf(!hasTestDb)('schedule service', () => {
     const lesson = await createLesson(school.orgId, lessonBody(school), school.owner.userId)
 
     expect(lesson.series.title).toBe('Grupa A')
-    expect(lesson.series.rrule).toBeNull()
     expect(lesson.series.timezone).toBe('Europe/Warsaw') // snapshotted from the profile
     expect(lesson.series.status).toBe('active')
+    expect(lesson.rules).toHaveLength(1)
+    expect(lesson.rules[0]!.rrule).toBeNull() // one-off
     expect(lesson.sessions).toHaveLength(1)
 
     const session = lesson.sessions[0]!
@@ -130,7 +132,7 @@ describe.skipIf(!hasTestDb)('schedule service', () => {
       expect(local.weekday).toBe(1)
       expect(local.hour).toBe(17)
     }
-    expect(lesson.series.materializedUntil).not.toBeNull()
+    expect(lesson.rules[0]!.materializedUntil).not.toBeNull()
   })
 
   it('rejects a sport the facility does not offer', async () => {
@@ -276,6 +278,18 @@ describe.skipIf(!hasTestDb)('schedule service', () => {
     expect(outOfWindow).toHaveLength(0)
   })
 
+  it('filters sessions to a single court when courtId is given (detail page feed)', async () => {
+    const school = await seedSchool()
+    await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
+    const window = { from: new Date('2026-09-01T00:00:00Z'), to: new Date('2026-09-30T00:00:00Z') }
+
+    const onTennis = await listSessions(school.orgId, { ...window, courtId: school.courtId })
+    expect(onTennis).toHaveLength(1)
+    // The lesson is on the tennis court, so the padel court's feed is empty.
+    const onPadel = await listSessions(school.orgId, { ...window, courtId: school.padelCourtId })
+    expect(onPadel).toHaveLength(0)
+  })
+
   it('never reads, cancels or purges another tenant’s series', async () => {
     const a = await seedSchool()
     const b = await seedSchool()
@@ -384,45 +398,6 @@ describe.skipIf(!hasTestDb)('schedule service — occurrences, edits, extension'
       .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_SESSION_CANCELLED' } })
   })
 
-  it('reassigns the series coach to future non-overridden sessions, skipping overridden ones', async () => {
-    const school = await seedSchool()
-    const c2 = await makeCoach(school.orgId)
-    const c3 = await makeCoach(school.orgId)
-    // A past start with a weekly rule → materialized from *now*, so every session is in the future.
-    const lesson = await createLesson(
-      school.orgId,
-      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
-      school.owner.userId
-    )
-    const sessions = [...lesson.sessions].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
-    expect(sessions.length).toBeGreaterThanOrEqual(3)
-
-    // Override the 2nd occurrence's coach → it becomes overridden.
-    const overridden = await updateLessonSession(school.orgId, sessions[1]!.id, { coachMemberId: c2 })
-    expect(overridden?.overridden).toBe(true)
-
-    const detail = await updateSeriesAssignment(school.orgId, lesson.series.id, { coachMemberId: c3 })
-    expect(detail?.series.coachMemberId).toBe(c3)
-
-    const bySession = new Map(detail!.sessions.map(s => [s.id, s]))
-    expect(bySession.get(sessions[0]!.id)?.coachMemberId).toBe(c3) // non-overridden → reassigned
-    expect(bySession.get(sessions[1]!.id)?.coachMemberId).toBe(c2) // overridden → left alone
-  })
-
-  it('reassigns the series court, moving future sessions and their reservations', async () => {
-    const school = await seedSchool()
-    const court2 = await createCourt(school.orgId, { name: 'Court 2', sport: 'tennis' }, school.owner.userId)
-    const lesson = await createLesson(
-      school.orgId,
-      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
-      school.owner.userId
-    )
-
-    const detail = await updateSeriesAssignment(school.orgId, lesson.series.id, { defaultCourtId: court2.id })
-    expect(detail?.series.defaultCourtId).toBe(court2.id)
-    expect(detail?.sessions.every(s => s.courtId === court2.id)).toBe(true)
-  })
-
   it('extends the materialization horizon, recreating a missing future occurrence, and is idempotent', async () => {
     const school = await seedSchool()
     const lesson = await createLesson(
@@ -433,10 +408,10 @@ describe.skipIf(!hasTestDb)('schedule service — occurrences, edits, extension'
     const sessions = [...lesson.sessions].sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
     const last = sessions[sessions.length - 1]!
 
-    // Simulate the last occurrence not yet materialized: drop it and pull the horizon back to it.
+    // Simulate the last occurrence not yet materialized: drop it and pull the rule's horizon back to it.
     await db.delete(lessonSession).where(and(eq(lessonSession.organizationId, school.orgId), eq(lessonSession.id, last.id)))
     await db.delete(reservation).where(and(eq(reservation.organizationId, school.orgId), eq(reservation.id, last.reservationId)))
-    await db.update(lessonSeries).set({ materializedUntil: last.occurrenceStart }).where(eq(lessonSeries.id, lesson.series.id))
+    await db.update(lessonSeriesRule).set({ materializedUntil: last.occurrenceStart }).where(eq(lessonSeriesRule.seriesId, lesson.series.id))
 
     const result = await extendMaterialization(school.orgId, lesson.series.id)
     expect(result?.created).toBeGreaterThanOrEqual(1)
@@ -523,7 +498,7 @@ describe.skipIf(!hasTestDb)('schedule service — occurrences, edits, extension'
     // that slot. Pull the horizon back so extend re-expands the occurrence, whose
     // reservation insert then trips the EXCLUDE → a recorded skip, not a loss.
     await db.delete(lessonSession).where(and(eq(lessonSession.organizationId, school.orgId), eq(lessonSession.id, last.id)))
-    await db.update(lessonSeries).set({ materializedUntil: last.occurrenceStart }).where(eq(lessonSeries.id, lesson.series.id))
+    await db.update(lessonSeriesRule).set({ materializedUntil: last.occurrenceStart }).where(eq(lessonSeriesRule.seriesId, lesson.series.id))
 
     const result = await extendMaterialization(school.orgId, lesson.series.id)
     expect(result?.created).toBe(0)
@@ -563,10 +538,9 @@ describe.skipIf(!hasTestDb)('materialization sweep', () => {
       .from(lessonSession)
       .where(and(eq(lessonSession.seriesId, ra.series.id), gt(lessonSession.occurrenceStart, soon)))
     await db.delete(reservation).where(inArray(reservation.id, tail.map(t => t.rid))) // cascades to sessions
-    await db
-      .update(lessonSeries)
-      .set({ materializedUntil: soon })
-      .where(inArray(lessonSeries.id, [ra.series.id, rb.series.id, oneOff.series.id, cancelled.series.id]))
+    const dueSeries = [ra.series.id, rb.series.id, oneOff.series.id, cancelled.series.id]
+    // The sweep selects by RULE horizon; pull each rule below the threshold.
+    await db.update(lessonSeriesRule).set({ materializedUntil: soon }).where(inArray(lessonSeriesRule.seriesId, dueSeries))
 
     const result = await runMaterializationSweep()
 
@@ -576,12 +550,12 @@ describe.skipIf(!hasTestDb)('materialization sweep', () => {
     expect(result.created).toBeGreaterThan(0) // A's dropped tail re-materialized
     expect(result.capped).toBe(false)
 
-    // A's horizon advanced well past the pulled-back point.
-    const [after] = await db.select({ mu: lessonSeries.materializedUntil }).from(lessonSeries).where(eq(lessonSeries.id, ra.series.id))
+    // A's rule horizon advanced well past the pulled-back point.
+    const [after] = await db.select({ mu: lessonSeriesRule.materializedUntil }).from(lessonSeriesRule).where(eq(lessonSeriesRule.seriesId, ra.series.id))
     expect(after!.mu!.getTime()).toBeGreaterThan(soon.getTime())
 
-    // The cancelled series was never touched (horizon stays where we forced it).
-    const [cancelledAfter] = await db.select({ mu: lessonSeries.materializedUntil }).from(lessonSeries).where(eq(lessonSeries.id, cancelled.series.id))
+    // The cancelled series' rule was never touched (horizon stays where we forced it).
+    const [cancelledAfter] = await db.select({ mu: lessonSeriesRule.materializedUntil }).from(lessonSeriesRule).where(eq(lessonSeriesRule.seriesId, cancelled.series.id))
     expect(cancelledAfter!.mu!.getTime()).toBe(soon.getTime())
   })
 
@@ -597,113 +571,293 @@ describe.skipIf(!hasTestDb)('materialization sweep', () => {
     expect(result.created).toBe(0)
   })
 
-  // ── Structural schedule edit (updateSeriesSchedule) ────────────────────────
+  // ── Shared helpers for the rule tests below ────────────────────────────────
 
   const wide = () => ({ from: new Date(0), to: new Date(Date.now() + 300 * 86_400_000) })
   const warsawHour = (d: Date) => DateTime.fromJSDate(d).setZone('Europe/Warsaw').hour
 
-  it('re-times a recurring series: future occurrences move to the new local time and duration', async () => {
+  // ── Recurrence rules (Phase 1 expand: one rule per series, dual-written) ────
+
+  it('dual-writes one rule per series and stamps ruleId on every session', async () => {
     const school = await seedSchool()
     const created = await createLesson(
       school.orgId,
       lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
       school.owner.userId
     )
-    const before = await listSessions(school.orgId, wide())
-    expect(before.length).toBeGreaterThan(0)
-    expect(before.every(s => warsawHour(s.startsAt) === 17)).toBe(true)
-
-    const updated = await updateSeriesSchedule(school.orgId, created.series.id, {
-      dtStart: '2020-01-06T09:00',
-      durationMin: 90,
-      rrule: 'FREQ=WEEKLY;BYDAY=MO'
+    const rules = await db.select().from(lessonSeriesRule).where(eq(lessonSeriesRule.seriesId, created.series.id))
+    expect(rules).toHaveLength(1)
+    expect(rules[0]).toMatchObject({
+      rrule: 'FREQ=WEEKLY;BYDAY=MO', dtStart: '2020-01-06T17:00', durationMin: 60,
+      courtId: school.courtId, coachMemberId: school.coachMemberId
     })
-    expect(updated!.series.dtStart).toBe('2020-01-06T09:00')
-    expect(updated!.series.durationMin).toBe(90)
 
-    const after = await listSessions(school.orgId, wide())
-    expect(after.length).toBeGreaterThan(0)
-    expect(after.every(s => warsawHour(s.startsAt) === 9)).toBe(true)
-    expect(after.every(s => s.endsAt.getTime() - s.startsAt.getTime() === 90 * 60_000)).toBe(true)
+    const sessions = await db.select({ ruleId: lessonSession.ruleId }).from(lessonSession).where(eq(lessonSession.seriesId, created.series.id))
+    expect(sessions.length).toBeGreaterThan(0)
+    expect(sessions.every(s => s.ruleId === rules[0]!.id)).toBe(true)
   })
 
-  it('preserves series enrolments across a schedule change', async () => {
+  it('re-times a single-rule group by editing its one slot, re-stamping sessions', async () => {
     const school = await seedSchool()
     const created = await createLesson(
       school.orgId,
       lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
       school.owner.userId
     )
+    await updateSeriesRule(school.orgId, created.series.id, created.rules[0]!.id, { dtStart: '2020-01-06T09:00', durationMin: 90, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: school.courtId })
+
+    const [rule] = await db.select().from(lessonSeriesRule).where(eq(lessonSeriesRule.seriesId, created.series.id))
+    expect(rule).toMatchObject({ dtStart: '2020-01-06T09:00', durationMin: 90 })
+    const sessions = await db.select({ ruleId: lessonSession.ruleId, startsAt: lessonSession.startsAt }).from(lessonSession).where(eq(lessonSession.seriesId, created.series.id))
+    expect(sessions.length).toBeGreaterThan(0)
+    expect(sessions.every(s => s.ruleId === rule!.id)).toBe(true)
+    expect(sessions.every(s => warsawHour(s.startsAt) === 9)).toBe(true)
+  })
+
+  it('creates a group with multiple rules (Wed 15:00 + Thu 13:00) and tags each session with its rule', async () => {
+    const school = await seedSchool()
+    const lesson = await createLesson(school.orgId, {
+      type: 'group',
+      sport: 'tennis',
+      title: 'Multi-slot group',
+      capacityMax: 8,
+      rules: [
+        { dtStart: '2020-01-08T15:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId, coachMemberId: school.coachMemberId },
+        { dtStart: '2020-01-09T13:00', durationMin: 90, rrule: 'FREQ=WEEKLY;BYDAY=TH', courtId: school.courtId }
+      ]
+    }, school.owner.userId)
+
+    expect(lesson.rules).toHaveLength(2)
+    const wedRule = lesson.rules.find(r => r.rrule?.includes('WE'))!
+    const thuRule = lesson.rules.find(r => r.rrule?.includes('TH'))!
+    expect(thuRule.durationMin).toBe(90)
+
+    const sessions = await db
+      .select({ ruleId: lessonSession.ruleId, startsAt: lessonSession.startsAt, endsAt: lessonSession.endsAt })
+      .from(lessonSession)
+      .where(eq(lessonSession.seriesId, lesson.series.id))
+    const wed = sessions.filter(s => s.ruleId === wedRule.id)
+    const thu = sessions.filter(s => s.ruleId === thuRule.id)
+    expect(wed.length).toBeGreaterThan(0)
+    expect(thu.length).toBeGreaterThan(0)
+    // Each rule's sessions keep its own local time + duration.
+    expect(wed.every(s => warsawHour(s.startsAt) === 15)).toBe(true)
+    expect(thu.every(s => warsawHour(s.startsAt) === 13)).toBe(true)
+    expect(thu.every(s => s.endsAt.getTime() - s.startsAt.getTime() === 90 * 60_000)).toBe(true)
+    // Every session belongs to one of the two rules (nothing orphaned).
+    expect(sessions.every(s => s.ruleId === wedRule.id || s.ruleId === thuRule.id)).toBe(true)
+  })
+
+  it('runs one group on two courts at the SAME instant (per-rule occurrence key)', async () => {
+    const school = await seedSchool()
+    const court2 = await createCourt(school.orgId, { name: 'Court 2', sport: 'tennis' }, school.owner.userId)
+    // Two slots, identical weekday + time, different courts — the group splits across
+    // two courts at the same hour. Both rules produce an occurrence at the same instant;
+    // the rule-keyed unique index lets them coexist (the old series-wide key raised a
+    // raw 23505 → 500). This create must simply succeed.
+    const lesson = await createLesson(school.orgId, {
+      type: 'group', sport: 'tennis', title: 'Split group', rules: [
+        { dtStart: '2020-01-06T17:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: school.courtId },
+        { dtStart: '2020-01-06T17:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: court2.id }
+      ]
+    }, school.owner.userId)
+    expect(lesson.rules).toHaveLength(2)
+
+    const rows = await db
+      .select({ ruleId: lessonSession.ruleId, courtId: lessonSession.courtId, occurrenceStart: lessonSession.occurrenceStart })
+      .from(lessonSession)
+      .where(eq(lessonSession.seriesId, lesson.series.id))
+    const court1 = rows.filter(r => r.courtId === school.courtId)
+    const court2Rows = rows.filter(r => r.courtId === court2.id)
+    expect(court1.length).toBeGreaterThan(0)
+    expect(court2Rows.length).toBe(court1.length)
+    // The very same occurrence instant is materialized on both courts.
+    const court1Instants = new Set(court1.map(r => r.occurrenceStart.getTime()))
+    expect(court2Rows.every(r => court1Instants.has(r.occurrenceStart.getTime()))).toBe(true)
+
+    // Adding a third slot at that same instant on a THIRD court also works (the
+    // add-slot path is per-rule too); the same instant on an already-busy court
+    // would instead be a friendly court conflict.
+    const court3 = await createCourt(school.orgId, { name: 'Court 3', sport: 'tennis' }, school.owner.userId)
+    const detail = await addSeriesRule(school.orgId, lesson.series.id, {
+      dtStart: '2020-01-06T17:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: court3.id
+    })
+    expect(detail!.rules).toHaveLength(3)
+  })
+
+  it('keeps independent per-slot exception ledgers when two slots share an instant', async () => {
+    const school = await seedSchool()
+    const court2 = await createCourt(school.orgId, { name: 'Court 2', sport: 'tennis' }, school.owner.userId)
+    const lesson = await createLesson(school.orgId, {
+      type: 'group', sport: 'tennis', title: 'Split group', rules: [
+        { dtStart: '2020-01-06T17:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: school.courtId },
+        { dtStart: '2020-01-06T17:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: court2.id }
+      ]
+    }, school.owner.userId)
+
+    const all = (await getSeries(school.orgId, lesson.series.id))!.sessions
+    // A pair of sessions on the two courts at the same occurrence instant.
+    const target = all.find(s => s.courtId === school.courtId)!
+    const sibling = all.find(s => s.courtId === court2.id && s.occurrenceStart.getTime() === target.occurrenceStart.getTime())!
+    expect(sibling).toBeDefined()
+
+    await cancelLessonSession(school.orgId, target.id)
+    const targetAfter = await getLessonSession(school.orgId, target.id)
+    const siblingAfter = await getLessonSession(school.orgId, sibling.id)
+    expect(targetAfter!.status).toBe('cancelled')
+    expect(siblingAfter!.status).not.toBe('cancelled') // the sibling slot is untouched
+
+    // Exactly one exception at that instant — for the cancelled session's rule only.
+    const exceptions = await db
+      .select({ ruleId: lessonException.ruleId, sessionId: lessonException.sessionId })
+      .from(lessonException)
+      .where(and(eq(lessonException.seriesId, lesson.series.id), eq(lessonException.occurrenceStart, target.occurrenceStart)))
+    expect(exceptions).toHaveLength(1)
+    expect(exceptions[0]!.sessionId).toBe(target.id)
+  })
+
+  it('extends every rule of a multi-rule group forward', async () => {
+    const school = await seedSchool()
+    const lesson = await createLesson(school.orgId, {
+      type: 'group',
+      sport: 'tennis',
+      title: 'Multi-slot group',
+      rules: [
+        { dtStart: '2020-01-08T15:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId },
+        { dtStart: '2020-01-09T13:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=TH', courtId: school.courtId }
+      ]
+    }, school.owner.userId)
+
+    // Pull both rules' horizon back so extend has work on each.
+    const soon = new Date(Date.now() + 10 * 86_400_000)
+    for (const rule of lesson.rules) {
+      const tail = await db
+        .select({ rid: lessonSession.reservationId })
+        .from(lessonSession)
+        .where(and(eq(lessonSession.ruleId, rule.id), gt(lessonSession.occurrenceStart, soon)))
+      await db.delete(reservation).where(inArray(reservation.id, tail.map(t => t.rid)))
+    }
+    await db.update(lessonSeriesRule).set({ materializedUntil: soon }).where(eq(lessonSeriesRule.seriesId, lesson.series.id))
+
+    const result = await extendMaterialization(school.orgId, lesson.series.id)
+    expect(result?.created).toBeGreaterThan(0)
+    // Both rules materialized ahead again.
+    for (const rule of lesson.rules) {
+      const [mat] = await db.select({ mu: lessonSeriesRule.materializedUntil }).from(lessonSeriesRule).where(eq(lessonSeriesRule.id, rule.id))
+      expect(mat!.mu!.getTime()).toBeGreaterThan(soon.getTime())
+    }
+  })
+
+  // ── Slot CRUD on an existing group (Phase 3b) ──────────────────────────────
+
+  function twoSlotGroup(school: School) {
+    return createLesson(school.orgId, {
+      type: 'group', sport: 'tennis', title: 'Multi', rules: [
+        { dtStart: '2020-01-08T15:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId },
+        { dtStart: '2020-01-09T13:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=TH', courtId: school.courtId }
+      ]
+    }, school.owner.userId)
+  }
+
+  it('adds a slot to a group and materializes its occurrences', async () => {
+    const school = await seedSchool()
+    const lesson = await createLesson(school.orgId, lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }), school.owner.userId)
+    const before = await listSessions(school.orgId, wide())
+
+    const detail = await addSeriesRule(school.orgId, lesson.series.id, { dtStart: '2020-01-08T15:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId })
+    expect(detail!.rules).toHaveLength(2)
+
+    const after = await listSessions(school.orgId, wide())
+    expect(after.length).toBeGreaterThan(before.length)
+    expect(after.some(s => warsawHour(s.startsAt) === 15)).toBe(true) // the new Wednesday slot
+  })
+
+  it('edits one slot, re-timing only that slot and leaving the others', async () => {
+    const school = await seedSchool()
+    const lesson = await twoSlotGroup(school)
+    const wedRule = lesson.rules.find(r => r.rrule?.includes('WE'))!
+    const thuRule = lesson.rules.find(r => r.rrule?.includes('TH'))!
+
+    await updateSeriesRule(school.orgId, lesson.series.id, wedRule.id, { dtStart: '2020-01-08T16:00', durationMin: 90, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId })
+
+    const sessions = await db
+      .select({ ruleId: lessonSession.ruleId, startsAt: lessonSession.startsAt, endsAt: lessonSession.endsAt })
+      .from(lessonSession)
+      .where(eq(lessonSession.seriesId, lesson.series.id))
+    const wed = sessions.filter(s => s.ruleId === wedRule.id)
+    const thu = sessions.filter(s => s.ruleId === thuRule.id)
+    expect(wed.every(s => warsawHour(s.startsAt) === 16)).toBe(true)
+    expect(wed.every(s => s.endsAt.getTime() - s.startsAt.getTime() === 90 * 60_000)).toBe(true)
+    expect(thu.every(s => warsawHour(s.startsAt) === 13)).toBe(true) // untouched
+  })
+
+  it('removes a slot (future gone) and refuses removing the only slot', async () => {
+    const school = await seedSchool()
+    const lesson = await twoSlotGroup(school)
+    const wedRule = lesson.rules.find(r => r.rrule?.includes('WE'))!
+
+    const detail = await removeSeriesRule(school.orgId, lesson.series.id, wedRule.id)
+    expect(detail!.rules).toHaveLength(1)
+    const remaining = await db
+      .select({ ruleId: lessonSession.ruleId })
+      .from(lessonSession)
+      .where(and(eq(lessonSession.seriesId, lesson.series.id), gt(lessonSession.startsAt, new Date())))
+    expect(remaining.every(s => s.ruleId !== wedRule.id)).toBe(true)
+
+    await expect(removeSeriesRule(school.orgId, lesson.series.id, detail!.rules[0]!.id))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_LAST_RULE' } })
+  })
+
+  it('never adds/edits/removes slots on another tenant’s group', async () => {
+    const a = await seedSchool()
+    const b = await seedSchool()
+    const lesson = await twoSlotGroup(a)
+    const ruleId = lesson.rules[0]!.id
+    const rule = { dtStart: '2020-01-08T15:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: b.courtId }
+    expect(await addSeriesRule(b.orgId, lesson.series.id, rule)).toBeNull()
+    expect(await updateSeriesRule(b.orgId, lesson.series.id, ruleId, rule)).toBeNull()
+    expect(await removeSeriesRule(b.orgId, lesson.series.id, ruleId)).toBeNull()
+  })
+
+  it('preserves group enrolments across a slot edit', async () => {
+    const school = await seedSchool()
+    const created = await createLesson(school.orgId, lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }), school.owner.userId)
     await enrollInSeries(school.orgId, created.series.id, school.studentMemberId)
 
-    await updateSeriesSchedule(school.orgId, created.series.id, {
-      dtStart: '2020-01-06T18:00',
-      durationMin: 60,
-      rrule: 'FREQ=WEEKLY;BYDAY=WE'
-    })
+    await updateSeriesRule(school.orgId, created.series.id, created.rules[0]!.id, { dtStart: '2020-01-06T18:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=WE', courtId: school.courtId })
 
     const list = await listSeriesEnrollments(school.orgId, created.series.id)
     expect(list).toHaveLength(1)
     expect(list[0]).toMatchObject({ studentMemberId: school.studentMemberId, status: 'enrolled' })
   })
 
-  it('keeps past sessions as history when re-timing', async () => {
+  it('keeps a slot’s past sessions as history when re-timing it', async () => {
     const school = await seedSchool()
-    const created = await createLesson(
-      school.orgId,
-      lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
-      school.owner.userId
-    )
-    // A session that already happened (inserted directly, as history would be).
+    const created = await createLesson(school.orgId, lessonBody(school, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }), school.owner.userId)
+    const ruleId = created.rules[0]!.id
+    // A session that already happened, on that rule.
     const past = new Date(Date.now() - 7 * 86_400_000)
-    const pastEnd = new Date(past.getTime() + 60 * 60_000)
     const resId = randomUUID()
     const sessId = randomUUID()
-    await db.insert(reservation).values({
-      id: resId, organizationId: school.orgId, courtId: school.courtId,
-      startsAt: past, endsAt: pastEnd, status: 'confirmed', kind: 'lesson', createdBy: school.owner.userId
-    })
-    await db.insert(lessonSession).values({
-      id: sessId, organizationId: school.orgId, seriesId: created.series.id, reservationId: resId,
-      occurrenceStart: past, startsAt: past, endsAt: pastEnd,
-      coachMemberId: school.coachMemberId, courtId: school.courtId, status: 'scheduled', overridden: false
-    })
+    await db.insert(reservation).values({ id: resId, organizationId: school.orgId, courtId: school.courtId, startsAt: past, endsAt: new Date(past.getTime() + 3_600_000), status: 'confirmed', kind: 'lesson', createdBy: school.owner.userId })
+    await db.insert(lessonSession).values({ id: sessId, organizationId: school.orgId, seriesId: created.series.id, ruleId, reservationId: resId, occurrenceStart: past, startsAt: past, endsAt: new Date(past.getTime() + 3_600_000), coachMemberId: school.coachMemberId, courtId: school.courtId, status: 'scheduled', overridden: false })
 
-    await updateSeriesSchedule(school.orgId, created.series.id, {
-      dtStart: '2020-01-06T08:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO'
-    })
+    await updateSeriesRule(school.orgId, created.series.id, ruleId, { dtStart: '2020-01-06T08:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO', courtId: school.courtId })
 
-    const [survivor] = await db
-      .select({ id: lessonSession.id })
-      .from(lessonSession)
-      .where(and(eq(lessonSession.organizationId, school.orgId), eq(lessonSession.id, sessId)))
+    const [survivor] = await db.select({ id: lessonSession.id }).from(lessonSession).where(and(eq(lessonSession.organizationId, school.orgId), eq(lessonSession.id, sessId)))
     expect(survivor).toBeDefined()
   })
 
-  it('rejects re-timing a one-off into the past', async () => {
+  it('rejects re-timing a one-off slot into the past, and a slot edit that double-books', async () => {
     const school = await seedSchool()
-    const created = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
-    await expect(updateSeriesSchedule(school.orgId, created.series.id, { dtStart: '2020-01-01T10:00', durationMin: 60, rrule: null }))
+    // A one-off at 17:00 (occupies that slot on the tennis court).
+    const oneOff = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
+    await expect(updateSeriesRule(school.orgId, oneOff.series.id, oneOff.rules[0]!.id, { dtStart: '2020-01-01T10:00', durationMin: 60, courtId: school.courtId }))
       .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_DTSTART_PAST' } })
-  })
 
-  it('rejects a schedule change that double-books the court', async () => {
-    const school = await seedSchool()
-    await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T17:00' }), school.owner.userId)
-    const b = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T19:00', title: 'Grupa B' }), school.owner.userId)
-    await expect(updateSeriesSchedule(school.orgId, b.series.id, { dtStart: '2026-09-07T17:00', durationMin: 60, rrule: null }))
+    // A second lesson at 19:00; moving its slot onto the one-off's 17:00 conflicts.
+    const b = await createLesson(school.orgId, lessonBody(school, { dtStart: '2026-09-07T19:00', title: 'B' }), school.owner.userId)
+    await expect(updateSeriesRule(school.orgId, b.series.id, b.rules[0]!.id, { dtStart: '2026-09-07T17:00', durationMin: 60, courtId: school.courtId }))
       .rejects.toMatchObject({ statusCode: 409, data: { code: 'SCHEDULE_COURT_CONFLICT' } })
-  })
-
-  it('never re-times another tenant’s series', async () => {
-    const a = await seedSchool()
-    const b = await seedSchool()
-    const created = await createLesson(
-      a.orgId,
-      lessonBody(a, { dtStart: '2020-01-06T17:00', rrule: 'FREQ=WEEKLY;BYDAY=MO' }),
-      a.owner.userId
-    )
-    expect(await updateSeriesSchedule(b.orgId, created.series.id, { dtStart: '2020-01-06T09:00', durationMin: 60, rrule: 'FREQ=WEEKLY;BYDAY=MO' }))
-      .toBeNull()
   })
 })

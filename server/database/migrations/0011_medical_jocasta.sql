@@ -1,0 +1,1 @@
+ALTER TABLE "court" DROP COLUMN "status";

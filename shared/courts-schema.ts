@@ -16,7 +16,6 @@ import {
   COURT_LIMITS,
   isCourtEnvironment,
   isCourtSport,
-  isCourtStatus,
   isHexColor
 } from './courts'
 
@@ -24,7 +23,7 @@ import {
 // baked in (client → localized i18n keys, server → identity/raw codes that are
 // never user-facing — server validation is defense-in-depth behind the form).
 export const COURT_ERROR_CODES = [
-  'nameRequired', 'tooLong', 'color', 'surface', 'sport', 'environment', 'status'
+  'nameRequired', 'tooLong', 'color', 'surface', 'sport', 'environment'
 ] as const
 export type CourtErrorCode = (typeof COURT_ERROR_CODES)[number]
 
@@ -48,7 +47,7 @@ function color(msg: CourtMessageResolver) {
 
 // The complete field-by-field definition, parameterized by the message resolver.
 // Only `name` + `sport` are required; everything else is optional. Operational
-// defaults (environment/status/lineColor/surfaceColor) are applied by the service
+// defaults (environment/lineColor/surfaceColor) are applied by the service
 // on create, NOT via Zod `.default()` — a default on an optional field would be
 // re-injected by `.partial()` on the PATCH schema and silently reset an untouched
 // field. So the schema validates presence/format only; the service owns defaults.
@@ -66,7 +65,6 @@ export function courtSchema(msg: CourtMessageResolver) {
     // knows the effective sport on a partial update.
     surface: optionalText(40, msg),
     environment: z.string().refine(isCourtEnvironment, msg('environment')).optional(),
-    status: z.string().refine(isCourtStatus, msg('status')).optional(),
     surfaceColor: color(msg).optional(),
     lineColor: color(msg).optional(),
     zone: optionalText(COURT_LIMITS.zone, msg),

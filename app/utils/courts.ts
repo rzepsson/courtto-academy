@@ -1,6 +1,6 @@
 import type { Sport } from '~~/shared/org-profile'
 import type { CourtDto } from '~~/server/database/types'
-import { COURT_ENVIRONMENTS, COURT_STATUSES, SURFACES_BY_SPORT } from '~~/shared/courts'
+import { COURT_ENVIRONMENTS, SURFACES_BY_SPORT, courtUnit, isCourtSport } from '~~/shared/courts'
 import { courtSchema, type CourtErrorCode } from '~~/shared/courts-schema'
 
 // Client-facing re-exports of the shared court domain, plus form-only helpers.
@@ -9,7 +9,6 @@ import { courtSchema, type CourtErrorCode } from '~~/shared/courts-schema'
 export {
   COURT_SPECS,
   COURT_ENVIRONMENTS,
-  COURT_STATUSES,
   COURT_COLOR_PRESETS,
   DEFAULT_SURFACE_COLOR,
   DEFAULT_LINE_COLOR,
@@ -21,7 +20,7 @@ export {
   isValidSurfaceFor,
   isHexColor
 } from '~~/shared/courts'
-export type { CourtUnit, CourtEnvironment, CourtStatus, CourtSpec } from '~~/shared/courts'
+export type { CourtUnit, CourtEnvironment, CourtSpec } from '~~/shared/courts'
 
 // The client-side court shape: over HTTP the Date columns arrive JSON-serialized
 // as ISO strings, so the roster/card/builder bind against this (not the server
@@ -38,7 +37,6 @@ export interface CourtFormState {
   sport: string
   surface: string
   environment: string
-  status: string
   surfaceColor: string
   lineColor: string
   zone: string
@@ -55,8 +53,7 @@ const COURT_ERROR_KEYS: Record<CourtErrorCode, string> = {
   color: 'courts.form.errors.color',
   surface: 'courts.form.errors.invalid',
   sport: 'courts.form.errors.invalid',
-  environment: 'courts.form.errors.invalid',
-  status: 'courts.form.errors.invalid'
+  environment: 'courts.form.errors.invalid'
 }
 
 // The builder binds this to `UForm :schema` — the same shared schema the server
@@ -76,6 +73,24 @@ export function courtEnvironmentOptions(t: (key: string) => string): { value: st
   return COURT_ENVIRONMENTS.map(value => ({ value, label: t(`courts.environments.${value}`) }))
 }
 
-export function courtStatusOptions(t: (key: string) => string): { value: string, label: string }[] {
-  return COURT_STATUSES.map(value => ({ value, label: t(`courts.status.${value}`) }))
+// The localized unit noun for a sport — "Court" (tennis, padel, squash, …) or
+// "Table" (table tennis). Sport-specific UI (a lesson slot's court field, a
+// session's court row, the court builder) shows this instead of a hardcoded
+// "court", so picking table tennis reads "Table"/"Stół". Falls back to the court
+// unit for unrecognized input. Rebuilt per-locale (call inside a computed).
+export function courtUnitLabel(sport: string, t: (key: string) => string): string {
+  return t(`courts.unit.${isCourtSport(sport) ? courtUnit(sport) : 'court'}`)
+}
+
+// The concise "sport · surface · environment · zone" descriptor (only the parts
+// present), shared by the roster tile and the detail page so they never drift.
+export function courtMetaParts(
+  court: Pick<CourtView, 'sport' | 'surface' | 'environment' | 'zone'>,
+  t: (key: string) => string
+): string[] {
+  const parts = [t(`school.settings.sports.${court.sport}`)]
+  if (court.surface) parts.push(t(`courts.surfaces.${court.surface}`))
+  parts.push(t(`courts.environments.${court.environment}`))
+  if (court.zone) parts.push(court.zone)
+  return parts
 }

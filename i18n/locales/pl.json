@@ -71,12 +71,20 @@
       "SCHEDULE_INVALID_RANGE": "Nieprawidłowy zakres dat.",
       "SCHEDULE_SESSION_CANCELLED": "To wystąpienie jest odwołane — przywróć je przed edycją.",
       "SCHEDULE_SERIES_NOT_ACTIVE": "Ta seria zajęć jest odwołana — nie można przywracać jej wystąpień.",
+      "SCHEDULE_SERIES_INACTIVE": "Ta grupa jest odwołana — przywróć ją, zanim zmienisz jej sloty.",
+      "SCHEDULE_DTSTART_PAST": "Początek musi być w przyszłości.",
+      "SCHEDULE_TOO_MANY_RULES": "Ta grupa ma już maksymalną liczbę slotów.",
+      "SCHEDULE_LAST_RULE": "Grupa musi mieć co najmniej jeden slot. Zamiast tego usuń całą grupę.",
       "SCHEDULE_STUDENT_NOT_FOUND": "Ten uczeń nie jest członkiem tej szkoły.",
       "SCHEDULE_ENROLLMENT_CLOSED": "Zapisy na te zajęcia są zamknięte.",
       "SCHEDULE_ENROLLMENT_UNAVAILABLE": "Te zajęcia nie przyjmują teraz zapisów.",
       "SCHEDULE_ALREADY_ENROLLED": "Już zapisano na tę serię.",
       "SCHEDULE_ATTENDANCE_FORBIDDEN": "Możesz zarządzać obecnością tylko na własnych zajęciach.",
-      "SCHEDULE_ATTENDANCE_INVALID": "Część wpisów obecności jest nieprawidłowa."
+      "SCHEDULE_ATTENDANCE_INVALID": "Część wpisów obecności jest nieprawidłowa.",
+      "COURT_BLOCK_COURT_NOT_FOUND": "Ten kort już nie istnieje.",
+      "COURT_BLOCK_INVALID": "Sprawdź szczegóły blokady.",
+      "COURT_BLOCK_RANGE": "Blokada musi kończyć się po jej rozpoczęciu.",
+      "COURT_BLOCK_CONFLICT": "Ten kort ma już zajęcia lub blokadę w tym oknie czasowym."
     }
   },
   "common": {
@@ -89,6 +97,7 @@
     "copyFailed": "Nie udało się skopiować do schowka",
     "done": "Gotowe",
     "cancel": "Anuluj",
+    "close": "Zamknij",
     "save": "Zapisz zmiany",
     "discard": "Odrzuć",
     "loading": "Ładowanie…",
@@ -128,10 +137,6 @@
       "court": "Kort",
       "table": "Stół"
     },
-    "status": {
-      "active": "Aktywny",
-      "maintenance": "Konserwacja"
-    },
     "environments": {
       "indoor": "Kryty",
       "outdoor": "Odkryty",
@@ -152,6 +157,8 @@
     },
     "actions": {
       "menu": "Akcje kortu",
+      "viewSchedule": "Zobacz w grafiku",
+      "block": "Zablokuj na czas serwisu",
       "edit": "Edytuj",
       "archive": "Archiwizuj",
       "restore": "Przywróć",
@@ -182,13 +189,28 @@
       "deleteFailed": "Nie udało się usunąć kortu",
       "reorderFailed": "Nie udało się zapisać nowej kolejności"
     },
+    "detail": {
+      "title": "Kort",
+      "back": "Wróć do kortów",
+      "added": "Dodano {date}",
+      "notFound": {
+        "title": "Nie znaleziono kortu",
+        "description": "Ten kort nie istnieje lub należy do innej placówki.",
+        "action": "Wróć do kortów"
+      },
+      "maintenance": {
+        "title": "Serwis i zamknięcia",
+        "add": "Dodaj",
+        "empty": "Brak nadchodzących zamknięć tego kortu."
+      }
+    },
     "form": {
-      "createTitle": "Dodaj kort",
-      "editTitle": "Edytuj kort",
+      "createTitle": "Dodaj {unit}",
+      "editTitle": "Edytuj {unit}",
       "subtitle": "Nazwij go, wybierz dyscyplinę i nawierzchnię, a podgląd zobaczysz na żywo.",
-      "previewName": "Nowy kort",
+      "previewName": "Nowy {unit}",
       "name": "Nazwa",
-      "namePlaceholder": "np. Kort 1",
+      "namePlaceholder": "np. {unit} 1",
       "sport": "Dyscyplina",
       "surface": "Nawierzchnia",
       "surfaceNone": "Nie określono",
@@ -199,14 +221,12 @@
       "zone": "Strefa",
       "zoneHelp": "Opcjonalne grupowanie, np. hala lub obszar.",
       "zonePlaceholder": "np. Hala A",
-      "maintenance": "W trakcie konserwacji",
-      "maintenanceHelp": "Oznacz kort jako tymczasowo niedostępny.",
       "notes": "Notatki",
       "notesPlaceholder": "Notatki wewnętrzne (opcjonalnie)",
-      "create": "Utwórz kort",
+      "create": "Utwórz {unit}",
       "save": "Zapisz zmiany",
-      "created": "Kort utworzony",
-      "updated": "Kort zaktualizowany",
+      "created": "{unit} utworzony",
+      "updated": "{unit} zaktualizowany",
       "errors": {
         "nameRequired": "Podaj nazwę kortu",
         "tooLong": "Zbyt długa wartość",
@@ -239,6 +259,45 @@
     "agenda": {
       "empty": "Brak zajęć do wyświetlenia.",
       "count": "{n} zajęć"
+    },
+    "blocks": {
+      "created": "{unit} zablokowany",
+      "removed": "Blokada usunięta",
+      "kinds": {
+        "maintenance": "Serwis",
+        "blocked": "Zamknięty"
+      },
+      "form": {
+        "title": "Zablokuj {unit}",
+        "subtitle": "Wyłącz {name} z użytku — nie zaplanujesz zajęć na czas blokady.",
+        "kind": "Powód",
+        "allDay": "Całe dni",
+        "allDayHelp": "Zablokuj całe dni zamiast zakresu godzin.",
+        "startDate": "Od",
+        "endDate": "Do",
+        "start": "Początek",
+        "end": "Koniec",
+        "label": "Notatka",
+        "labelHelp": "Opcjonalnie — pokazywana na pasku w kalendarzu.",
+        "labelPlaceholder": "np. Renowacja nawierzchni",
+        "submit": "Zablokuj {unit}",
+        "errors": {
+          "required": "To pole jest wymagane",
+          "tooLong": "To jest zbyt długie",
+          "invalid": "Nieprawidłowa wartość",
+          "datetime": "Podaj poprawną datę i godzinę",
+          "range": "Koniec musi być po początku",
+          "maxSpan": "Ta blokada jest zbyt długa"
+        }
+      },
+      "detail": {
+        "title": "Szczegóły blokady",
+        "remove": "Usuń blokadę"
+      },
+      "errors": {
+        "saveFailed": "Nie udało się zablokować kortu",
+        "removeFailed": "Nie udało się usunąć blokady"
+      }
     },
     "filters": {
       "allCoaches": "Wszyscy trenerzy",
@@ -286,7 +345,6 @@
     "session": {
       "title": "Zajęcia",
       "when": "Kiedy",
-      "court": "Kort",
       "coach": "Trener",
       "noCoach": "Bez trenera",
       "overridden": "Zmienione",
@@ -301,19 +359,31 @@
     },
     "edit": {
       "title": "Edytuj zajęcia",
-      "subtitle": "Zaktualizuj szczegóły grupy, trenera i kort.",
+      "subtitle": "Zaktualizuj szczegóły grupy i sloty, w których się spotyka.",
       "saved": "Zajęcia zaktualizowane",
-      "scheduleTitle": "Czas i powtarzanie",
-      "scheduleHint": "Zmień godziny zajęć i sposób ich powtarzania.",
-      "changeSchedule": "Zmień harmonogram",
-      "noFuture": "Te zajęcia nie mają nadchodzących wystąpień do przełożenia.",
-      "scheduleWarning": "To wygeneruje na nowo wszystkie nadchodzące wystąpienia. Ręcznie przesunięte lub odwołane przyszłe sesje — oraz drop-iny na nich — zostaną zresetowane. Zapisy na grupę pozostają.",
-      "applySchedule": "Zastosuj nowy harmonogram",
-      "scheduleSaved": "Harmonogram zaktualizowany",
+      "editSlot": "Edytuj slot",
+      "saveSlot": "Zapisz slot",
+      "newSlot": "Nowy slot",
+      "slotAdded": "Slot dodany",
+      "slotSaved": "Slot zaktualizowany",
+      "slotRemoved": "Slot usunięty",
+      "slotWarning": "Zapis wygeneruje na nowo nadchodzące wystąpienia tego slotu. Ręcznie przesunięte lub odwołane przyszłe sesje — oraz drop-iny na nich — zostaną zresetowane. Zapisy na grupę pozostają.",
+      "dangerZone": "Strefa niebezpieczna",
+      "dangerZoneHelp": "Trwale usuń tę grupę i wszystko, co zawiera.",
+      "delete": "Usuń grupę",
+      "deleted": "Grupa usunięta",
+      "deleteConfirm": {
+        "title": "Usuń grupę na stałe",
+        "description": "Usunąć trwale {title}?",
+        "warningTitle": "Tej operacji nie można cofnąć",
+        "warningBody": "Grupa i cała jej historia — każdy slot, sesja, zapis i obecność, wraz z rezerwacjami kortów — zostaną trwale usunięte. Aby zwolnić korty, zachowując historię, odwołaj sesje zamiast usuwać grupę."
+      },
       "errors": {
         "loadFailed": "Nie udało się wczytać zajęć",
         "saveFailed": "Nie udało się zapisać zmian",
-        "scheduleFailed": "Nie udało się zaktualizować harmonogramu"
+        "slotFailed": "Nie udało się zapisać slotu",
+        "removeSlotFailed": "Nie udało się usunąć slotu",
+        "deleteFailed": "Nie udało się usunąć grupy"
       }
     },
     "attendance": {
@@ -348,10 +418,14 @@
       "subtitle": "Ustaw czas, kort, trenera i sposób powtarzania.",
       "title": "Nazwa",
       "titlePlaceholder": "np. Grupa młodzieżowa",
+      "slots": "Sloty",
+      "slotsHelp": "Kiedy spotyka się grupa. Dodaj kolejne dla innych dni lub godzin.",
+      "slot": "Slot {n}",
+      "addSlot": "Dodaj slot",
+      "removeSlot": "Usuń slot",
       "type": "Typ",
       "sport": "Sport",
-      "court": "Kort",
-      "courtNone": "Wybierz kort",
+      "courtNone": "Wybierz {unit}",
       "coach": "Trener",
       "noCoach": "Bez trenera",
       "dtStart": "Początek",

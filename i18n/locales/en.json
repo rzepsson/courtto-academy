@@ -71,12 +71,20 @@
       "SCHEDULE_INVALID_RANGE": "Invalid date range.",
       "SCHEDULE_SESSION_CANCELLED": "This occurrence is cancelled — restore it before editing.",
       "SCHEDULE_SERIES_NOT_ACTIVE": "This lesson series is cancelled — you can't restore its occurrences.",
+      "SCHEDULE_SERIES_INACTIVE": "This group is cancelled — reactivate it before changing its slots.",
+      "SCHEDULE_DTSTART_PAST": "The start must be in the future.",
+      "SCHEDULE_TOO_MANY_RULES": "This group already has the maximum number of slots.",
+      "SCHEDULE_LAST_RULE": "A group must keep at least one slot. Delete the whole group instead.",
       "SCHEDULE_STUDENT_NOT_FOUND": "That student isn't a member of this school.",
       "SCHEDULE_ENROLLMENT_CLOSED": "Enrolment is closed for this lesson.",
       "SCHEDULE_ENROLLMENT_UNAVAILABLE": "This lesson isn't accepting enrolments right now.",
       "SCHEDULE_ALREADY_ENROLLED": "Already enrolled in this series.",
       "SCHEDULE_ATTENDANCE_FORBIDDEN": "You can only manage attendance for your own sessions.",
-      "SCHEDULE_ATTENDANCE_INVALID": "Some attendance entries are invalid."
+      "SCHEDULE_ATTENDANCE_INVALID": "Some attendance entries are invalid.",
+      "COURT_BLOCK_COURT_NOT_FOUND": "That court no longer exists.",
+      "COURT_BLOCK_INVALID": "Please check the block details.",
+      "COURT_BLOCK_RANGE": "The block must end after it starts.",
+      "COURT_BLOCK_CONFLICT": "This court already has a lesson or block in that window."
     }
   },
   "common": {
@@ -89,6 +97,7 @@
     "copyFailed": "Could not copy to clipboard",
     "done": "Done",
     "cancel": "Cancel",
+    "close": "Close",
     "save": "Save changes",
     "discard": "Discard",
     "loading": "Loading…",
@@ -128,10 +137,6 @@
       "court": "Court",
       "table": "Table"
     },
-    "status": {
-      "active": "Active",
-      "maintenance": "Maintenance"
-    },
     "environments": {
       "indoor": "Indoor",
       "outdoor": "Outdoor",
@@ -152,6 +157,8 @@
     },
     "actions": {
       "menu": "Court actions",
+      "viewSchedule": "View in schedule",
+      "block": "Block for maintenance",
       "edit": "Edit",
       "archive": "Archive",
       "restore": "Restore",
@@ -182,13 +189,28 @@
       "deleteFailed": "Could not delete the court",
       "reorderFailed": "Could not save the new order"
     },
+    "detail": {
+      "title": "Court",
+      "back": "Back to courts",
+      "added": "Added {date}",
+      "notFound": {
+        "title": "Court not found",
+        "description": "This court doesn't exist or belongs to another facility.",
+        "action": "Back to courts"
+      },
+      "maintenance": {
+        "title": "Maintenance & closures",
+        "add": "Add",
+        "empty": "No upcoming closures on this court."
+      }
+    },
     "form": {
-      "createTitle": "Add court",
-      "editTitle": "Edit court",
+      "createTitle": "Add {unit}",
+      "editTitle": "Edit {unit}",
       "subtitle": "Name it, pick the discipline and surface, and preview it live.",
-      "previewName": "New court",
+      "previewName": "New {unit}",
       "name": "Name",
-      "namePlaceholder": "e.g. Court 1",
+      "namePlaceholder": "e.g. {unit} 1",
       "sport": "Discipline",
       "surface": "Surface",
       "surfaceNone": "Not specified",
@@ -199,14 +221,12 @@
       "zone": "Zone",
       "zoneHelp": "Optional grouping, e.g. a hall or area.",
       "zonePlaceholder": "e.g. Hall A",
-      "maintenance": "Under maintenance",
-      "maintenanceHelp": "Mark the court temporarily unavailable.",
       "notes": "Notes",
       "notesPlaceholder": "Internal notes (optional)",
-      "create": "Create court",
+      "create": "Create {unit}",
       "save": "Save changes",
-      "created": "Court created",
-      "updated": "Court updated",
+      "created": "{unit} created",
+      "updated": "{unit} updated",
       "errors": {
         "nameRequired": "Enter a court name",
         "tooLong": "This is too long",
@@ -239,6 +259,45 @@
     "agenda": {
       "empty": "No lessons to show.",
       "count": "{n} lessons"
+    },
+    "blocks": {
+      "created": "{unit} blocked",
+      "removed": "Block removed",
+      "kinds": {
+        "maintenance": "Maintenance",
+        "blocked": "Closed"
+      },
+      "form": {
+        "title": "Block a {unit}",
+        "subtitle": "Take {name} out of service — lessons can't be scheduled over a block.",
+        "kind": "Reason",
+        "allDay": "Whole days",
+        "allDayHelp": "Block entire days rather than a time range.",
+        "startDate": "From",
+        "endDate": "To",
+        "start": "Starts",
+        "end": "Ends",
+        "label": "Note",
+        "labelHelp": "Optional — shown on the calendar band.",
+        "labelPlaceholder": "e.g. Resurfacing",
+        "submit": "Block {unit}",
+        "errors": {
+          "required": "This field is required",
+          "tooLong": "This is too long",
+          "invalid": "Invalid value",
+          "datetime": "Enter a valid date and time",
+          "range": "The end must be after the start",
+          "maxSpan": "This block is too long"
+        }
+      },
+      "detail": {
+        "title": "Block details",
+        "remove": "Remove block"
+      },
+      "errors": {
+        "saveFailed": "Could not block the court",
+        "removeFailed": "Could not remove the block"
+      }
     },
     "filters": {
       "allCoaches": "All coaches",
@@ -286,7 +345,6 @@
     "session": {
       "title": "Lesson",
       "when": "When",
-      "court": "Court",
       "coach": "Coach",
       "noCoach": "No coach",
       "overridden": "Edited",
@@ -301,19 +359,31 @@
     },
     "edit": {
       "title": "Edit lesson",
-      "subtitle": "Update the group's details, coach and court.",
+      "subtitle": "Update the group's details and the slots it meets on.",
       "saved": "Lesson updated",
-      "scheduleTitle": "Time & recurrence",
-      "scheduleHint": "Change when the lesson runs and how it repeats.",
-      "changeSchedule": "Change schedule",
-      "noFuture": "This lesson has no upcoming occurrences to reschedule.",
-      "scheduleWarning": "This regenerates every upcoming occurrence. Individually moved or cancelled future sessions — and any drop-ins on them — are reset. Group enrolments stay.",
-      "applySchedule": "Apply new schedule",
-      "scheduleSaved": "Schedule updated",
+      "editSlot": "Edit slot",
+      "saveSlot": "Save slot",
+      "newSlot": "New slot",
+      "slotAdded": "Slot added",
+      "slotSaved": "Slot updated",
+      "slotRemoved": "Slot removed",
+      "slotWarning": "Saving regenerates this slot's upcoming occurrences. Individually moved or cancelled future sessions — and any drop-ins on them — are reset. Group enrolments stay.",
+      "dangerZone": "Danger zone",
+      "dangerZoneHelp": "Permanently remove this group and everything it holds.",
+      "delete": "Delete group",
+      "deleted": "Group deleted",
+      "deleteConfirm": {
+        "title": "Delete group permanently",
+        "description": "Permanently delete {title}?",
+        "warningTitle": "This can't be undone",
+        "warningBody": "The group and its entire history — every slot, session, enrolment and attendance record, plus its court bookings — will be permanently removed. To free the courts while keeping history, cancel the sessions instead."
+      },
       "errors": {
         "loadFailed": "Could not load the lesson",
         "saveFailed": "Could not save the changes",
-        "scheduleFailed": "Could not update the schedule"
+        "slotFailed": "Could not save the slot",
+        "removeSlotFailed": "Could not remove the slot",
+        "deleteFailed": "Could not delete the group"
       }
     },
     "attendance": {
@@ -348,10 +418,14 @@
       "subtitle": "Set the time, court, coach and how it repeats.",
       "title": "Title",
       "titlePlaceholder": "e.g. Junior group",
+      "slots": "Slots",
+      "slotsHelp": "When the group meets. Add more for different days or times.",
+      "slot": "Slot {n}",
+      "addSlot": "Add slot",
+      "removeSlot": "Remove slot",
       "type": "Type",
       "sport": "Sport",
-      "court": "Court",
-      "courtNone": "Pick a court",
+      "courtNone": "Pick a {unit}",
       "coach": "Coach",
       "noCoach": "No coach",
       "dtStart": "Starts",

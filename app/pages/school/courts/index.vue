@@ -4,7 +4,6 @@ import type { CourtView } from '~/utils/courts'
 definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
 
 const { t } = useI18n()
-const toast = useToast()
 const { toastError } = useApiError()
 
 // Always fetch the full roster (archived included) — archived courts stay visible
@@ -20,6 +19,7 @@ const { data: profileData } = await useFetch('/api/school/profile', { key: 'scho
 const loading = computed(() => status.value === 'pending')
 const allowedSports = computed(() => profileData.value?.profile.sports ?? [])
 const hasSports = computed(() => allowedSports.value.length > 0)
+const timezone = computed(() => profileData.value?.profile.timezone ?? 'Europe/Warsaw')
 
 // `activeItems` is a mutable mirror so drag-reorder reflects instantly; archived
 // courts are derived and never reordered.
@@ -31,6 +31,10 @@ watch(items, (value) => {
 const archivedItems = computed(() => items.value.filter(c => c.archivedAt !== null))
 
 const isEmpty = computed(() => !loading.value && items.value.length === 0)
+
+function courtLink(court: CourtView): string {
+  return `/school/courts/${court.id}`
+}
 
 // --- Builder ---
 const builderOpen = ref(false)
@@ -46,49 +50,38 @@ function openEdit(court: CourtView) {
   builderOpen.value = true
 }
 
-// --- Lifecycle: archive (reversible) / restore / delete (permanent) ---
-async function archive(court: CourtView) {
-  const endpoint: string = `/api/school/courts/${court.id}`
-  try {
-    await $fetch(endpoint, { method: 'DELETE' })
-    toast.add({ title: t('courts.archived'), color: 'neutral' })
-    await refresh()
-  } catch (error) {
-    toastError('courts.errors.archiveFailed', error)
-  }
+// Deep-link into the lesson calendar pre-filtered to this court.
+function viewSchedule(court: CourtView) {
+  navigateTo({ path: '/school/schedule', query: { court: court.id } })
 }
 
+// --- Maintenance / closure blocks ---
+const blockOpen = ref(false)
+const blockCourt = ref<CourtView | null>(null)
+
+function openBlock(court: CourtView) {
+  blockCourt.value = court
+  blockOpen.value = true
+}
+
+// --- Lifecycle: archive (reversible) / restore / delete (permanent) ---
+// The composable owns the HTTP + toast; this page re-fetches the roster on success.
+const { purging, archive: archiveCourt, restore: restoreCourt, purge } = useCourtActions()
+
+async function archive(court: CourtView) {
+  if (await archiveCourt(court)) await refresh()
+}
 async function restore(court: CourtView) {
-  try {
-    await $fetch(`/api/school/courts/${court.id}`, { method: 'PATCH', body: { restore: true } })
-    toast.add({ title: t('courts.restored'), color: 'success' })
-    await refresh()
-  } catch (error) {
-    toastError('courts.errors.restoreFailed', error)
-  }
+  if (await restoreCourt(court)) await refresh()
 }
 
 const courtToDelete = ref<CourtView | null>(null)
-const deleting = ref(false)
-
 async function confirmDelete() {
-  if (!courtToDelete.value) {
-    return
-  }
-  deleting.value = true
-  // Annotated string so typed $fetch doesn't intersect this dynamic path with the
-  // sibling /courts/reorder route (which would forbid DELETE).
-  const endpoint: string = `/api/school/courts/${courtToDelete.value.id}?purge=1`
-  try {
-    await $fetch(endpoint, { method: 'DELETE' })
-    toast.add({ title: t('courts.deleted'), color: 'neutral' })
-    await refresh()
-  } catch (error) {
-    toastError('courts.errors.deleteFailed', error)
-  } finally {
-    deleting.value = false
-    courtToDelete.value = null
-  }
+  const court = courtToDelete.value
+  if (!court) return
+  const ok = await purge(court)
+  courtToDelete.value = null
+  if (ok) await refresh()
 }
 
 // --- Drag reorder (active courts only) ---
@@ -255,10 +248,15 @@ async function onDrop(target: number) {
               >
                 <CourtsCard
                   :court="court"
+                  :to="courtLink(court)"
                   menu
+                  schedule-action
+                  block-action
                   @edit="openEdit(court)"
                   @archive="archive(court)"
                   @delete="courtToDelete = court"
+                  @schedule="viewSchedule(court)"
+                  @block="openBlock(court)"
                 />
               </div>
             </MotionReveal>
@@ -310,6 +308,7 @@ async function onDrop(target: number) {
                   v-for="court in archivedItems"
                   :key="court.id"
                   :court="court"
+                  :to="courtLink(court)"
                   menu
                   @restore="restore(court)"
                   @delete="courtToDelete = court"
@@ -325,6 +324,12 @@ async function onDrop(target: number) {
         :court="editing"
         :allowed-sports="allowedSports"
         @saved="refresh()"
+      />
+
+      <SchoolCourtsBlockSlideover
+        v-model:open="blockOpen"
+        :court="blockCourt"
+        :timezone="timezone"
       />
 
       <UModal
@@ -353,7 +358,7 @@ async function onDrop(target: number) {
             <UButton
               color="error"
               icon="i-lucide-trash-2"
-              :loading="deleting"
+              :loading="purging"
               :label="t('courts.actions.delete')"
               @click="confirmDelete"
             />

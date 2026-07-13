@@ -44,7 +44,6 @@ describe.skipIf(!hasTestDb)('courts service', () => {
     expect(created.name).toBe('Court 1')
     expect(created.sport).toBe('tennis')
     expect(created.environment).toBe('indoor')
-    expect(created.status).toBe('active')
     expect(created.surfaceColor).toMatch(/^#[0-9a-f]{6}$/i) // seeded from DEFAULT_SURFACE_COLOR
     expect(created.lineColor).toBe('#ffffff')
     expect(created.sortOrder).toBe(0)
@@ -103,9 +102,9 @@ describe.skipIf(!hasTestDb)('courts service', () => {
     )
     expect(created.surface).toBe('clay')
 
-    const updated = await updateCourt(orgId, created.id, { sport: 'padel', status: 'maintenance' })
+    const updated = await updateCourt(orgId, created.id, { sport: 'padel', zone: 'Hall B' })
     expect(updated?.sport).toBe('padel')
-    expect(updated?.status).toBe('maintenance')
+    expect(updated?.zone).toBe('Hall B')
     // 'clay' isn't a padel surface, so it must be cleared rather than persisted invalid.
     expect(updated?.surface).toBeNull()
   })

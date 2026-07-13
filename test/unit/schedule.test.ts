@@ -20,7 +20,6 @@ import {
 import {
   scheduleSeriesCreateSchema,
   scheduleSeriesPatchSchema,
-  seriesAssignmentSchema,
   sessionUpdateSchema
 } from '../../shared/schedule-schema'
 
@@ -276,21 +275,15 @@ describe('expandOccurrences — DST correctness (the whole point)', () => {
   })
 })
 
-describe('scheduleSeriesCreateSchema', () => {
+describe('scheduleSeriesCreateSchema (rules-based)', () => {
   const schema = scheduleSeriesCreateSchema(raw)
+  const rule = (over: Record<string, unknown> = {}) => ({ dtStart: '2026-09-01T17:00', durationMin: 60, courtId: 'court-1', ...over })
 
-  it('accepts a minimal one-off lesson; timezone is optional, defaults are the service’s job', () => {
-    const result = schema.parse({
-      type: 'group',
-      sport: 'tennis',
-      title: 'Grupa A',
-      dtStart: '2026-09-01T17:00',
-      durationMin: 60,
-      defaultCourtId: 'court-1'
-    })
+  it('accepts a minimal group with one rule; timezone optional, defaults are the service’s job', () => {
+    const result = schema.parse({ type: 'group', sport: 'tennis', title: 'Grupa A', rules: [rule()] })
     expect(result.type).toBe('group')
     expect(result.title).toBe('Grupa A')
-    expect(result.defaultCourtId).toBe('court-1')
+    expect(result.rules[0]!.courtId).toBe('court-1')
     // timezone omitted is allowed — the service snapshots orgProfile.timezone.
     expect(result.timezone).toBeUndefined()
     // No Zod defaults, so `.partial()` can't resurrect them on a PATCH.
@@ -299,34 +292,47 @@ describe('scheduleSeriesCreateSchema', () => {
     expect(result.enrollmentOpen).toBeUndefined()
   })
 
-  it('requires a court (every occurrence reserves one)', () => {
+  it('requires at least one rule, each with a court', () => {
+    expect(schema.safeParse({ type: 'group', sport: 'tennis', title: 'A', rules: [] }).success).toBe(false)
     expect(schema.safeParse({
-      type: 'group', sport: 'tennis', title: 'A', dtStart: '2026-09-01T17:00', durationMin: 60
+      type: 'group', sport: 'tennis', title: 'A', rules: [{ dtStart: '2026-09-01T17:00', durationMin: 60 }]
     }).success).toBe(false)
   })
 
-  it('rejects a bad type, sport, colour, duration and dtStart', () => {
-    const base = { type: 'group', sport: 'tennis', title: 'A', dtStart: '2026-09-01T17:00', durationMin: 60, defaultCourtId: 'court-1' }
-    expect(schema.safeParse({ ...base, type: 'single' }).success).toBe(false)
-    expect(schema.safeParse({ ...base, sport: 'golf' }).success).toBe(false)
-    expect(schema.safeParse({ ...base, color: 'blue' }).success).toBe(false)
-    expect(schema.safeParse({ ...base, durationMin: 0 }).success).toBe(false)
-    expect(schema.safeParse({ ...base, durationMin: 5000 }).success).toBe(false)
-    expect(schema.safeParse({ ...base, dtStart: 'nope' }).success).toBe(false)
-    expect(schema.safeParse({ ...base, title: '   ' }).success).toBe(false)
+  it('accepts multiple rules — one group meeting on several day/time slots', () => {
+    const result = schema.parse({
+      type: 'group', sport: 'tennis', title: 'A', rules: [
+        rule({ rrule: 'FREQ=WEEKLY;BYDAY=WE', dtStart: '2026-09-02T15:00' }),
+        rule({ rrule: 'FREQ=WEEKLY;BYDAY=TH', dtStart: '2026-09-03T13:00', durationMin: 90, courtId: 'court-2' })
+      ]
+    })
+    expect(result.rules).toHaveLength(2)
+    expect(result.rules[1]!.durationMin).toBe(90)
+    expect(result.rules[1]!.courtId).toBe('court-2')
   })
 
-  it('validates the rrule when present, rejects sub-daily, and collapses an empty one to null', () => {
-    const base = { type: 'group', sport: 'tennis', title: 'A', dtStart: '2026-09-01T17:00', durationMin: 60, defaultCourtId: 'court-1' }
-    expect(schema.safeParse({ ...base, rrule: 'FREQ=BOGUS' }).success).toBe(false)
-    expect(schema.safeParse({ ...base, rrule: 'FREQ=HOURLY' }).success).toBe(false) // sub-daily rejected
-    expect(schema.parse({ ...base, rrule: 'FREQ=WEEKLY;BYDAY=MO' }).rrule).toBe('FREQ=WEEKLY;BYDAY=MO')
-    expect(schema.parse({ ...base, rrule: '' }).rrule).toBeNull()
+  it('rejects a bad type, sport, colour, and per-rule duration/dtStart', () => {
+    const good = { type: 'group', sport: 'tennis', title: 'A', rules: [rule()] }
+    expect(schema.safeParse({ ...good, type: 'single' }).success).toBe(false)
+    expect(schema.safeParse({ ...good, sport: 'golf' }).success).toBe(false)
+    expect(schema.safeParse({ ...good, color: 'blue' }).success).toBe(false)
+    expect(schema.safeParse({ ...good, rules: [rule({ durationMin: 0 })] }).success).toBe(false)
+    expect(schema.safeParse({ ...good, rules: [rule({ durationMin: 5000 })] }).success).toBe(false)
+    expect(schema.safeParse({ ...good, rules: [rule({ dtStart: 'nope' })] }).success).toBe(false)
+    expect(schema.safeParse({ ...good, title: '   ' }).success).toBe(false)
+  })
+
+  it('validates a rule rrule when present, rejects sub-daily, and collapses an empty one to null', () => {
+    const good = { type: 'group', sport: 'tennis', title: 'A' }
+    expect(schema.safeParse({ ...good, rules: [rule({ rrule: 'FREQ=BOGUS' })] }).success).toBe(false)
+    expect(schema.safeParse({ ...good, rules: [rule({ rrule: 'FREQ=HOURLY' })] }).success).toBe(false) // sub-daily rejected
+    expect(schema.parse({ ...good, rules: [rule({ rrule: 'FREQ=WEEKLY;BYDAY=MO' })] }).rules[0]!.rrule).toBe('FREQ=WEEKLY;BYDAY=MO')
+    expect(schema.parse({ ...good, rules: [rule({ rrule: '' })] }).rules[0]!.rrule).toBeNull()
   })
 
   it('accepts a valid hex colour', () => {
-    const base = { type: 'group', sport: 'tennis', title: 'A', dtStart: '2026-09-01T17:00', durationMin: 60, defaultCourtId: 'court-1' }
-    expect(schema.parse({ ...base, color: '#2f6db5' }).color).toBe('#2f6db5')
+    const result = schema.parse({ type: 'group', sport: 'tennis', title: 'A', color: '#2f6db5', rules: [rule()] })
+    expect(result.color).toBe('#2f6db5')
   })
 })
 
@@ -366,17 +372,5 @@ describe('sessionUpdateSchema (single-occurrence edit)', () => {
     expect(schema.safeParse({ courtId: '' }).success).toBe(false) // a session always has a court
     expect(schema.parse({ coachMemberId: '' }).coachMemberId).toBeNull() // clears the coach (open court)
     expect(schema.parse({ coachMemberId: 'm-1' }).coachMemberId).toBe('m-1')
-  })
-})
-
-describe('seriesAssignmentSchema (reassign coach/court)', () => {
-  const schema = seriesAssignmentSchema(raw)
-
-  it('accepts coach and/or court, allows clearing the coach, forbids clearing the court', () => {
-    expect(schema.parse({ defaultCourtId: 'court-2' }).defaultCourtId).toBe('court-2')
-    expect(schema.parse({ coachMemberId: '' }).coachMemberId).toBeNull()
-    expect(schema.parse({ coachMemberId: 'm-2' }).coachMemberId).toBe('m-2')
-    expect(schema.safeParse({ defaultCourtId: '' }).success).toBe(false)
-    expect(schema.parse({})).toEqual({})
   })
 })

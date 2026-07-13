@@ -3,12 +3,6 @@ import { AREA_ROLES } from '../../../../shared/permissions'
 // Sessions whose start falls in [from, to), flattened with their series display
 // fields — the calendar/roster feed. `from`/`to` are ISO instants; absent →
 // a default two-week window from now. School roles only.
-function parseInstant(value: unknown): Date | null {
-  if (typeof value !== 'string') return null
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? null : date
-}
-
 export default defineEventHandler(async (event) => {
   const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
@@ -19,6 +13,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid range', data: { code: 'SCHEDULE_INVALID_RANGE' } })
   }
 
-  const sessions = await listSessions(membership.organization.id, { from, to })
-  return { sessions }
+  const [sessions, blocks] = await Promise.all([
+    listSessions(membership.organization.id, { from, to }),
+    listCourtBlocks(membership.organization.id, { from, to })
+  ])
+  return { sessions, blocks }
 })

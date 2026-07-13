@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { BadgeProps } from '@nuxt/ui'
 
-// Session lifecycle badge — map-driven like RoleBadge / CourtsStatusBadge.
+// Session lifecycle badge — map-driven like RoleBadge.
 const props = defineProps<{
   status: string
   size?: BadgeProps['size']

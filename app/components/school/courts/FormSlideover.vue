@@ -15,16 +15,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{ saved: [] }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
 const { toastError } = useApiError()
 
 const form = useTemplateRef('form')
 const isEdit = computed(() => props.court !== null)
 
+// The unit noun follows the selected discipline ("Court"/"Table"), so building a
+// table tennis table reads "table"/"stół" throughout the slideover. Lowercase
+// (accusative) for the imperative title/button, capitalized to head the toast.
+const unitLabel = computed(() => courtUnitLabel(state.sport, t))
+const unitLower = computed(() => unitLabel.value.toLocaleLowerCase(locale.value))
+
 const state = reactive<CourtFormState>({
   name: '', sport: 'tennis', surface: '', environment: 'indoor',
-  status: 'active', surfaceColor: '#2f6db5', lineColor: DEFAULT_LINE_COLOR, zone: '', notes: ''
+  surfaceColor: '#2f6db5', lineColor: DEFAULT_LINE_COLOR, zone: '', notes: ''
 })
 const saving = ref(false)
 
@@ -35,7 +41,6 @@ function initForm() {
   state.sport = sport
   state.surface = c?.surface ?? ''
   state.environment = c?.environment ?? 'indoor'
-  state.status = c?.status ?? 'active'
   state.surfaceColor = c?.surfaceColor ?? DEFAULT_SURFACE_COLOR[sport as Sport] ?? '#2f6db5'
   state.lineColor = c?.lineColor ?? DEFAULT_LINE_COLOR
   state.zone = c?.zone ?? ''
@@ -63,11 +68,6 @@ const surfaceOptions = computed(() => courtSurfaceOptions(state.sport, t))
 const showSurface = computed(() => surfaceOptions.value.length > 0)
 const environmentOptions = computed(() => courtEnvironmentOptions(t))
 
-const maintenance = computed({
-  get: () => state.status === 'maintenance',
-  set: (value: boolean) => { state.status = value ? 'maintenance' : 'active' }
-})
-
 const lineColorPresets = ['#ffffff', '#0f172a', '#facc15']
 
 // The same shared Zod schema the server validates against (rebuilt per-locale).
@@ -80,7 +80,6 @@ async function onSubmit() {
     name: state.name.trim(),
     sport: state.sport,
     environment: state.environment,
-    status: state.status,
     surfaceColor: state.surfaceColor,
     lineColor: state.lineColor,
     zone: state.zone.trim(),
@@ -97,7 +96,7 @@ async function onSubmit() {
     } else {
       await $fetch('/api/school/courts', { method: 'POST', body })
     }
-    toast.add({ title: t(isEdit.value ? 'courts.form.updated' : 'courts.form.created'), color: 'success' })
+    toast.add({ title: t(isEdit.value ? 'courts.form.updated' : 'courts.form.created', { unit: unitLabel.value }), color: 'success' })
     open.value = false
     emit('saved')
   } catch (error) {
@@ -111,7 +110,7 @@ async function onSubmit() {
 <template>
   <USlideover
     v-model:open="open"
-    :title="isEdit ? t('courts.form.editTitle') : t('courts.form.createTitle')"
+    :title="isEdit ? t('courts.form.editTitle', { unit: unitLower }) : t('courts.form.createTitle', { unit: unitLower })"
     :description="t('courts.form.subtitle')"
     :ui="{ content: 'max-w-3xl w-full' }"
   >
@@ -129,11 +128,10 @@ async function onSubmit() {
                 />
               </div>
             </div>
-            <div class="flex items-center justify-between gap-2 px-1">
+            <div class="px-1">
               <p class="truncate text-sm font-medium text-highlighted">
-                {{ state.name.trim() || t('courts.form.previewName') }}
+                {{ state.name.trim() || t('courts.form.previewName', { unit: unitLower }) }}
               </p>
-              <CourtsStatusBadge :status="state.status" />
             </div>
           </div>
         </div>
@@ -155,7 +153,7 @@ async function onSubmit() {
               v-model="state.name"
               size="lg"
               class="w-full"
-              :placeholder="t('courts.form.namePlaceholder')"
+              :placeholder="t('courts.form.namePlaceholder', { unit: unitLabel })"
               autofocus
             />
           </UFormField>
@@ -282,20 +280,6 @@ async function onSubmit() {
             />
           </UFormField>
 
-          <UFormField name="status">
-            <div class="flex items-center justify-between gap-4 rounded-lg bg-elevated/40 px-4 py-3 ring-1 ring-default">
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-highlighted">
-                  {{ t('courts.form.maintenance') }}
-                </p>
-                <p class="mt-0.5 text-xs text-muted">
-                  {{ t('courts.form.maintenanceHelp') }}
-                </p>
-              </div>
-              <USwitch v-model="maintenance" />
-            </div>
-          </UFormField>
-
           <UFormField
             :label="t('courts.form.notes')"
             name="notes"
@@ -326,7 +310,7 @@ async function onSubmit() {
           size="md"
           icon="i-lucide-check"
           :loading="saving"
-          :label="isEdit ? t('courts.form.save') : t('courts.form.create')"
+          :label="isEdit ? t('courts.form.save') : t('courts.form.create', { unit: unitLower })"
           @click="form?.submit()"
         />
       </div>

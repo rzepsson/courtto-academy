@@ -37,6 +37,9 @@ const when = computed(() => {
   return `${start.toFormat('cccc d LLLL, HH:mm')}–${end.toFormat('HH:mm')}`
 })
 
+// The unit noun follows this session's sport ("Court"/"Table"), so the summary
+// row and the reschedule field read right for table tennis.
+const unitLabel = computed(() => courtUnitLabel(props.session?.sport ?? 'tennis', t))
 const courtName = computed(() =>
   props.courts?.find(c => c.id === props.session?.courtId)?.name ?? null
 )
@@ -223,7 +226,7 @@ async function saveReschedule() {
               {{ when }}
             </dd>
             <dt class="text-muted">
-              {{ t('schedule.session.court') }}
+              {{ unitLabel }}
             </dt>
             <dd class="text-highlighted">
               {{ courtName ?? '—' }}
@@ -298,7 +301,7 @@ async function saveReschedule() {
                   class="w-full"
                 />
               </UFormField>
-              <UFormField :label="t('schedule.form.court')">
+              <UFormField :label="unitLabel">
                 <USelectMenu
                   v-model="edit.courtId"
                   value-key="value"

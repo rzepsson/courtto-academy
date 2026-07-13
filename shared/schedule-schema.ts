@@ -119,9 +119,46 @@ export function scheduleSeriesSchema(msg: ScheduleMessageResolver) {
 // The normalized, stored shape of a series' writable values (post-transform).
 export type ScheduleSeriesValues = z.infer<ReturnType<typeof scheduleSeriesSchema>>
 
-// Create: the full schema (service fills defaults + validates context rules).
+// One recurrence RULE = one VEVENT: when (dtStart + rrule + duration) and where/
+// who-teaches (court + coach). A series carries 1..N of these, so one group can
+// meet at several day/time slots. Court is required (every occurrence reserves
+// one); the coach is optional. Field names mirror the lessonSeriesRule columns.
+export function scheduleRuleSchema(msg: ScheduleMessageResolver) {
+  return z.object({
+    rrule: optionalRRule(msg),
+    dtStart: z.string().trim().refine(isValidLocalDateTime, msg('dtStart')),
+    durationMin: z
+      .number()
+      .int()
+      .min(SCHEDULE_LIMITS.minDurationMin, msg('duration'))
+      .max(SCHEDULE_LIMITS.maxDurationMin, msg('duration')),
+    courtId: requiredText(SCHEDULE_LIMITS.id, msg),
+    coachMemberId: optionalText(SCHEDULE_LIMITS.id, msg)
+  })
+}
+
+export type ScheduleRuleValues = z.infer<ReturnType<typeof scheduleRuleSchema>>
+
+// Create: the group's context-free fields + its recurrence RULES (1..N). The
+// server normalizes a legacy flat `{ dtStart, durationMin, rrule, defaultCourtId,
+// coachMemberId }` body into a single rule before parsing, so old callers/forms
+// keep working. The service fills group defaults + validates context rules.
 export function scheduleSeriesCreateSchema(msg: ScheduleMessageResolver) {
-  return scheduleSeriesSchema(msg)
+  return z.object({
+    type: z.string().refine(isLessonType, msg('type')),
+    sport: z.string().refine(isSport, msg('sport')),
+    title: requiredText(SCHEDULE_LIMITS.title, msg),
+    color: z.string().trim().refine(isHexColor, msg('color')).optional(),
+    level: optionalText(SCHEDULE_LIMITS.level, msg),
+    ageGroup: optionalText(SCHEDULE_LIMITS.ageGroup, msg),
+    notes: optionalText(SCHEDULE_LIMITS.notes, msg),
+    timezone: z.string().trim().max(64, msg('tooLong')).refine(isValidTimezone, msg('timezone')).optional(),
+    capacityMin: optionalCapacity(msg),
+    capacityMax: optionalCapacity(msg),
+    enrollmentOpen: z.boolean().optional(),
+    visibility: z.string().refine(isLessonVisibility, msg('visibility')).optional(),
+    rules: z.array(scheduleRuleSchema(msg)).min(1, msg('required')).max(SCHEDULE_LIMITS.maxRules, msg('tooLong'))
+  })
 }
 
 // Update: partial, so only the keys present in the PATCH body are validated and
@@ -143,14 +180,6 @@ export type SeriesMetadataField = (typeof SERIES_METADATA_FIELDS)[number]
 export function scheduleSeriesMetadataPatchSchema(msg: ScheduleMessageResolver) {
   const mask = Object.fromEntries(SERIES_METADATA_FIELDS.map(field => [field, true]))
   return scheduleSeriesSchema(msg).pick(mask as Record<SeriesMetadataField, true>).partial()
-}
-
-// Editing a series' STRUCTURE — its wall-clock start, duration and recurrence.
-// Unlike metadata this re-materializes future occurrences, so it's its own
-// endpoint. dtStart/durationMin are required (a full replacement of the schedule);
-// rrule is null for a one-off. Court/coach/sport/type stay put (separate edits).
-export function seriesScheduleSchema(msg: ScheduleMessageResolver) {
-  return scheduleSeriesSchema(msg).pick({ dtStart: true, durationMin: true, rrule: true })
 }
 
 // A non-empty id that can be omitted (absent = keep) but not cleared.
@@ -176,16 +205,5 @@ export function sessionUpdateSchema(msg: ScheduleMessageResolver) {
     coachMemberId: optionalText(SCHEDULE_LIMITS.id, msg),
     capacityMax: optionalCapacity(msg),
     notes: optionalText(SCHEDULE_LIMITS.notes, msg)
-  })
-}
-
-// Reassigning a whole series' lead coach and/or default court. The service
-// propagates the change to future, non-overridden sessions and re-checks
-// conflicts. `defaultCourtId` change requires a court; `coachMemberId` is
-// nullable (clearing it makes the series coach-less).
-export function seriesAssignmentSchema(msg: ScheduleMessageResolver) {
-  return z.object({
-    coachMemberId: optionalText(SCHEDULE_LIMITS.id, msg),
-    defaultCourtId: optionalId(msg)
   })
 }

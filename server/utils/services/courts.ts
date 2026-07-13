@@ -27,7 +27,6 @@ const COURT_COLUMNS = {
   sport: court.sport,
   surface: court.surface,
   environment: court.environment,
-  status: court.status,
   surfaceColor: court.surfaceColor,
   lineColor: court.lineColor,
   zone: court.zone,
@@ -132,7 +131,6 @@ export async function createCourt(
         sport,
         surface: values.surface ?? null,
         environment: values.environment ?? 'indoor',
-        status: values.status ?? 'active',
         surfaceColor: values.surfaceColor ?? DEFAULT_SURFACE_COLOR[sport],
         lineColor: values.lineColor ?? '#ffffff',
         sortOrder: nextSort,
@@ -181,7 +179,6 @@ export async function updateCourt(
   const set: Partial<typeof court.$inferInsert> = {}
   if (values.name !== undefined) set.name = values.name
   if (values.environment !== undefined) set.environment = values.environment
-  if (values.status !== undefined) set.status = values.status
   if (values.surfaceColor !== undefined) set.surfaceColor = values.surfaceColor
   if (values.lineColor !== undefined) set.lineColor = values.lineColor
   if (values.surface !== undefined) set.surface = values.surface

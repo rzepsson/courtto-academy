@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm'
 import { db } from '../db'
-import { court, lessonException, lessonSeries, lessonSession, reservation } from '../../database/app-schema'
+import { court, lessonException, lessonSeries, lessonSeriesRule, lessonSession, reservation } from '../../database/app-schema'
 import { member } from '../../database/schema'
 import type { ExtendResult, LessonDetail, LessonSeriesDto, LessonSessionDto, MaterializationSweepResult, ScheduleSessionDto } from '../../database/types'
 import { isSport, type Sport } from '../../../shared/org-profile'
 import {
   DEFAULT_LESSON_COLOR,
   MATERIALIZATION_HORIZON_DAYS,
+  SCHEDULE_LIMITS,
   expandOccurrences,
   isCapacityRangeValid,
   localDateTimeToInstant,
@@ -16,10 +17,9 @@ import {
 import { rangesOverlap } from '../../../shared/reservation'
 import { REGIONAL_FALLBACK } from '../../../shared/regional'
 import {
+  scheduleRuleSchema,
   scheduleSeriesCreateSchema,
   scheduleSeriesMetadataPatchSchema,
-  seriesAssignmentSchema,
-  seriesScheduleSchema,
   sessionUpdateSchema
 } from '../../../shared/schedule-schema'
 import { pgErrorCode, pgErrorConstraint } from '../pgError'
@@ -50,19 +50,13 @@ const SERIES_COLUMNS = {
   level: lessonSeries.level,
   ageGroup: lessonSeries.ageGroup,
   notes: lessonSeries.notes,
-  coachMemberId: lessonSeries.coachMemberId,
   assistantCoachMemberId: lessonSeries.assistantCoachMemberId,
-  defaultCourtId: lessonSeries.defaultCourtId,
   timezone: lessonSeries.timezone,
-  rrule: lessonSeries.rrule,
-  dtStart: lessonSeries.dtStart,
-  durationMin: lessonSeries.durationMin,
   capacityMin: lessonSeries.capacityMin,
   capacityMax: lessonSeries.capacityMax,
   enrollmentOpen: lessonSeries.enrollmentOpen,
   visibility: lessonSeries.visibility,
   status: lessonSeries.status,
-  materializedUntil: lessonSeries.materializedUntil,
   createdAt: lessonSeries.createdAt
 }
 
@@ -82,11 +76,30 @@ const SESSION_COLUMNS = {
   notes: lessonSession.notes
 }
 
+const RULE_COLUMNS = {
+  id: lessonSeriesRule.id,
+  rrule: lessonSeriesRule.rrule,
+  dtStart: lessonSeriesRule.dtStart,
+  durationMin: lessonSeriesRule.durationMin,
+  timezone: lessonSeriesRule.timezone,
+  courtId: lessonSeriesRule.courtId,
+  coachMemberId: lessonSeriesRule.coachMemberId,
+  materializedUntil: lessonSeriesRule.materializedUntil
+}
+
 const createSchema = scheduleSeriesCreateSchema(code => code)
 const metadataPatchSchema = scheduleSeriesMetadataPatchSchema(code => code)
 const sessionSchema = sessionUpdateSchema(code => code)
-const assignmentSchema = seriesAssignmentSchema(code => code)
-const scheduleSchema = seriesScheduleSchema(code => code)
+const ruleSchema = scheduleRuleSchema(code => code)
+
+// Number of recurrence rules (slots) on a series — the per-series cap check.
+async function seriesRuleCount(organizationId: string, seriesId: string): Promise<number> {
+  const rows = await db
+    .select({ id: lessonSeriesRule.id })
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId)))
+  return rows.length
+}
 
 function bad(message: string, code: string): never {
   throw createError({ statusCode: 400, statusMessage: message, data: { code } })
@@ -231,8 +244,20 @@ async function assertNoCoachConflict(
   }
 }
 
+// Accept both the multi-rule body `{ …, rules: [...] }` and the legacy flat
+// `{ …, dtStart, durationMin, rrule, defaultCourtId, coachMemberId }` shape,
+// normalizing the latter into a single rule so existing callers/forms (which
+// still send the flat shape) keep working unchanged.
+function normalizeCreateBody(body: unknown): unknown {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return body
+  const record = body as Record<string, unknown>
+  if (Array.isArray(record.rules)) return record
+  const { dtStart, durationMin, rrule, defaultCourtId, coachMemberId, ...group } = record
+  return { ...group, rules: [{ dtStart, durationMin, rrule, courtId: defaultCourtId, coachMemberId }] }
+}
+
 export async function createLesson(organizationId: string, body: unknown, userId: string): Promise<LessonDetail> {
-  const parsed = createSchema.safeParse(body)
+  const parsed = createSchema.safeParse(normalizeCreateBody(body))
   if (!parsed.success) bad('Invalid lesson', 'INVALID_LESSON')
   const values = parsed.data
 
@@ -245,64 +270,84 @@ export async function createLesson(organizationId: string, body: unknown, userId
     bad('capacityMin must be ≤ capacityMax', 'SCHEDULE_CAPACITY_RANGE')
   }
   const timezone = values.timezone ?? profile.timezone ?? REGIONAL_FALLBACK.timezone
-
-  await requireCourt(organizationId, values.defaultCourtId, sport)
-  if (values.coachMemberId) await requireCoach(organizationId, values.coachMemberId)
-
-  // Materialize the near-term horizon. A recurring series rolls forward from
-  // today, so a past start date still yields UPCOMING sessions (not only past
-  // ones); a one-off materializes exactly its (possibly historical) occurrence.
-  const startInstant = localDateTimeToInstant(values.dtStart, timezone)
   const now = new Date()
-  const windowStart = values.rrule
-    ? new Date(Math.max(now.getTime(), startInstant.getTime()))
-    : startInstant
-  const windowEnd = new Date(windowStart.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
-  const occurrences = expandOccurrences({
-    dtStart: values.dtStart,
-    timezone,
-    durationMin: values.durationMin,
-    rrule: values.rrule ?? null,
-    from: windowStart,
-    to: windowEnd
-  })
-  if (occurrences.length === 0) bad('No occurrences in the scheduling window', 'SCHEDULE_NO_OCCURRENCES')
-
-  await assertNoCourtConflict(organizationId, values.defaultCourtId, occurrences)
-  if (values.coachMemberId) await assertNoCoachConflict(organizationId, values.coachMemberId, occurrences)
-
-  // Pre-build every row (ids up front so sessions reference their reservation),
-  // then two bulk inserts inside the transaction — not a per-occurrence loop of
-  // round-trips holding locks across a large fan-out.
   const seriesId = randomUUID()
-  const reservationRows = occurrences.map(occ => ({
-    id: randomUUID(),
-    organizationId,
-    courtId: values.defaultCourtId,
-    startsAt: occ.startsAt,
-    endsAt: occ.endsAt,
-    status: 'confirmed',
-    kind: 'lesson',
-    createdBy: userId
-  }))
-  const sessionRows = occurrences.map((occ, i) => ({
-    id: randomUUID(),
+
+  // Plan each rule's occurrences (a group can meet on several day/time slots). A
+  // recurring rule rolls forward from today (a past anchor still yields UPCOMING
+  // sessions); a one-off materializes exactly its occurrence.
+  const plans = values.rules.map((rule) => {
+    const startInstant = localDateTimeToInstant(rule.dtStart, timezone)
+    const windowStart = rule.rrule ? new Date(Math.max(now.getTime(), startInstant.getTime())) : startInstant
+    const windowEnd = new Date(windowStart.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
+    const occurrences = expandOccurrences({
+      dtStart: rule.dtStart,
+      timezone,
+      durationMin: rule.durationMin,
+      rrule: rule.rrule ?? null,
+      from: windowStart,
+      to: windowEnd
+    })
+    return { id: randomUUID(), rule, occurrences, windowEnd }
+  })
+
+  for (const plan of plans) {
+    await requireCourt(organizationId, plan.rule.courtId, sport)
+    if (plan.rule.coachMemberId) await requireCoach(organizationId, plan.rule.coachMemberId)
+    if (plan.occurrences.length === 0) bad('No occurrences in the scheduling window', 'SCHEDULE_NO_OCCURRENCES')
+    // Pre-check against EXISTING bookings (friendly error). Intra-series clashes
+    // between two new rules fall to the EXCLUDE backstop — rows aren't in yet.
+    await assertNoCourtConflict(organizationId, plan.rule.courtId, plan.occurrences)
+    if (plan.rule.coachMemberId) await assertNoCoachConflict(organizationId, plan.rule.coachMemberId, plan.occurrences)
+  }
+
+  const ruleRows = plans.map(p => ({
+    id: p.id,
     organizationId,
     seriesId,
-    reservationId: reservationRows[i]!.id,
-    occurrenceStart: occ.occurrenceStart,
-    startsAt: occ.startsAt,
-    endsAt: occ.endsAt,
-    // Resolved coach/court for this occurrence (denormalized from the series);
-    // capacity is left null = inherit the series' capacity.
-    coachMemberId: values.coachMemberId ?? null,
-    courtId: values.defaultCourtId,
-    status: 'scheduled',
-    overridden: false
+    rrule: p.rule.rrule ?? null,
+    dtStart: p.rule.dtStart,
+    durationMin: p.rule.durationMin,
+    timezone,
+    courtId: p.rule.courtId,
+    coachMemberId: p.rule.coachMemberId ?? null,
+    materializedUntil: p.windowEnd
   }))
+  const reservationRows: (typeof reservation.$inferInsert)[] = []
+  const sessionRows: (typeof lessonSession.$inferInsert)[] = []
+  for (const plan of plans) {
+    for (const occ of plan.occurrences) {
+      const reservationId = randomUUID()
+      reservationRows.push({
+        id: reservationId,
+        organizationId,
+        courtId: plan.rule.courtId,
+        startsAt: occ.startsAt,
+        endsAt: occ.endsAt,
+        status: 'confirmed',
+        kind: 'lesson',
+        createdBy: userId
+      })
+      sessionRows.push({
+        id: randomUUID(),
+        organizationId,
+        seriesId,
+        ruleId: plan.id,
+        reservationId,
+        occurrenceStart: occ.occurrenceStart,
+        startsAt: occ.startsAt,
+        endsAt: occ.endsAt,
+        coachMemberId: plan.rule.coachMemberId ?? null,
+        courtId: plan.rule.courtId,
+        status: 'scheduled',
+        overridden: false
+      })
+    }
+  }
 
   try {
     await db.transaction(async (tx) => {
+      // The group holds WHAT + WHO-enrols; WHEN/WHERE/WHO-teaches lives on its rules.
       await tx.insert(lessonSeries).values({
         id: seriesId,
         organizationId,
@@ -313,20 +358,15 @@ export async function createLesson(organizationId: string, body: unknown, userId
         level: values.level ?? null,
         ageGroup: values.ageGroup ?? null,
         notes: values.notes ?? null,
-        coachMemberId: values.coachMemberId ?? null,
-        defaultCourtId: values.defaultCourtId,
         timezone,
-        rrule: values.rrule ?? null,
-        dtStart: values.dtStart,
-        durationMin: values.durationMin,
         capacityMin: values.capacityMin ?? null,
         capacityMax: values.capacityMax ?? null,
         enrollmentOpen: values.enrollmentOpen ?? true,
         visibility: values.visibility ?? 'members',
         status: 'active',
-        materializedUntil: windowEnd,
         createdBy: userId
       })
+      await tx.insert(lessonSeriesRule).values(ruleRows)
       await tx.insert(reservation).values(reservationRows)
       await tx.insert(lessonSession).values(sessionRows)
     })
@@ -339,7 +379,8 @@ export async function createLesson(organizationId: string, body: unknown, userId
   return (await getSeries(organizationId, seriesId))!
 }
 
-// A series with its sessions. Null when the id isn't this facility's.
+// A series with its recurrence rules + materialized sessions. Null when the id
+// isn't this facility's.
 export async function getSeries(organizationId: string, seriesId: string): Promise<LessonDetail | null> {
   const [series] = await db
     .select(SERIES_COLUMNS)
@@ -348,20 +389,26 @@ export async function getSeries(organizationId: string, seriesId: string): Promi
     .limit(1)
   if (!series) return null
 
+  const rules = await db
+    .select(RULE_COLUMNS)
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId)))
+    .orderBy(asc(lessonSeriesRule.createdAt))
+
   const sessions = await db
     .select(SESSION_COLUMNS)
     .from(lessonSession)
     .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.seriesId, seriesId)))
     .orderBy(asc(lessonSession.startsAt))
 
-  return { series, sessions }
+  return { series, rules, sessions }
 }
 
 // Sessions overlapping [from, to) by their start, flattened with series display
 // fields and reservation status — the calendar/roster read shape. Scoped by org.
 export async function listSessions(
   organizationId: string,
-  range: { from: Date, to: Date, coachMemberId?: string }
+  range: { from: Date, to: Date, coachMemberId?: string, courtId?: string }
 ): Promise<ScheduleSessionDto[]> {
   // Explicit projection matching ScheduleSessionDto exactly (no cancelReason —
   // that's on the detail DTO, not the calendar shape). The seriesId INNER JOIN
@@ -393,7 +440,8 @@ export async function listSessions(
       eq(lessonSession.organizationId, organizationId),
       gte(lessonSession.startsAt, range.from),
       lt(lessonSession.startsAt, range.to),
-      ...(range.coachMemberId ? [eq(lessonSession.coachMemberId, range.coachMemberId)] : [])
+      ...(range.coachMemberId ? [eq(lessonSession.coachMemberId, range.coachMemberId)] : []),
+      ...(range.courtId ? [eq(lessonSession.courtId, range.courtId)] : [])
     ))
     .orderBy(asc(lessonSession.startsAt))
 }
@@ -496,138 +544,52 @@ export async function updateSeriesMetadata(
   return getSeries(organizationId, seriesId)
 }
 
-// Edit a series' STRUCTURE — wall-clock start, duration and recurrence — by
-// re-materializing the FUTURE from the new schedule. Policy ("this & following"):
-// past/in-progress sessions (startsAt < now) stay as history; every future
-// session + its reservation is deleted and regenerated, so any single-occurrence
-// overrides/exceptions and per-session drop-in enrolments from now on are reset
-// (deleting a session cascades its drop-ins + attendance). SERIES enrolments are
-// untouched (they reference the series, not sessions), so the group carries over.
-// Court/coach/sport stay put (separate assignment edit). Conflicts are enforced
-// by the same EXCLUDE backstops as create — the whole change is atomic. Null when
-// the series isn't this facility's.
-export async function updateSeriesSchedule(
-  organizationId: string,
-  seriesId: string,
-  body: unknown
-): Promise<LessonDetail | null> {
-  const parsed = scheduleSchema.safeParse(body)
+// Add a new slot (recurrence rule) to a group, materializing its occurrences.
+// Rejected past the per-series rule cap. Null when the series isn't this org's.
+export async function addSeriesRule(organizationId: string, seriesId: string, body: unknown): Promise<LessonDetail | null> {
+  const parsed = ruleSchema.safeParse(body)
   if (!parsed.success) bad('Invalid schedule', 'INVALID_LESSON')
-  const values = parsed.data
+  const rule = parsed.data
 
   const [series] = await db
-    .select({
-      timezone: lessonSeries.timezone,
-      sport: lessonSeries.sport,
-      defaultCourtId: lessonSeries.defaultCourtId,
-      coachMemberId: lessonSeries.coachMemberId,
-      status: lessonSeries.status,
-      createdBy: lessonSeries.createdBy
-    })
+    .select({ sport: lessonSeries.sport, status: lessonSeries.status, timezone: lessonSeries.timezone, createdBy: lessonSeries.createdBy })
     .from(lessonSeries)
     .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
     .limit(1)
   if (!series) return null
   if (series.status !== 'active') bad('This series is not active', 'SCHEDULE_SERIES_INACTIVE')
-  const courtId = series.defaultCourtId
-  if (!courtId) bad('This series has no court', 'SCHEDULE_COURT_UNAVAILABLE')
-
-  // The court must still be active and match the series' sport (same guard as
-  // create/extend) — a schedule change can't silently re-book an archived court.
-  const [courtRow] = await db
-    .select({ archivedAt: court.archivedAt, sport: court.sport })
-    .from(court)
-    .where(and(eq(court.organizationId, organizationId), eq(court.id, courtId)))
-    .limit(1)
-  if (!courtRow || courtRow.archivedAt || courtRow.sport !== series.sport) {
-    bad('The series court is unavailable', 'SCHEDULE_COURT_UNAVAILABLE')
+  if ((await seriesRuleCount(organizationId, seriesId)) >= SCHEDULE_LIMITS.maxRules) {
+    bad('Too many slots', 'SCHEDULE_TOO_MANY_RULES')
   }
+
+  await requireCourt(organizationId, rule.courtId, series.sport as Sport)
+  if (rule.coachMemberId) await requireCoach(organizationId, rule.coachMemberId)
 
   const timezone = series.timezone
-  const startInstant = localDateTimeToInstant(values.dtStart, timezone)
+  const startInstant = localDateTimeToInstant(rule.dtStart, timezone)
   const now = new Date()
-  // A one-off can't be re-timed into the past (there'd be no future occurrence);
-  // a recurring series anchored in the past is fine — it rolls from now.
-  if (!values.rrule && startInstant.getTime() < now.getTime()) {
-    bad('The start must be in the future', 'SCHEDULE_DTSTART_PAST')
-  }
-
-  const windowStart = values.rrule ? new Date(Math.max(now.getTime(), startInstant.getTime())) : startInstant
+  if (!rule.rrule && startInstant.getTime() < now.getTime()) bad('The start must be in the future', 'SCHEDULE_DTSTART_PAST')
+  const windowStart = rule.rrule ? new Date(Math.max(now.getTime(), startInstant.getTime())) : startInstant
   const windowEnd = new Date(windowStart.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
-  const occurrences = expandOccurrences({
-    dtStart: values.dtStart,
-    timezone,
-    durationMin: values.durationMin,
-    rrule: values.rrule ?? null,
-    from: windowStart,
-    to: windowEnd
-  })
+  const occurrences = expandOccurrences({ dtStart: rule.dtStart, timezone, durationMin: rule.durationMin, rrule: rule.rrule ?? null, from: windowStart, to: windowEnd })
   if (occurrences.length === 0) bad('No occurrences in the scheduling window', 'SCHEDULE_NO_OCCURRENCES')
 
+  await assertNoCourtConflict(organizationId, rule.courtId, occurrences)
+  if (rule.coachMemberId) await assertNoCoachConflict(organizationId, rule.coachMemberId, occurrences)
+
+  const ruleId = randomUUID()
   const reservationRows = occurrences.map(occ => ({
-    id: randomUUID(),
-    organizationId,
-    courtId,
-    startsAt: occ.startsAt,
-    endsAt: occ.endsAt,
-    status: 'confirmed',
-    kind: 'lesson',
-    createdBy: series.createdBy
+    id: randomUUID(), organizationId, courtId: rule.courtId, startsAt: occ.startsAt, endsAt: occ.endsAt, status: 'confirmed', kind: 'lesson', createdBy: series.createdBy
   }))
   const sessionRows = occurrences.map((occ, i) => ({
-    id: randomUUID(),
-    organizationId,
-    seriesId,
-    reservationId: reservationRows[i]!.id,
-    occurrenceStart: occ.occurrenceStart,
-    startsAt: occ.startsAt,
-    endsAt: occ.endsAt,
-    coachMemberId: series.coachMemberId,
-    courtId,
-    status: 'scheduled',
-    overridden: false
+    id: randomUUID(), organizationId, seriesId, ruleId, reservationId: reservationRows[i]!.id, occurrenceStart: occ.occurrenceStart, startsAt: occ.startsAt, endsAt: occ.endsAt, coachMemberId: rule.coachMemberId ?? null, courtId: rule.courtId, status: 'scheduled', overridden: false
   }))
 
   try {
     await db.transaction(async (tx) => {
-      // Delete the future only (startsAt >= now). Deleting a session cascades its
-      // drop-in enrolments + attendance; the reservation FK points the other way,
-      // so those are removed explicitly after (the app-schema lifecycle contract).
-      const future = await tx
-        .select({ id: lessonSession.id, reservationId: lessonSession.reservationId })
-        .from(lessonSession)
-        .where(and(
-          eq(lessonSession.organizationId, organizationId),
-          eq(lessonSession.seriesId, seriesId),
-          gte(lessonSession.startsAt, now)
-        ))
-      if (future.length > 0) {
-        await tx.delete(lessonSession).where(and(
-          eq(lessonSession.organizationId, organizationId),
-          inArray(lessonSession.id, future.map(f => f.id))
-        ))
-        await tx.delete(reservation).where(and(
-          eq(reservation.organizationId, organizationId),
-          inArray(reservation.id, future.map(f => f.reservationId))
-        ))
-      }
-      // Future divergences no longer map to the new pattern.
-      await tx.delete(lessonException).where(and(
-        eq(lessonException.organizationId, organizationId),
-        eq(lessonException.seriesId, seriesId),
-        gte(lessonException.occurrenceStart, now)
-      ))
-
-      await tx
-        .update(lessonSeries)
-        .set({
-          dtStart: values.dtStart,
-          durationMin: values.durationMin,
-          rrule: values.rrule ?? null,
-          materializedUntil: windowEnd
-        })
-        .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
-
+      await tx.insert(lessonSeriesRule).values({
+        id: ruleId, organizationId, seriesId, rrule: rule.rrule ?? null, dtStart: rule.dtStart, durationMin: rule.durationMin, timezone, courtId: rule.courtId, coachMemberId: rule.coachMemberId ?? null, materializedUntil: windowEnd
+      })
       await tx.insert(reservation).values(reservationRows)
       await tx.insert(lessonSession).values(sessionRows)
     })
@@ -636,6 +598,123 @@ export async function updateSeriesSchedule(
     if (courtOverlapViolation(error)) conflict('Court already booked at this time', 'SCHEDULE_COURT_CONFLICT')
     throw error
   }
+
+  return getSeries(organizationId, seriesId)
+}
+
+// Edit a single slot, re-materializing ITS future occurrences ("this & following"
+// for that slot): past sessions stay as history; the slot's future sessions +
+// exceptions are reset. Court/coach/time/recurrence all live on the rule. Null when
+// the series or the rule isn't this facility's.
+export async function updateSeriesRule(organizationId: string, seriesId: string, ruleId: string, body: unknown): Promise<LessonDetail | null> {
+  const parsed = ruleSchema.safeParse(body)
+  if (!parsed.success) bad('Invalid schedule', 'INVALID_LESSON')
+  const rule = parsed.data
+
+  const [series] = await db
+    .select({ sport: lessonSeries.sport, status: lessonSeries.status, timezone: lessonSeries.timezone, createdBy: lessonSeries.createdBy })
+    .from(lessonSeries)
+    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .limit(1)
+  if (!series) return null
+  if (series.status !== 'active') bad('This series is not active', 'SCHEDULE_SERIES_INACTIVE')
+  const [existing] = await db
+    .select({ id: lessonSeriesRule.id })
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId), eq(lessonSeriesRule.id, ruleId)))
+    .limit(1)
+  if (!existing) return null
+
+  await requireCourt(organizationId, rule.courtId, series.sport as Sport)
+  if (rule.coachMemberId) await requireCoach(organizationId, rule.coachMemberId)
+
+  const timezone = series.timezone
+  const startInstant = localDateTimeToInstant(rule.dtStart, timezone)
+  const now = new Date()
+  if (!rule.rrule && startInstant.getTime() < now.getTime()) bad('The start must be in the future', 'SCHEDULE_DTSTART_PAST')
+  const windowStart = rule.rrule ? new Date(Math.max(now.getTime(), startInstant.getTime())) : startInstant
+  const windowEnd = new Date(windowStart.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
+  const occurrences = expandOccurrences({ dtStart: rule.dtStart, timezone, durationMin: rule.durationMin, rrule: rule.rrule ?? null, from: windowStart, to: windowEnd })
+  if (occurrences.length === 0) bad('No occurrences in the scheduling window', 'SCHEDULE_NO_OCCURRENCES')
+
+  const reservationRows = occurrences.map(occ => ({
+    id: randomUUID(), organizationId, courtId: rule.courtId, startsAt: occ.startsAt, endsAt: occ.endsAt, status: 'confirmed', kind: 'lesson', createdBy: series.createdBy
+  }))
+  const sessionRows = occurrences.map((occ, i) => ({
+    id: randomUUID(), organizationId, seriesId, ruleId, reservationId: reservationRows[i]!.id, occurrenceStart: occ.occurrenceStart, startsAt: occ.startsAt, endsAt: occ.endsAt, coachMemberId: rule.coachMemberId ?? null, courtId: rule.courtId, status: 'scheduled', overridden: false
+  }))
+
+  try {
+    await db.transaction(async (tx) => {
+      // Delete this slot's FUTURE only (conflict-safe via the EXCLUDE backstop —
+      // own future rows are gone before the re-insert). Past stays as history.
+      const future = await tx
+        .select({ id: lessonSession.id, reservationId: lessonSession.reservationId })
+        .from(lessonSession)
+        .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.ruleId, ruleId), gte(lessonSession.startsAt, now)))
+      if (future.length > 0) {
+        await tx.delete(lessonSession).where(and(eq(lessonSession.organizationId, organizationId), inArray(lessonSession.id, future.map(f => f.id))))
+        await tx.delete(reservation).where(and(eq(reservation.organizationId, organizationId), inArray(reservation.id, future.map(f => f.reservationId))))
+      }
+      await tx.delete(lessonException).where(and(
+        eq(lessonException.organizationId, organizationId),
+        eq(lessonException.ruleId, ruleId),
+        gte(lessonException.occurrenceStart, now)
+      ))
+      await tx
+        .update(lessonSeriesRule)
+        .set({ rrule: rule.rrule ?? null, dtStart: rule.dtStart, durationMin: rule.durationMin, courtId: rule.courtId, coachMemberId: rule.coachMemberId ?? null, materializedUntil: windowEnd })
+        .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.id, ruleId)))
+      await tx.insert(reservation).values(reservationRows)
+      await tx.insert(lessonSession).values(sessionRows)
+    })
+  } catch (error) {
+    if (coachOverlapViolation(error)) conflict('Coach is already teaching at this time', 'SCHEDULE_COACH_CONFLICT')
+    if (courtOverlapViolation(error)) conflict('Court already booked at this time', 'SCHEDULE_COURT_CONFLICT')
+    throw error
+  }
+
+  return getSeries(organizationId, seriesId)
+}
+
+// Remove a slot: its FUTURE sessions + reservations are deleted (court freed); its
+// PAST sessions are detached (rule_id → null) so history survives; its exceptions
+// go. Can't remove the only slot (cancel the whole group instead). Null when the
+// series or rule isn't this facility's.
+export async function removeSeriesRule(organizationId: string, seriesId: string, ruleId: string): Promise<LessonDetail | null> {
+  const [series] = await db
+    .select({ id: lessonSeries.id })
+    .from(lessonSeries)
+    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .limit(1)
+  if (!series) return null
+
+  const ruleRows = await db
+    .select({ id: lessonSeriesRule.id })
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId)))
+  if (!ruleRows.some(r => r.id === ruleId)) return null
+  if (ruleRows.length <= 1) bad('A group must keep at least one slot', 'SCHEDULE_LAST_RULE')
+
+  const now = new Date()
+  await db.transaction(async (tx) => {
+    const all = await tx
+      .select({ id: lessonSession.id, reservationId: lessonSession.reservationId, startsAt: lessonSession.startsAt })
+      .from(lessonSession)
+      .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.ruleId, ruleId)))
+    const future = all.filter(s => s.startsAt.getTime() >= now.getTime())
+    const past = all.filter(s => s.startsAt.getTime() < now.getTime())
+    if (future.length > 0) {
+      await tx.delete(lessonSession).where(and(eq(lessonSession.organizationId, organizationId), inArray(lessonSession.id, future.map(f => f.id))))
+      await tx.delete(reservation).where(and(eq(reservation.organizationId, organizationId), inArray(reservation.id, future.map(f => f.reservationId))))
+    }
+    if (past.length > 0) {
+      // Detach from the rule so the cascade FK doesn't take them when the rule goes.
+      await tx.update(lessonSession).set({ ruleId: null }).where(and(eq(lessonSession.organizationId, organizationId), inArray(lessonSession.id, past.map(p => p.id))))
+    }
+    await tx.delete(lessonException).where(and(eq(lessonException.organizationId, organizationId), eq(lessonException.ruleId, ruleId)))
+    await tx.delete(lessonSeriesRule).where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.id, ruleId)))
+  })
 
   return getSeries(organizationId, seriesId)
 }
@@ -680,29 +759,34 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 const MS_PER_MINUTE = 60_000
 
 // The durable divergence ledger (iCalendar EXDATE / RECURRENCE-ID). Upserted on
-// the (series, occurrenceStart) unique key so re-editing an occurrence updates
-// its record rather than duplicating it.
+// the (rule, occurrenceStart) unique key so re-editing an occurrence updates its
+// record rather than duplicating it — per-rule, so two slots of a group that share
+// an instant keep independent ledger rows.
 async function recordException(
   tx: Tx,
   organizationId: string,
   seriesId: string,
+  ruleId: string | null,
   occurrenceStart: Date,
   action: ExceptionAction,
   sessionId: string | null
 ): Promise<void> {
   await tx
     .insert(lessonException)
-    .values({ id: randomUUID(), organizationId, seriesId, occurrenceStart, action, sessionId })
+    .values({ id: randomUUID(), organizationId, seriesId, ruleId, occurrenceStart, action, sessionId })
     .onConflictDoUpdate({
-      target: [lessonException.seriesId, lessonException.occurrenceStart],
+      target: [lessonException.ruleId, lessonException.occurrenceStart],
       set: { action, sessionId }
     })
 }
 
-async function removeException(tx: Tx, organizationId: string, seriesId: string, occurrenceStart: Date): Promise<void> {
+// Scoped to one rule's ledger (+ series/org for defense in depth). A detached
+// historical session (ruleId null) has no rule ledger, so nothing matches.
+async function removeException(tx: Tx, organizationId: string, seriesId: string, ruleId: string | null, occurrenceStart: Date): Promise<void> {
   await tx.delete(lessonException).where(and(
     eq(lessonException.organizationId, organizationId),
     eq(lessonException.seriesId, seriesId),
+    ruleId === null ? isNull(lessonException.ruleId) : eq(lessonException.ruleId, ruleId),
     eq(lessonException.occurrenceStart, occurrenceStart)
   ))
 }
@@ -710,25 +794,25 @@ async function removeException(tx: Tx, organizationId: string, seriesId: string,
 // Record an occurrence the horizon extension couldn't materialize (court/coach
 // conflict) as a durable, visible gap — so it's never silently lost, and the
 // next extend won't re-attempt it (the skip-set excludes exception occurrences).
-async function recordSkip(organizationId: string, seriesId: string, occurrenceStart: Date): Promise<void> {
+async function recordSkip(organizationId: string, seriesId: string, ruleId: string | null, occurrenceStart: Date): Promise<void> {
   await db
     .insert(lessonException)
-    .values({ id: randomUUID(), organizationId, seriesId, occurrenceStart, action: 'skipped', sessionId: null })
+    .values({ id: randomUUID(), organizationId, seriesId, ruleId, occurrenceStart, action: 'skipped', sessionId: null })
     .onConflictDoNothing()
 }
 
-// Whether this series already has a materialized session for the given occurrence.
+// Whether this RULE already has a materialized session for the given occurrence.
 // Distinguishes a benign concurrent-materialization race (another writer of THIS
-// series won the court/coach EXCLUDE) from a genuine clash with a DIFFERENT
-// booking — so the horizon extension never records a spurious skip for an
-// occurrence that in fact got created.
-async function sessionExistsForOccurrence(organizationId: string, seriesId: string, occurrenceStart: Date): Promise<boolean> {
+// rule won the court/coach EXCLUDE) from a genuine clash with a DIFFERENT booking
+// — so the horizon extension never records a spurious skip for an occurrence that
+// in fact got created. Keyed by rule, matching lesson_session_rule_occurrence_uidx.
+async function sessionExistsForOccurrence(organizationId: string, ruleId: string, occurrenceStart: Date): Promise<boolean> {
   const [row] = await db
     .select({ id: lessonSession.id })
     .from(lessonSession)
     .where(and(
       eq(lessonSession.organizationId, organizationId),
-      eq(lessonSession.seriesId, seriesId),
+      eq(lessonSession.ruleId, ruleId),
       eq(lessonSession.occurrenceStart, occurrenceStart)
     ))
     .limit(1)
@@ -772,12 +856,17 @@ export async function getLessonSession(organizationId: string, sessionId: string
   return row ?? null
 }
 
-// Internal: a session joined with the series context an occurrence op needs.
+// Internal: a session joined with the context an occurrence op needs. The
+// divergence TEMPLATE (duration/court/coach) comes from the session's own RULE —
+// a group's rules can differ, so comparing to the series would misjudge a session
+// belonging to a non-primary rule. Falls back to the series columns if a legacy
+// row has no ruleId yet (shouldn't happen post-backfill).
 async function getSessionContext(organizationId: string, sessionId: string) {
   const [row] = await db
     .select({
       id: lessonSession.id,
       seriesId: lessonSession.seriesId,
+      ruleId: lessonSession.ruleId,
       reservationId: lessonSession.reservationId,
       occurrenceStart: lessonSession.occurrenceStart,
       startsAt: lessonSession.startsAt,
@@ -790,15 +879,28 @@ async function getSessionContext(organizationId: string, sessionId: string) {
       timezone: lessonSeries.timezone,
       sport: lessonSeries.sport,
       seriesStatus: lessonSeries.status,
-      seriesDurationMin: lessonSeries.durationMin,
-      seriesDefaultCourtId: lessonSeries.defaultCourtId,
-      seriesCoachMemberId: lessonSeries.coachMemberId
+      ruleDurationMin: lessonSeriesRule.durationMin,
+      ruleCourtId: lessonSeriesRule.courtId,
+      ruleCoachMemberId: lessonSeriesRule.coachMemberId
     })
     .from(lessonSession)
     .innerJoin(lessonSeries, eq(lessonSession.seriesId, lessonSeries.id))
+    .leftJoin(lessonSeriesRule, eq(lessonSession.ruleId, lessonSeriesRule.id))
     .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.id, sessionId)))
     .limit(1)
-  return row ?? null
+  if (!row) return null
+  // The occurrence divergence TEMPLATE = the session's rule. A detached historical
+  // session (rule removed → ruleId null) has no template, so it's its own template:
+  // duration from its own span, court/coach its own — it never reads as diverged.
+  const hasRule = row.ruleId !== null
+  return {
+    ...row,
+    seriesDurationMin: hasRule && row.ruleDurationMin !== null
+      ? row.ruleDurationMin
+      : Math.round((row.endsAt.getTime() - row.startsAt.getTime()) / MS_PER_MINUTE),
+    seriesDefaultCourtId: hasRule ? row.ruleCourtId : row.courtId,
+    seriesCoachMemberId: hasRule ? row.ruleCoachMemberId : row.coachMemberId
+  }
 }
 
 // Cancel a single occurrence: its reservation frees the court, the session is
@@ -822,7 +924,7 @@ export async function cancelLessonSession(
       .update(lessonSession)
       .set({ status: 'cancelled', cancelReason: reason ?? null })
       .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.id, sessionId)))
-    await recordException(tx, organizationId, row.seriesId, row.occurrenceStart, 'cancelled', sessionId)
+    await recordException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart, 'cancelled', sessionId)
   })
 
   return getLessonSession(organizationId, sessionId)
@@ -868,9 +970,9 @@ export async function restoreLessonSession(organizationId: string, sessionId: st
         .set({ status: timeChanged ? 'rescheduled' : 'scheduled', cancelReason: null, overridden })
         .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.id, sessionId)))
       if (overridden) {
-        await recordException(tx, organizationId, row.seriesId, row.occurrenceStart, timeChanged ? 'rescheduled' : 'modified', sessionId)
+        await recordException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart, timeChanged ? 'rescheduled' : 'modified', sessionId)
       } else {
-        await removeException(tx, organizationId, row.seriesId, row.occurrenceStart)
+        await removeException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart)
       }
     })
   } catch (error) {
@@ -951,9 +1053,9 @@ export async function updateLessonSession(
         })
         .where(and(eq(lessonSession.organizationId, organizationId), eq(lessonSession.id, sessionId)))
       if (overridden) {
-        await recordException(tx, organizationId, row.seriesId, row.occurrenceStart, timeChanged ? 'rescheduled' : 'modified', sessionId)
+        await recordException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart, timeChanged ? 'rescheduled' : 'modified', sessionId)
       } else {
-        await removeException(tx, organizationId, row.seriesId, row.occurrenceStart)
+        await removeException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart)
       }
     })
   } catch (error) {
@@ -965,161 +1067,65 @@ export async function updateLessonSession(
   return getLessonSession(organizationId, sessionId)
 }
 
-// Reassign a whole series' lead coach and/or default court, propagating to
-// FUTURE, non-overridden, scheduled sessions (past and manually-diverged ones
-// keep their values). Re-checks conflicts for the new coach/court across the
-// affected occurrences. Null when not this facility's.
-export async function updateSeriesAssignment(
-  organizationId: string,
-  seriesId: string,
-  body: unknown
-): Promise<LessonDetail | null> {
-  const parsed = assignmentSchema.safeParse(body)
-  if (!parsed.success) bad('Invalid lesson', 'INVALID_LESSON')
-  const values = parsed.data
-
-  const [series] = await db
-    .select({
-      id: lessonSeries.id,
-      sport: lessonSeries.sport,
-      coachMemberId: lessonSeries.coachMemberId,
-      defaultCourtId: lessonSeries.defaultCourtId
-    })
-    .from(lessonSeries)
-    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
-    .limit(1)
-  if (!series) return null
-
-  const coachChanged = values.coachMemberId !== undefined
-  const nextCourt = values.defaultCourtId // string when the court is being changed
-  if (!coachChanged && nextCourt === undefined) return getSeries(organizationId, seriesId)
-
-  const nextCoach = coachChanged ? (values.coachMemberId ?? null) : series.coachMemberId
-  if (nextCoach) await requireCoach(organizationId, nextCoach)
-  if (nextCourt !== undefined) await requireCourt(organizationId, nextCourt, series.sport as Sport)
-
-  // Future, non-overridden, scheduled sessions inherit the change.
-  const now = new Date()
-  const targets = await db
-    .select({
-      id: lessonSession.id,
-      reservationId: lessonSession.reservationId,
-      startsAt: lessonSession.startsAt,
-      endsAt: lessonSession.endsAt
-    })
-    .from(lessonSession)
-    .where(and(
-      eq(lessonSession.organizationId, organizationId),
-      eq(lessonSession.seriesId, seriesId),
-      eq(lessonSession.overridden, false),
-      eq(lessonSession.status, 'scheduled'),
-      gte(lessonSession.startsAt, now)
-    ))
-  const intervals = targets.map(t => ({ startsAt: t.startsAt, endsAt: t.endsAt }))
-  const sessionIds = targets.map(t => t.id)
-  const reservationIds = targets.map(t => t.reservationId)
-
-  if (coachChanged && nextCoach) await assertNoCoachConflict(organizationId, nextCoach, intervals, sessionIds)
-  if (nextCourt !== undefined) await assertNoCourtConflict(organizationId, nextCourt, intervals, reservationIds)
-
-  try {
-    await db.transaction(async (tx) => {
-      const seriesSet: Partial<typeof lessonSeries.$inferInsert> = {}
-      if (coachChanged) seriesSet.coachMemberId = nextCoach
-      if (nextCourt !== undefined) seriesSet.defaultCourtId = nextCourt
-      await tx
-        .update(lessonSeries)
-        .set(seriesSet)
-        .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
-
-      if (sessionIds.length > 0) {
-        const sessionSet: Partial<typeof lessonSession.$inferInsert> = {}
-        if (coachChanged) sessionSet.coachMemberId = nextCoach
-        if (nextCourt !== undefined) sessionSet.courtId = nextCourt
-        await tx
-          .update(lessonSession)
-          .set(sessionSet)
-          .where(and(eq(lessonSession.organizationId, organizationId), inArray(lessonSession.id, sessionIds)))
-        if (nextCourt !== undefined) {
-          await tx
-            .update(reservation)
-            .set({ courtId: nextCourt })
-            .where(and(eq(reservation.organizationId, organizationId), inArray(reservation.id, reservationIds)))
-        }
-      }
-    })
-  } catch (error) {
-    if (coachOverlapViolation(error)) conflict('Coach is already teaching at this time', 'SCHEDULE_COACH_CONFLICT')
-    if (courtOverlapViolation(error)) conflict('Court already booked at this time', 'SCHEDULE_COURT_CONFLICT')
-    throw error
-  }
-
-  return getSeries(organizationId, seriesId)
+interface ExtendableRule {
+  id: string
+  rrule: string | null
+  dtStart: string
+  durationMin: number
+  timezone: string
+  courtId: string | null
+  coachMemberId: string | null
+  materializedUntil: Date | null
 }
 
-// Roll a recurring series' materialization horizon forward to now + HORIZON,
-// creating the newly-in-range occurrences (skipping ones that already exist or
-// carry an exception). Court conflicts are enforced by the EXCLUDE and skipped;
-// coach conflicts are pre-checked and skipped (best-effort, per-occurrence, so
-// one clash never blocks the rest). Meant to be called by a job or on demand.
-// Null when not this facility's.
-export async function extendMaterialization(organizationId: string, seriesId: string): Promise<ExtendResult | null> {
-  const [series] = await db
-    .select({
-      id: lessonSeries.id,
-      rrule: lessonSeries.rrule,
-      dtStart: lessonSeries.dtStart,
-      durationMin: lessonSeries.durationMin,
-      timezone: lessonSeries.timezone,
-      sport: lessonSeries.sport,
-      defaultCourtId: lessonSeries.defaultCourtId,
-      coachMemberId: lessonSeries.coachMemberId,
-      status: lessonSeries.status,
-      materializedUntil: lessonSeries.materializedUntil,
-      createdBy: lessonSeries.createdBy
-    })
-    .from(lessonSeries)
-    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
-    .limit(1)
-  if (!series) return null
-
+// Roll a SINGLE recurring rule's horizon forward to now + HORIZON, materializing
+// the newly-in-range occurrences (skipping ones this rule already materialized or
+// excepted — both keyed per-rule, so a sibling slot sharing an instant never
+// masks them). Court conflicts are enforced by the EXCLUDE and skipped; coach
+// conflicts pre-checked and skipped (best-effort, per-occurrence). Updates the
+// rule's own materializedUntil.
+async function extendRuleForward(
+  organizationId: string,
+  seriesId: string,
+  seriesSport: string,
+  createdBy: string | null,
+  rule: ExtendableRule
+): Promise<{ created: number, skipped: number }> {
   const now = new Date()
   const to = new Date(now.getTime() + MATERIALIZATION_HORIZON_DAYS * MS_PER_DAY)
-  const unchanged: ExtendResult = { created: 0, skipped: 0, materializedUntil: series.materializedUntil }
+  if (!rule.rrule || !rule.courtId) return { created: 0, skipped: 0 }
+  const courtId = rule.courtId
 
-  if (!series.rrule || series.status !== 'active') return unchanged
-  if (!series.defaultCourtId) return unchanged
-  const courtId = series.defaultCourtId
-
-  // Don't materialize onto a court that has been archived or whose sport no
-  // longer matches (the create/edit paths reject these; extend must too). The
-  // series has to be reassigned to a valid court before it can grow again.
+  // Don't materialize onto an archived / wrong-sport court (create/edit reject it
+  // too). The rule must be reassigned to a valid court before it can grow again.
   const [courtRow] = await db
     .select({ archivedAt: court.archivedAt, sport: court.sport })
     .from(court)
     .where(and(eq(court.organizationId, organizationId), eq(court.id, courtId)))
     .limit(1)
-  if (!courtRow || courtRow.archivedAt || courtRow.sport !== series.sport) return unchanged
+  if (!courtRow || courtRow.archivedAt || courtRow.sport !== seriesSport) return { created: 0, skipped: 0 }
 
-  const from = series.materializedUntil ?? now
-  if (from >= to) return unchanged
+  const from = rule.materializedUntil ?? now
+  if (from >= to) return { created: 0, skipped: 0 }
 
   const occurrences = expandOccurrences({
-    dtStart: series.dtStart,
-    timezone: series.timezone,
-    durationMin: series.durationMin,
-    rrule: series.rrule,
+    dtStart: rule.dtStart,
+    timezone: rule.timezone,
+    durationMin: rule.durationMin,
+    rrule: rule.rrule,
     from,
     to
   })
 
-  // Skip occurrences that already have a session or an exception (EXDATE).
+  // Skip occurrences this rule already materialized or excepted (per-rule keys,
+  // matching the rule-scoped unique indexes — a sibling slot sharing an instant
+  // no longer masks this rule's own occurrence).
   const [existing, excepted] = await Promise.all([
     db.select({ occurrenceStart: lessonSession.occurrenceStart })
       .from(lessonSession)
       .where(and(
         eq(lessonSession.organizationId, organizationId),
-        eq(lessonSession.seriesId, seriesId),
+        eq(lessonSession.ruleId, rule.id),
         gte(lessonSession.occurrenceStart, from),
         lt(lessonSession.occurrenceStart, to)
       )),
@@ -1127,7 +1133,7 @@ export async function extendMaterialization(organizationId: string, seriesId: st
       .from(lessonException)
       .where(and(
         eq(lessonException.organizationId, organizationId),
-        eq(lessonException.seriesId, seriesId),
+        eq(lessonException.ruleId, rule.id),
         gte(lessonException.occurrenceStart, from),
         lt(lessonException.occurrenceStart, to)
       ))
@@ -1135,13 +1141,13 @@ export async function extendMaterialization(organizationId: string, seriesId: st
   const taken = new Set([...existing, ...excepted].map(r => r.occurrenceStart.getTime()))
   const fresh = occurrences.filter(o => !taken.has(o.occurrenceStart.getTime()))
 
-  // The coach's busy intervals in the window — for best-effort coach-conflict skip.
-  const coachBusy: Interval[] = series.coachMemberId
+  // The rule coach's busy intervals in the window — best-effort coach-conflict skip.
+  const coachBusy: Interval[] = rule.coachMemberId
     ? await db.select({ startsAt: lessonSession.startsAt, endsAt: lessonSession.endsAt })
         .from(lessonSession)
         .where(and(
           eq(lessonSession.organizationId, organizationId),
-          eq(lessonSession.coachMemberId, series.coachMemberId),
+          eq(lessonSession.coachMemberId, rule.coachMemberId),
           ne(lessonSession.status, 'cancelled'),
           lt(lessonSession.startsAt, to),
           gt(lessonSession.endsAt, from)
@@ -1151,9 +1157,8 @@ export async function extendMaterialization(organizationId: string, seriesId: st
   let created = 0
   let skipped = 0
   for (const occ of fresh) {
-    // Coach already busy → record a durable skip (not a silent gap) and move on.
     if (coachBusy.some(b => rangesOverlap(occ.startsAt, occ.endsAt, b.startsAt, b.endsAt))) {
-      await recordSkip(organizationId, seriesId, occ.occurrenceStart)
+      await recordSkip(organizationId, seriesId, rule.id, occ.occurrenceStart)
       skipped++
       continue
     }
@@ -1168,49 +1173,80 @@ export async function extendMaterialization(organizationId: string, seriesId: st
           endsAt: occ.endsAt,
           status: 'confirmed',
           kind: 'lesson',
-          createdBy: series.createdBy
+          createdBy
         })
         await tx.insert(lessonSession).values({
           id: randomUUID(),
           organizationId,
           seriesId,
+          ruleId: rule.id,
           reservationId,
           occurrenceStart: occ.occurrenceStart,
           startsAt: occ.startsAt,
           endsAt: occ.endsAt,
-          coachMemberId: series.coachMemberId,
+          coachMemberId: rule.coachMemberId,
           courtId,
           status: 'scheduled',
           overridden: false
         })
       })
       created++
-      if (series.coachMemberId) coachBusy.push({ startsAt: occ.startsAt, endsAt: occ.endsAt })
+      if (rule.coachMemberId) coachBusy.push({ startsAt: occ.startsAt, endsAt: occ.endsAt })
     } catch (error) {
-      // A court/coach EXCLUDE fired. If THIS series already has a session for the
-      // occurrence, a concurrent materializer of the SAME series won the race —
-      // the clash is with its own row, not a foreign booking, so it's benign and
-      // must NOT be recorded as a skip (that would flag a materialized occurrence
-      // as skipped). Otherwise the court/coach is genuinely taken by something
-      // else → record a durable, visible skip so it's never silently lost.
+      // EXCLUDE fired. A benign same-series race (our own row already there) must
+      // not be recorded as a skip; a genuine foreign clash is a durable skip.
       if (courtOverlapViolation(error) || coachOverlapViolation(error)) {
-        if (await sessionExistsForOccurrence(organizationId, seriesId, occ.occurrenceStart)) continue
-        await recordSkip(organizationId, seriesId, occ.occurrenceStart)
+        if (await sessionExistsForOccurrence(organizationId, rule.id, occ.occurrenceStart)) continue
+        await recordSkip(organizationId, seriesId, rule.id, occ.occurrenceStart)
         skipped++
         continue
       }
-      // The unique (series, occurrenceStart) guard tripped — already materialized. Benign.
-      if (pgErrorCode(error) === '23505') continue
+      if (pgErrorCode(error) === '23505') continue // unique occurrence guard — already materialized
       throw error
     }
   }
 
   await db
-    .update(lessonSeries)
+    .update(lessonSeriesRule)
     .set({ materializedUntil: to })
-    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.id, rule.id)))
 
-  return { created, skipped, materializedUntil: to }
+  return { created, skipped }
+}
+
+// Roll EVERY recurring rule of a series forward. Each rule keeps its own horizon.
+// Court/coach conflicts are handled per rule as above. Null when the series isn't
+// this facility's.
+export async function extendMaterialization(organizationId: string, seriesId: string): Promise<ExtendResult | null> {
+  const [series] = await db
+    .select({ sport: lessonSeries.sport, status: lessonSeries.status, createdBy: lessonSeries.createdBy })
+    .from(lessonSeries)
+    .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
+    .limit(1)
+  if (!series) return null
+  if (series.status !== 'active') return { created: 0, skipped: 0, materializedUntil: null }
+
+  const rules = await db
+    .select(RULE_COLUMNS)
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId)))
+
+  let created = 0
+  let skipped = 0
+  for (const rule of rules) {
+    const result = await extendRuleForward(organizationId, seriesId, series.sport, series.createdBy, rule)
+    created += result.created
+    skipped += result.skipped
+  }
+
+  // The earliest rule horizon — the group is materialized at least this far. A raw
+  // min() aggregate comes back as a string, so coerce to Date.
+  const [minRow] = await db
+    .select({ min: sql<string | null>`min(${lessonSeriesRule.materializedUntil})` })
+    .from(lessonSeriesRule)
+    .where(and(eq(lessonSeriesRule.organizationId, organizationId), eq(lessonSeriesRule.seriesId, seriesId)))
+
+  return { created, skipped, materializedUntil: minRow?.min ? new Date(minRow.min) : null }
 }
 
 // ─── Materialization sweep (the scheduled job) ───────────────────────────────
@@ -1248,16 +1284,20 @@ export async function runMaterializationSweep(): Promise<MaterializationSweepRes
   sweepInProgress = true
   try {
     const threshold = new Date(Date.now() + MATERIALIZATION_REFILL_BELOW_DAYS * MS_PER_DAY)
-    // Fetch one more than the cap so we can report whether the run was capped.
+    // Select DISTINCT series that have at least one active, recurring RULE whose
+    // runway dropped below the threshold — rule-based, so a mixed series (one-off
+    // + recurring rules) is still picked up. extendMaterialization then rolls all
+    // of the series' rules forward. Fetch one more than the cap to detect capping.
     const due = await db
-      .select({ organizationId: lessonSeries.organizationId, id: lessonSeries.id })
-      .from(lessonSeries)
+      .selectDistinct({ organizationId: lessonSeriesRule.organizationId, id: lessonSeriesRule.seriesId })
+      .from(lessonSeriesRule)
+      .innerJoin(lessonSeries, eq(lessonSeriesRule.seriesId, lessonSeries.id))
       .where(and(
-        isNotNull(lessonSeries.rrule),
+        isNotNull(lessonSeriesRule.rrule),
         eq(lessonSeries.status, 'active'),
-        or(isNull(lessonSeries.materializedUntil), lt(lessonSeries.materializedUntil, threshold))
+        or(isNull(lessonSeriesRule.materializedUntil), lt(lessonSeriesRule.materializedUntil, threshold))
       ))
-      .orderBy(sql`${lessonSeries.materializedUntil} asc nulls first`)
+      .orderBy(lessonSeriesRule.seriesId)
       .limit(MATERIALIZATION_SWEEP_MAX_SERIES + 1)
 
     const capped = due.length > MATERIALIZATION_SWEEP_MAX_SERIES

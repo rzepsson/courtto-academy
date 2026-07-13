@@ -63,7 +63,10 @@ export const SCHEDULE_LIMITS = {
   maxCapacity: 1000,
   // Safety cap on how many occurrences a single expansion may yield, so a
   // pathological rule can never fan out unbounded.
-  maxOccurrences: 500
+  maxOccurrences: 500,
+  // A group can meet on several day/time slots; cap the number of recurrence
+  // rules per series so a create/edit payload stays bounded.
+  maxRules: 14
 } as const
 
 // How far ahead a recurring series is materialized into concrete sessions on

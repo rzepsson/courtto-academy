@@ -64,7 +64,6 @@ export interface CourtWritable {
   sport: string
   surface: string | null
   environment: string
-  status: string
   surfaceColor: string
   lineColor: string
   zone: string | null
@@ -126,6 +125,7 @@ export interface InvitationLanding {
 
 export type Reservation = typeof import('./app-schema').reservation.$inferSelect
 export type LessonSeries = typeof import('./app-schema').lessonSeries.$inferSelect
+export type LessonSeriesRule = typeof import('./app-schema').lessonSeriesRule.$inferSelect
 export type LessonSession = typeof import('./app-schema').lessonSession.$inferSelect
 export type LessonException = typeof import('./app-schema').lessonException.$inferSelect
 export type Enrollment = typeof import('./app-schema').enrollment.$inferSelect
@@ -153,19 +153,13 @@ export interface LessonSeriesDto {
   level: string | null
   ageGroup: string | null
   notes: string | null
-  coachMemberId: string | null
   assistantCoachMemberId: string | null
-  defaultCourtId: string | null
   timezone: string
-  rrule: string | null
-  dtStart: string
-  durationMin: number
   capacityMin: number | null
   capacityMax: number | null
   enrollmentOpen: boolean
   visibility: string
   status: string
-  materializedUntil: Date | null
   createdAt: Date
 }
 
@@ -227,9 +221,24 @@ export interface ScheduleSessionDto {
   color: string
 }
 
-// A series with its materialized sessions — the create result and detail view.
+// One recurrence rule of a series (a VEVENT-equivalent). The client-facing shape;
+// drops organizationId/audit columns like the other DTOs.
+export interface LessonSeriesRuleDto {
+  id: string
+  rrule: string | null
+  dtStart: string
+  durationMin: number
+  timezone: string
+  courtId: string | null
+  coachMemberId: string | null
+  materializedUntil: Date | null
+}
+
+// A series with its recurrence rules + materialized sessions — the create result
+// and detail view. `rules` carries the 1..N day/time patterns the group meets on.
 export interface LessonDetail {
   series: LessonSeriesDto
+  rules: LessonSeriesRuleDto[]
   sessions: LessonSessionDto[]
 }
 

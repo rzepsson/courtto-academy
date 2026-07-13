@@ -8,11 +8,11 @@ import {
   courtUnit,
   isCourtEnvironment,
   isCourtSport,
-  isCourtStatus,
   isHexColor,
   isValidSurfaceFor
 } from '../../shared/courts'
 import { courtCreateSchema, courtPatchSchema } from '../../shared/courts-schema'
+import { courtMetaParts, courtUnitLabel } from '../../app/utils/courts'
 
 // Identity resolver: error messages are the raw codes, so tests assert on them.
 const raw = (code: string) => code
@@ -28,6 +28,14 @@ describe('court sport / unit', () => {
     expect(courtUnit('tableTennis')).toBe('table')
     expect(courtUnit('tennis')).toBe('court')
     expect(courtUnit('padel')).toBe('court')
+  })
+
+  it('resolves the localized unit-noun key per sport, defaulting to court', () => {
+    expect(courtUnitLabel('tableTennis', raw)).toBe('courts.unit.table')
+    expect(courtUnitLabel('tennis', raw)).toBe('courts.unit.court')
+    expect(courtUnitLabel('beachTennis', raw)).toBe('courts.unit.court')
+    // Unrecognized input never throws — it falls back to the court unit.
+    expect(courtUnitLabel('golf', raw)).toBe('courts.unit.court')
   })
 })
 
@@ -104,12 +112,6 @@ describe('enums', () => {
     expect(isCourtEnvironment('covered')).toBe(true)
     expect(isCourtEnvironment('space')).toBe(false)
   })
-
-  it('validates statuses', () => {
-    expect(isCourtStatus('active')).toBe(true)
-    expect(isCourtStatus('maintenance')).toBe(true)
-    expect(isCourtStatus('archived')).toBe(false)
-  })
 })
 
 describe('isHexColor', () => {
@@ -134,7 +136,6 @@ describe('courtCreateSchema', () => {
     expect(result.sport).toBe('tennis')
     // No Zod defaults — so `.partial()` can't resurrect them on a PATCH.
     expect(result.environment).toBeUndefined()
-    expect(result.status).toBeUndefined()
     expect(result.lineColor).toBeUndefined()
   })
 
@@ -164,16 +165,33 @@ describe('courtPatchSchema', () => {
   const schema = courtPatchSchema(raw)
 
   it('validates only the keys present, without injecting defaults', () => {
-    const result = schema.parse({ status: 'maintenance' })
-    expect(result.status).toBe('maintenance')
+    const result = schema.parse({ environment: 'covered' })
+    expect(result.environment).toBe('covered')
     // A partial patch must NOT resurrect defaults for untouched fields.
-    expect(result.environment).toBeUndefined()
     expect(result.lineColor).toBeUndefined()
     expect(result.name).toBeUndefined()
   })
 
   it('still rejects an invalid value when its key is present', () => {
-    expect(schema.safeParse({ status: 'demolished' }).success).toBe(false)
+    expect(schema.safeParse({ environment: 'space' }).success).toBe(false)
     expect(schema.safeParse({ name: '' }).success).toBe(false)
+  })
+})
+
+describe('courtMetaParts', () => {
+  it('includes only the parts present, in order (sport · surface · env · zone)', () => {
+    expect(courtMetaParts({ sport: 'tennis', surface: 'clay', environment: 'indoor', zone: 'Hall A' }, raw)).toEqual([
+      'school.settings.sports.tennis',
+      'courts.surfaces.clay',
+      'courts.environments.indoor',
+      'Hall A'
+    ])
+  })
+
+  it('drops a missing surface and zone', () => {
+    expect(courtMetaParts({ sport: 'padel', surface: null, environment: 'outdoor', zone: null }, raw)).toEqual([
+      'school.settings.sports.padel',
+      'courts.environments.outdoor'
+    ])
   })
 })

@@ -2,9 +2,11 @@
 import { DateTime } from 'luxon'
 import type { CourtView } from '~/utils/courts'
 
-// Create a lesson: the school-side builder. Binds the same shared Zod schema the
-// server validates (scheduleFormSchema). A compact recurrence control compiles a
-// supported RRULE (none / daily / weekly-by-weekday / monthly).
+// Create a lesson group: the school-side builder. The group's WHAT (title, type,
+// sport, capacity, colour, enrolment) is set once; its WHEN/WHERE is one or more
+// "slots" (recurrence rules), so a group can meet e.g. Wed 15:00 on court 1 and
+// Thu 13:00 on court 2. Binds the shared scheduleCreateFormSchema the server also
+// validates the POST body against.
 const open = defineModel<boolean>('open', { required: true })
 
 const props = defineProps<{
@@ -12,7 +14,14 @@ const props = defineProps<{
   coaches: { id: string, name: string }[]
   allowedSports: string[]
   timezone: string
-  prefill?: { startLocal: string, courtId: string | null } | null
+  // `sport` lets a caller (e.g. the court cockpit) open the form on a specific
+  // court whose discipline isn't the first offered — so its court prefill isn't
+  // dropped when the default sport wouldn't include it. `startLocal` is optional:
+  // omitted (e.g. an "Add lesson" button, not a clicked slot) → the default start.
+  prefill?: { startLocal?: string, courtId: string | null, sport?: string } | null
+  // The court cockpit locks the discipline + court to the one you're on, so a
+  // lesson can't be created against the wrong court by accident.
+  lockCourt?: boolean
 }>()
 
 const emit = defineEmits<{ saved: [] }>()
@@ -22,20 +31,24 @@ const toast = useToast()
 const { toastError } = useApiError()
 const form = useTemplateRef('form')
 
+interface RuleDraft {
+  dtStart: string
+  durationMin: number
+  courtId: string
+  coachMemberId: string
+  freq: RecurrenceFreq
+  byday: string[]
+}
+
 const state = reactive({
   type: 'group',
   sport: 'tennis',
   title: '',
-  defaultCourtId: '',
-  coachMemberId: NO_COACH_VALUE,
-  dtStart: '',
-  durationMin: 60,
   color: DEFAULT_LESSON_COLOR,
   capacityMax: null as number | null,
   capacityMin: null as number | null,
   enrollmentOpen: true,
-  freq: 'none' as 'none' | 'daily' | 'weekly' | 'monthly',
-  byday: [] as string[]
+  rules: [] as RuleDraft[]
 })
 const saving = ref(false)
 
@@ -43,56 +56,74 @@ function defaultStart(): string {
   return localDateTimeStamp(DateTime.now().setZone(props.timezone).plus({ days: 1 }).set({ hour: 17, minute: 0, second: 0 }))
 }
 
+// A court of the current sport (prefill first, else the first available).
+function defaultCourtId(prefillCourtId?: string | null): string {
+  const forSport = props.courts.filter(c => c.sport === state.sport && c.archivedAt === null)
+  return prefillCourtId && forSport.some(c => c.id === prefillCourtId) ? prefillCourtId : (forSport[0]?.id ?? '')
+}
+
+function newRule(prefill?: { startLocal?: string, courtId: string | null } | null): RuleDraft {
+  return {
+    dtStart: prefill?.startLocal || defaultStart(),
+    durationMin: 60,
+    courtId: defaultCourtId(prefill?.courtId),
+    coachMemberId: NO_COACH_VALUE,
+    freq: 'none',
+    byday: []
+  }
+}
+
 function initForm() {
-  const sport = props.allowedSports.includes(state.sport) ? state.sport : (props.allowedSports[0] ?? 'tennis')
   state.type = 'group'
-  state.sport = sport
+  const prefillSport = props.prefill?.sport
+  state.sport = prefillSport && props.allowedSports.includes(prefillSport)
+    ? prefillSport
+    : props.allowedSports.includes(state.sport) ? state.sport : (props.allowedSports[0] ?? 'tennis')
   state.title = ''
-  state.dtStart = props.prefill?.startLocal ?? defaultStart()
-  state.durationMin = 60
   state.color = DEFAULT_LESSON_COLOR
   state.capacityMax = null
   state.capacityMin = null
   state.enrollmentOpen = true
-  state.coachMemberId = NO_COACH_VALUE
-  state.freq = 'none'
-  state.byday = []
-  // Prefer the prefilled court, else the first offered-sport court.
-  const forSport = props.courts.filter(c => c.sport === sport && c.archivedAt === null)
-  state.defaultCourtId = props.prefill?.courtId && forSport.some(c => c.id === props.prefill?.courtId)
-    ? props.prefill.courtId
-    : (forSport[0]?.id ?? '')
+  state.rules = [newRule(props.prefill)]
 }
 
 watch(open, (value) => {
   if (value) initForm()
 })
 
-// A court must match the lesson sport; drop the selection when it no longer does.
+function addRule() {
+  // A new slot inherits the previous slot's court (a group usually meets on the
+  // same court); the caller can still change it unless the court is locked.
+  const previous = state.rules[state.rules.length - 1]
+  state.rules.push(newRule(previous ? { courtId: previous.courtId } : undefined))
+}
+function removeRule(index: number) {
+  if (state.rules.length > 1) state.rules.splice(index, 1)
+}
+
+// Courts of the chosen sport (shared by every slot). When the sport changes, drop
+// any slot's court that no longer matches.
 const courtOptions = computed(() =>
   props.courts.filter(c => c.sport === state.sport && c.archivedAt === null).map(c => ({ value: c.id, label: c.name }))
 )
 watch(() => state.sport, () => {
-  if (!courtOptions.value.some(c => c.value === state.defaultCourtId)) {
-    state.defaultCourtId = courtOptions.value[0]?.value ?? ''
+  for (const rule of state.rules) {
+    if (!courtOptions.value.some(c => c.value === rule.courtId)) {
+      rule.courtId = courtOptions.value[0]?.value ?? ''
+    }
   }
 })
-
-const coachOptions = computed(() => coachSelectOptions(props.coaches, t('schedule.form.noCoach')))
 
 const sportOptions = computed(() =>
   props.allowedSports.filter(isCourtSport).map(s => ({ value: s as string, label: t(`school.settings.sports.${s}`) }))
 )
 const typeOptions = computed(() => lessonTypeOptions(t))
+const formSchema = computed(() => scheduleCreateFormSchema(t))
 
-const startWeekday = computed(() => {
-  const dt = DateTime.fromISO(state.dtStart, { zone: props.timezone })
+function weekdayOf(dtStart: string): string {
+  const dt = DateTime.fromISO(dtStart, { zone: props.timezone })
   return dt.isValid ? SCHEDULE_WEEKDAYS[dt.weekday - 1]! : 'MO'
-})
-
-const rrule = computed<string | null>(() => buildRRule(state.freq, state.byday, startWeekday.value))
-
-const formSchema = computed(() => scheduleFormSchema(t))
+}
 
 async function onSubmit() {
   saving.value = true
@@ -100,17 +131,17 @@ async function onSubmit() {
     type: state.type,
     sport: state.sport,
     title: state.title.trim(),
-    defaultCourtId: state.defaultCourtId,
-    dtStart: state.dtStart,
-    durationMin: state.durationMin,
     color: state.color,
-    enrollmentOpen: state.enrollmentOpen
+    enrollmentOpen: state.enrollmentOpen,
+    rules: state.rules.map(rule => ({
+      dtStart: rule.dtStart,
+      durationMin: rule.durationMin,
+      courtId: rule.courtId,
+      coachMemberId: rule.coachMemberId !== NO_COACH_VALUE ? rule.coachMemberId : undefined,
+      rrule: buildRRule(rule.freq, rule.byday, weekdayOf(rule.dtStart)) ?? undefined
+    }))
   }
-  if (state.coachMemberId && state.coachMemberId !== NO_COACH_VALUE) body.coachMemberId = state.coachMemberId
-  if (rrule.value) body.rrule = rrule.value
-  // A cleared number input yields '' (not null), so guard on the numeric type.
   if (typeof state.capacityMax === 'number' && Number.isFinite(state.capacityMax)) body.capacityMax = state.capacityMax
-  if (typeof state.capacityMin === 'number' && Number.isFinite(state.capacityMin)) body.capacityMin = state.capacityMin
 
   try {
     await $fetch('/api/school/schedule', { method: 'POST', body })
@@ -175,84 +206,72 @@ async function onSubmit() {
               v-model="state.sport"
               value-key="value"
               :items="sportOptions"
+              :disabled="lockCourt"
               size="lg"
               class="w-full"
             />
           </UFormField>
         </div>
 
-        <div class="grid gap-5 sm:grid-cols-2">
-          <UFormField
-            :label="t('schedule.form.court')"
-            name="defaultCourtId"
-            required
-          >
-            <USelectMenu
-              v-model="state.defaultCourtId"
-              value-key="value"
-              :items="courtOptions"
-              :placeholder="t('schedule.form.courtNone')"
-              :search-input="{ placeholder: t('common.search') }"
-              icon="i-lucide-land-plot"
-              size="lg"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField
-            :label="t('schedule.form.coach')"
-            name="coachMemberId"
-          >
-            <USelectMenu
-              v-model="state.coachMemberId"
-              value-key="value"
-              :items="coachOptions"
-              :search-input="{ placeholder: t('common.search') }"
-              icon="i-lucide-user-round"
-              size="lg"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
+        <!-- Slots (recurrence rules) -->
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-highlighted">
+                {{ t('schedule.form.slots') }}
+              </p>
+              <p class="mt-0.5 text-xs text-muted">
+                {{ t('schedule.form.slotsHelp') }}
+              </p>
+            </div>
+          </div>
 
-        <div class="grid gap-5 sm:grid-cols-2">
-          <UFormField
-            :label="t('schedule.form.dtStart')"
-            name="dtStart"
-            required
-            class="sm:col-span-2"
+          <div
+            v-for="(rule, i) in state.rules"
+            :key="i"
+            class="flex flex-col gap-4 rounded-lg bg-elevated/40 p-4 ring-1 ring-default"
           >
-            <AppDateTimeField
-              v-model="state.dtStart"
-              size="lg"
-            />
-          </UFormField>
-          <UFormField
-            :label="t('schedule.form.duration')"
-            name="durationMin"
-            required
-          >
-            <UInput
-              v-model.number="state.durationMin"
-              type="number"
-              :min="5"
-              :step="5"
-              size="lg"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold uppercase tracking-wide text-dimmed">
+                {{ t('schedule.form.slot', { n: i + 1 }) }}
+              </span>
+              <UButton
+                v-if="state.rules.length > 1"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-x"
+                :aria-label="t('schedule.form.removeSlot')"
+                @click="removeRule(i)"
+              />
+            </div>
 
-        <!-- Recurrence -->
-        <UFormField
-          :label="t('schedule.form.repeat')"
-          name="freq"
-        >
-          <ScheduleRecurrencePicker
-            v-model:freq="state.freq"
-            v-model:byday="state.byday"
-            :start-weekday="startWeekday"
+            <ScheduleRuleFields
+              v-model:dt-start="rule.dtStart"
+              v-model:duration-min="rule.durationMin"
+              v-model:court-id="rule.courtId"
+              v-model:coach-member-id="rule.coachMemberId"
+              v-model:freq="rule.freq"
+              v-model:byday="rule.byday"
+              :courts="courts"
+              :coaches="coaches"
+              :sport="state.sport"
+              :timezone="timezone"
+              :lock-court="lockCourt"
+              :name-prefix="`rules.${i}`"
+            />
+          </div>
+
+          <UButton
+            color="neutral"
+            variant="subtle"
+            size="sm"
+            icon="i-lucide-plus"
+            :label="t('schedule.form.addSlot')"
+            class="self-start"
+            @click="addRule"
           />
-        </UFormField>
+        </div>
 
         <div class="grid gap-5 sm:grid-cols-2">
           <UFormField

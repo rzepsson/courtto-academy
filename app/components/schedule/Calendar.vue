@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
-import type { ScheduleSessionView } from '~/utils/schedule'
+import type { ScheduleSessionView, CourtBlockView } from '~/utils/schedule'
 
 // The resource calendar. Day view = courts as columns (the hero "resource" view);
-// week view = days as columns. Blocks are positioned by their local start time
-// and laid out side-by-side when they overlap. Editable mode adds native
-// drag-to-move (a block onto another column/time) and click-empty-to-create.
+// week view = days as columns. Lesson blocks are positioned by their local start
+// time and laid out side-by-side when they overlap; maintenance/closure blocks
+// (`blocks`) render as tinted "unavailable" bands behind them. Editable mode adds
+// native drag-to-move (a block onto another column/time) and click-empty-to-create.
 const props = defineProps<{
   sessions: ScheduleSessionView[]
   timezone: string
@@ -13,12 +14,14 @@ const props = defineProps<{
   anchorAt: string
   courts?: { id: string, name: string }[] // day view columns
   coaches?: { id: string, name: string }[] // resolves the coach shown on a block
+  blocks?: CourtBlockView[] // maintenance / closure overlays
   editable?: boolean
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
   select: [session: ScheduleSessionView]
+  selectBlock: [block: CourtBlockView]
   move: [payload: { session: ScheduleSessionView, startLocal: string, courtId: string | null }]
   create: [payload: { startLocal: string, courtId: string | null }]
 }>()
@@ -68,10 +71,12 @@ const columns = computed<Column[]>(() => {
   const day = anchor.value.startOf('day')
   if (props.courts && props.courts.length) {
     const cols: Column[] = props.courts.map(c => ({ id: c.id, label: c.name, dt: day, courtId: c.id, isToday }))
-    // Sessions on a court that's no longer an active column (e.g. archived) still
-    // need to be visible/clickable — collect them under an "Other" column.
+    // Sessions/blocks on a court that's no longer an active column (e.g. archived)
+    // still need to be visible/clickable — collect them under an "Other" column.
     const known = new Set(props.courts.map(c => c.id))
-    if (props.sessions.some(s => !s.courtId || !known.has(s.courtId))) {
+    const orphanSession = props.sessions.some(s => !s.courtId || !known.has(s.courtId))
+    const orphanBlock = (props.blocks ?? []).some(b => !known.has(b.courtId))
+    if (orphanSession || orphanBlock) {
       cols.push({ id: '__other__', label: t('schedule.calendar.otherCourt'), dt: day, courtId: null, isToday })
     }
     return cols
@@ -111,6 +116,45 @@ const layout = computed(() => {
       const geom = blockGeometry(startMin, startMin + durationMinutes(item.startsAt, item.endsAt), band.value)
       const widthPct = 100 / laneCount
       return { session: item, top: geom.top, height: geom.height, leftPct: lane * widthPct, widthPct }
+    }))
+  }
+  return out
+})
+
+// Maintenance / closure bands, laid out per column like sessions (side-by-side
+// on the rare overlap). Day view: a band sits in its court's column (orphans →
+// "Other"). Week view: bands of any court fall on the day(s) they cover. Each is
+// clamped to the column's local day, so a multi-day closure renders per day.
+const courtNames = computed(() => new Map((props.courts ?? []).map(c => [c.id, c.name])))
+
+function blockText(block: CourtBlockView): string {
+  const base = block.title || t(`schedule.blocks.kinds.${block.kind}`)
+  const name = props.view === 'week' ? courtNames.value.get(block.courtId) : null
+  return name ? `${name} · ${base}` : base
+}
+
+const blockLayout = computed(() => {
+  const out = new Map<string, { block: CourtBlockView, top: number, height: number, leftPct: number, widthPct: number }[]>()
+  const known = new Set((props.courts ?? []).map(c => c.id))
+  for (const col of columns.value) {
+    const dayKey = col.dt.toFormat('yyyy-MM-dd')
+    const items: { block: CourtBlockView, startMin: number, endMin: number }[] = []
+    for (const b of props.blocks ?? []) {
+      // Day view constrains a band to its court column; week view shows all courts.
+      if (props.view !== 'week' && props.courts && props.courts.length) {
+        const target = known.has(b.courtId) ? b.courtId : '__other__'
+        if (target !== col.id) continue
+      }
+      const span = blockDaySpan(b.startsAt, b.endsAt, dayKey, props.timezone)
+      if (!span) continue
+      items.push({ block: b, startMin: span.startMin, endMin: span.endMin })
+    }
+    if (!items.length) continue
+    const lanes = computeLanes(items, i => i.startMin, i => i.endMin)
+    out.set(col.id, lanes.map(({ item, lane, laneCount }) => {
+      const geom = blockGeometry(item.startMin, item.endMin, band.value)
+      const widthPct = 100 / laneCount
+      return { block: item.block, top: geom.top, height: geom.height, leftPct: lane * widthPct, widthPct }
     }))
   }
   return out
@@ -263,7 +307,37 @@ function onColumnClick(event: MouseEvent, column: Column) {
             <span class="absolute -top-1 -left-1 size-2 rounded-full bg-primary" />
           </div>
 
-          <!-- Blocks -->
+          <!-- Maintenance / closure bands (behind lesson blocks) -->
+          <button
+            v-for="entry in (blockLayout.get(col.id) ?? [])"
+            :key="entry.block.id"
+            type="button"
+            :aria-label="blockText(entry.block)"
+            class="absolute overflow-hidden rounded-md bg-warning/10 text-left ring-1 ring-inset ring-warning/25 transition-colors hover:bg-warning/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-warning"
+            :style="{
+              top: `${entry.top}px`,
+              height: `${entry.height}px`,
+              left: `calc(${entry.leftPct}% + 2px)`,
+              width: `calc(${entry.widthPct}% - 4px)`,
+              backgroundImage: 'repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.14) 0 6px, transparent 6px 12px)'
+            }"
+            @click.stop="emit('selectBlock', entry.block)"
+          >
+            <span class="flex items-center gap-1 p-1 text-warning">
+              <UIcon
+                name="i-lucide-wrench"
+                class="size-3 shrink-0"
+              />
+              <span
+                v-if="entry.height >= 24"
+                class="truncate text-[10px] font-medium"
+              >
+                {{ blockText(entry.block) }}
+              </span>
+            </span>
+          </button>
+
+          <!-- Lesson blocks -->
           <button
             v-for="entry in (layout.get(col.id) ?? [])"
             :key="entry.session.id"

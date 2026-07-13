@@ -57,6 +57,34 @@
       "when": 1783768463091,
       "tag": "0007_wise_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783859320984,
+      "tag": "0008_windy_joseph",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783868296243,
+      "tag": "0009_sudden_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1783881419918,
+      "tag": "0010_little_gladiator",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1783893468986,
+      "tag": "0011_medical_jocasta",
+      "breakpoints": true
     }
   ]
 }

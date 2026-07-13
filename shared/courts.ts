@@ -20,13 +20,6 @@ export type CourtUnit = 'court' | 'table'
 export const COURT_ENVIRONMENTS = ['indoor', 'outdoor', 'covered'] as const
 export type CourtEnvironment = (typeof COURT_ENVIRONMENTS)[number]
 
-// Operational (day-to-day) status. Deliberately NOT merged with the lifecycle
-// axis (archivedAt) — a court can be archived independently of being under
-// maintenance, and squashing both into one enum loses that (see CLAUDE.md:
-// orthogonal axes, never one enum).
-export const COURT_STATUSES = ['active', 'maintenance'] as const
-export type CourtStatus = (typeof COURT_STATUSES)[number]
-
 // A single straight line marking, in metres, in the canonical portrait frame:
 // origin (0,0) at the playing area's top-left, X along the width, Y along the
 // length. The renderer scales metres → pixels uniformly, so real proportions
@@ -205,10 +198,6 @@ export function isCourtSport(value: string): value is Sport {
 
 export function isCourtEnvironment(value: string): value is CourtEnvironment {
   return (COURT_ENVIRONMENTS as readonly string[]).includes(value)
-}
-
-export function isCourtStatus(value: string): value is CourtStatus {
-  return (COURT_STATUSES as readonly string[]).includes(value)
 }
 
 // Whether a surface is valid for a given discipline. Table tennis (empty list)

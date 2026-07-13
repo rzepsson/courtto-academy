@@ -27,6 +27,24 @@ export function isReservationKind(value: string): value is ReservationKind {
   return (RESERVATION_KINDS as readonly string[]).includes(value)
 }
 
+// A "court block" is a standalone reservation (no Academy lesson attached) that
+// takes a court out of service for a time range — the two non-lesson, non-
+// marketplace kinds a facility admin creates directly. The court-overlap EXCLUDE
+// is kind-agnostic, so a block automatically prevents lessons (and bookings) from
+// being scheduled over it. `maintenance` is the default (resurfacing, repairs);
+// `blocked` is a generic closure (private event, weather).
+export const COURT_BLOCK_KINDS = ['maintenance', 'blocked'] as const
+export type CourtBlockKind = (typeof COURT_BLOCK_KINDS)[number]
+
+export function isCourtBlockKind(value: string): value is CourtBlockKind {
+  return (COURT_BLOCK_KINDS as readonly string[]).includes(value)
+}
+
+// A single block can't span more than this — a guard against a runaway range
+// (e.g. a typo'd year) locking a court out for good. Long closures are still
+// expressible; this is just an upper sanity bound.
+export const COURT_BLOCK_MAX_DAYS = 366
+
 // Half-open overlap [start, end): back-to-back ranges (aEnd === bStart) do NOT
 // overlap — matching Postgres `tstzrange(a, b)` '[)' semantics and the EXCLUDE
 // constraint, so a service pre-check and the DB guard agree exactly.

@@ -5,8 +5,18 @@ import type { ScheduleSessionView } from '~/utils/schedule'
 
 definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const toast = useToast()
 const { toastError } = useApiError()
+const route = useRoute()
+const router = useRouter()
+
+// A `?court=<id>[,<id>]` deep-link (e.g. from the courts panel) seeds the court
+// filter. Comma-separated so it round-trips a multi-court selection.
+function parseCourtQuery(): string[] {
+  const raw = Array.isArray(route.query.court) ? route.query.court[0] : route.query.court
+  return raw ? String(raw).split(',').filter(Boolean) : []
+}
 
 const { data: profileData } = await useFetch('/api/school/profile', { key: 'school-profile' })
 const { data: courtsData } = await useLazyFetch('/api/school/courts', { key: 'school:courts' })
@@ -36,11 +46,36 @@ const { data: sessionsData, status, refresh } = await useLazyFetch('/api/school/
   query: computed(() => ({ from: range.value.from, to: range.value.to }))
 })
 const sessions = computed<ScheduleSessionView[]>(() => sessionsData.value?.sessions ?? [])
+const blocks = computed<CourtBlockView[]>(() => sessionsData.value?.blocks ?? [])
 const loading = computed(() => status.value === 'pending')
 
 // Client-side filters over the already-fetched window — instant, no refetch.
-const filters = reactive<ScheduleFilterState>({ coachMemberIds: [], courtIds: [], sports: [], types: [], status: 'all' })
+const filters = reactive<ScheduleFilterState>({ coachMemberIds: [], courtIds: parseCourtQuery(), sports: [], types: [], status: 'all' })
+
+// Drop any seeded court id that isn't an active court (archived/removed since the
+// link was made), so a stale deep-link degrades to "all courts" instead of an
+// empty grid. Runs once the roster resolves.
+watch(activeCourts, (list) => {
+  if (!filters.courtIds.length || !list.length) return
+  const valid = new Set(list.map(c => c.id))
+  const pruned = filters.courtIds.filter(id => valid.has(id))
+  if (pruned.length !== filters.courtIds.length) filters.courtIds = pruned
+})
+
+// Mirror the court filter into the URL so the view is shareable/bookmarkable and
+// the deep-link param clears when the filter is emptied.
+watch(() => filters.courtIds.slice(), (ids) => {
+  const query = { ...route.query }
+  if (ids.length) query.court = ids.join(',')
+  else delete query.court
+  router.replace({ query })
+})
 const filteredSessions = computed(() => sessions.value.filter(s => sessionMatchesFilters(s, filters)))
+// Blocks only respect the court filter (the coach/type/sport/status filters are
+// lesson concepts that don't apply to a maintenance closure).
+const filteredBlocks = computed(() =>
+  filters.courtIds.length ? blocks.value.filter(b => filters.courtIds.includes(b.courtId)) : blocks.value
+)
 // A court filter also narrows the day-view columns, not just the blocks.
 const visibleCourts = computed(() =>
   filters.courtIds.length ? activeCourts.value.filter(c => filters.courtIds.includes(c.id)) : activeCourts.value
@@ -49,7 +84,7 @@ const noMatches = computed(() => !loading.value && sessions.value.length > 0 && 
 
 // --- Slideovers ---
 const formOpen = ref(false)
-const formPrefill = ref<{ startLocal: string, courtId: string | null } | null>(null)
+const formPrefill = ref<{ startLocal: string, courtId: string | null, sport?: string } | null>(null)
 const detailOpen = ref(false)
 const selected = ref<ScheduleSessionView | null>(null)
 
@@ -58,7 +93,7 @@ function openCreate() {
   formOpen.value = true
 }
 function onCreate(payload: { startLocal: string, courtId: string | null }) {
-  formPrefill.value = payload
+  formPrefill.value = { ...payload, sport: activeCourts.value.find(c => c.id === payload.courtId)?.sport }
   formOpen.value = true
 }
 function onSelect(session: ScheduleSessionView) {
@@ -73,6 +108,44 @@ function onEdit(session: ScheduleSessionView) {
   editSeriesId.value = session.seriesId
   detailOpen.value = false
   editOpen.value = true
+}
+
+// --- Maintenance / closure blocks ---
+const selectedBlock = ref<CourtBlockView | null>(null)
+const blockDetailOpen = computed({
+  get: () => selectedBlock.value !== null,
+  set: (value: boolean) => { if (!value) selectedBlock.value = null }
+})
+const deletingBlock = ref(false)
+
+function onSelectBlock(block: CourtBlockView) {
+  selectedBlock.value = block
+}
+
+const blockCourtName = computed(() =>
+  courts.value.find(c => c.id === selectedBlock.value?.courtId)?.name ?? t('schedule.calendar.otherCourt')
+)
+const blockRangeText = computed(() =>
+  selectedBlock.value
+    ? courtBlockRangeLabel(selectedBlock.value.startsAt, selectedBlock.value.endsAt, timezone.value, locale.value)
+    : ''
+)
+
+async function deleteBlock() {
+  const block = selectedBlock.value
+  if (!block) return
+  deletingBlock.value = true
+  const endpoint: string = `/api/school/courts/${block.courtId}/blocks/${block.id}`
+  try {
+    await $fetch(endpoint, { method: 'DELETE' })
+    toast.add({ title: t('schedule.blocks.removed'), color: 'neutral' })
+    selectedBlock.value = null
+    await refresh()
+  } catch (error) {
+    toastError('schedule.blocks.errors.removeFailed', error)
+  } finally {
+    deletingBlock.value = false
+  }
 }
 
 // Drag-to-move a single occurrence: optimistic refresh, roll back on error.
@@ -184,9 +257,11 @@ async function onMove({ session, startLocal, courtId }: { session: ScheduleSessi
               :anchor-at="anchorISO"
               :courts="visibleCourts"
               :coaches="coaches"
+              :blocks="filteredBlocks"
               :loading="loading"
               editable
               @select="onSelect"
+              @select-block="onSelectBlock"
               @create="onCreate"
               @move="onMove"
             />
@@ -229,6 +304,56 @@ async function onMove({ session, startLocal, courtId }: { session: ScheduleSessi
         :coaches="coaches"
         @saved="refresh()"
       />
+
+      <UModal
+        v-model:open="blockDetailOpen"
+        :title="t('schedule.blocks.detail.title')"
+      >
+        <template #body>
+          <div class="flex flex-col gap-4">
+            <div class="flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                <UIcon
+                  name="i-lucide-wrench"
+                  class="size-4"
+                />
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-highlighted">
+                  {{ selectedBlock?.title || t(`schedule.blocks.kinds.${selectedBlock?.kind}`) }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ blockCourtName }}
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 rounded-lg bg-elevated/40 px-3 py-2 text-sm text-muted ring-1 ring-default">
+              <UIcon
+                name="i-lucide-calendar-clock"
+                class="size-4 shrink-0 text-dimmed"
+              />
+              {{ blockRangeText }}
+            </div>
+          </div>
+        </template>
+        <template #footer>
+          <div class="flex w-full justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              :label="t('common.close')"
+              @click="blockDetailOpen = false"
+            />
+            <UButton
+              color="error"
+              icon="i-lucide-trash-2"
+              :loading="deletingBlock"
+              :label="t('schedule.blocks.detail.remove')"
+              @click="deleteBlock"
+            />
+          </div>
+        </template>
+      </UModal>
     </template>
   </UDashboardPanel>
 </template>

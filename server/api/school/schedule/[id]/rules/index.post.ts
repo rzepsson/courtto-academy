@@ -1,8 +1,8 @@
-import { AREA_ROLES } from '../../../../../shared/permissions'
+import { AREA_ROLES } from '../../../../../../shared/permissions'
 
-// Edit a series' structure (start, duration, recurrence), re-materializing future
-// occurrences. Destructive to future single-occurrence changes by design (see
-// updateSeriesSchedule). School roles only. 404 when not this facility's.
+// Add a slot (recurrence rule) to a group, materializing its occurrences. Body =
+// a single rule { rrule?, dtStart, durationMin, courtId, coachMemberId? }. School
+// roles only. 404 when the series isn't this facility's.
 export default defineEventHandler(async (event) => {
   const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Expected an object body' })
   }
 
-  const lesson = await updateSeriesSchedule(membership.organization.id, id, body)
+  const lesson = await addSeriesRule(membership.organization.id, id, body)
   if (!lesson) {
     throw createError({ statusCode: 404, statusMessage: 'Lesson not found' })
   }
