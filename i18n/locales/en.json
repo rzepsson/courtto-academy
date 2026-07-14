@@ -84,7 +84,10 @@
       "COURT_BLOCK_COURT_NOT_FOUND": "That court no longer exists.",
       "COURT_BLOCK_INVALID": "Please check the block details.",
       "COURT_BLOCK_RANGE": "The block must end after it starts.",
-      "COURT_BLOCK_CONFLICT": "This court already has a lesson or block in that window."
+      "COURT_BLOCK_CONFLICT": "This court already has a lesson or block in that window.",
+      "INVALID_ZONE": "Please check the zone details.",
+      "COURT_ZONE_NAME_TAKEN": "A zone with that name already exists.",
+      "COURT_ZONE_NOT_FOUND": "That zone no longer exists."
     }
   },
   "common": {
@@ -189,10 +192,16 @@
       "deleteFailed": "Could not delete the court",
       "reorderFailed": "Could not save the new order"
     },
+    "details": "Details",
     "detail": {
       "title": "Court",
       "back": "Back to courts",
       "added": "Added {date}",
+      "tabs": {
+        "overview": "Overview",
+        "schedule": "Schedule",
+        "utilization": "Utilization"
+      },
       "notFound": {
         "title": "Court not found",
         "description": "This court doesn't exist or belongs to another facility.",
@@ -203,6 +212,47 @@
         "add": "Add",
         "empty": "No upcoming closures on this court."
       }
+    },
+    "zones": {
+      "manage": "Zones",
+      "title": "Zones",
+      "subtitle": "Group courts into areas or halls. Drag to reorder; deleting a zone just ungroups its courts.",
+      "newLabel": "New zone",
+      "namePlaceholder": "e.g. Hall A",
+      "add": "Add",
+      "empty": "No zones yet. Add one above to start grouping courts.",
+      "ungrouped": "Ungrouped",
+      "courtCount": "{n} courts",
+      "delete": "Delete zone",
+      "deleted": "Zone deleted",
+      "deleteConfirm": {
+        "title": "Delete zone",
+        "description": "Delete \"{name}\"? Its courts stay — they just become ungrouped."
+      },
+      "form": {
+        "errors": {
+          "nameRequired": "Enter a zone name",
+          "tooLong": "This is too long"
+        }
+      },
+      "errors": {
+        "createFailed": "Could not create the zone",
+        "renameFailed": "Could not rename the zone",
+        "reorderFailed": "Could not save the new order",
+        "deleteFailed": "Could not delete the zone"
+      }
+    },
+    "utilization": {
+      "title": "Utilization",
+      "daysShort": "{n} d",
+      "occupancy": "Occupancy · {window}",
+      "lessonHours": "Lesson hours",
+      "sessions": "Sessions",
+      "downtime": "Maintenance",
+      "empty": "No activity in this period.",
+      "peak": "Busiest: {when}",
+      "less": "Less",
+      "more": "More"
     },
     "form": {
       "createTitle": "Add {unit}",
@@ -219,8 +269,8 @@
       "lineColor": "Line colour",
       "customColor": "Custom colour",
       "zone": "Zone",
-      "zoneHelp": "Optional grouping, e.g. a hall or area.",
-      "zonePlaceholder": "e.g. Hall A",
+      "zoneHelp": "Group this court into an area or hall. Manage zones from the roster.",
+      "zoneNone": "No zone",
       "notes": "Notes",
       "notesPlaceholder": "Internal notes (optional)",
       "create": "Create {unit}",
@@ -302,6 +352,7 @@
     "filters": {
       "allCoaches": "All coaches",
       "allCourts": "All courts",
+      "allZones": "All zones",
       "allSports": "All sports",
       "allTypes": "All types",
       "clear": "Clear",

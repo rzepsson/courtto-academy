@@ -21,11 +21,15 @@ function parseCourtQuery(): string[] {
 const { data: profileData } = await useFetch('/api/school/profile', { key: 'school-profile' })
 const { data: courtsData } = await useLazyFetch('/api/school/courts', { key: 'school:courts' })
 const { data: membersData } = await useLazyFetch('/api/school/members', { key: 'school:members' })
+const { data: zonesData } = await useLazyFetch('/api/school/zones', { key: 'school:zones' })
 
 const timezone = computed(() => profileData.value?.profile.timezone ?? 'Europe/Warsaw')
 const allowedSports = computed(() => profileData.value?.profile.sports ?? [])
 const courts = computed<CourtView[]>(() => courtsData.value?.courts ?? [])
 const activeCourts = computed(() => courts.value.filter(c => c.archivedAt === null))
+const zones = computed(() => zonesData.value?.zones ?? [])
+// Resolve a session/block/court's zone for the zone filter (the zone lives on the court).
+const zoneByCourtId = computed(() => new Map(courts.value.map(c => [c.id, c.zoneId])))
 const coaches = computed(() =>
   (membersData.value ?? []).filter(m => m.role !== 'student').map(m => ({ id: m.id, name: m.user.name }))
 )
@@ -50,7 +54,7 @@ const blocks = computed<CourtBlockView[]>(() => sessionsData.value?.blocks ?? []
 const loading = computed(() => status.value === 'pending')
 
 // Client-side filters over the already-fetched window — instant, no refetch.
-const filters = reactive<ScheduleFilterState>({ coachMemberIds: [], courtIds: parseCourtQuery(), sports: [], types: [], status: 'all' })
+const filters = reactive<ScheduleFilterState>({ coachMemberIds: [], courtIds: parseCourtQuery(), zoneIds: [], sports: [], types: [], status: 'all' })
 
 // Drop any seeded court id that isn't an active court (archived/removed since the
 // link was made), so a stale deep-link degrades to "all courts" instead of an
@@ -70,16 +74,18 @@ watch(() => filters.courtIds.slice(), (ids) => {
   else delete query.court
   router.replace({ query })
 })
-const filteredSessions = computed(() => sessions.value.filter(s => sessionMatchesFilters(s, filters)))
-// Blocks only respect the court filter (the coach/type/sport/status filters are
+const filteredSessions = computed(() => sessions.value.filter(s => sessionMatchesFilters(s, filters, zoneByCourtId.value)))
+// Blocks respect the court + zone filters (the coach/type/sport/status filters are
 // lesson concepts that don't apply to a maintenance closure).
-const filteredBlocks = computed(() =>
-  filters.courtIds.length ? blocks.value.filter(b => filters.courtIds.includes(b.courtId)) : blocks.value
-)
-// A court filter also narrows the day-view columns, not just the blocks.
-const visibleCourts = computed(() =>
-  filters.courtIds.length ? activeCourts.value.filter(c => filters.courtIds.includes(c.id)) : activeCourts.value
-)
+const filteredBlocks = computed(() => blocks.value.filter(b =>
+  (!filters.courtIds.length || filters.courtIds.includes(b.courtId))
+  && courtMatchesZones(b.courtId, filters.zoneIds, zoneByCourtId.value)
+))
+// The court + zone filters also narrow the day-view columns, not just the blocks.
+const visibleCourts = computed(() => activeCourts.value.filter(c =>
+  (!filters.courtIds.length || filters.courtIds.includes(c.id))
+  && courtMatchesZones(c.id, filters.zoneIds, zoneByCourtId.value)
+))
 const noMatches = computed(() => !loading.value && sessions.value.length > 0 && filteredSessions.value.length === 0)
 
 // --- Slideovers ---
@@ -229,11 +235,13 @@ async function onMove({ session, startLocal, courtId }: { session: ScheduleSessi
               <ScheduleFilters
                 v-model:coach-member-ids="filters.coachMemberIds"
                 v-model:court-ids="filters.courtIds"
+                v-model:zone-ids="filters.zoneIds"
                 v-model:selected-sports="filters.sports"
                 v-model:types="filters.types"
                 v-model:status="filters.status"
                 :coaches="coaches"
                 :courts="activeCourts"
+                :zones="zones"
                 :sports="allowedSports"
               />
             </div>

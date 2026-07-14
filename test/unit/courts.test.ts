@@ -12,6 +12,7 @@ import {
   isValidSurfaceFor
 } from '../../shared/courts'
 import { courtCreateSchema, courtPatchSchema } from '../../shared/courts-schema'
+import { courtZoneSchema } from '../../shared/court-zone-schema'
 import { courtMetaParts, courtUnitLabel } from '../../app/utils/courts'
 
 // Identity resolver: error messages are the raw codes, so tests assert on them.
@@ -179,19 +180,38 @@ describe('courtPatchSchema', () => {
 })
 
 describe('courtMetaParts', () => {
-  it('includes only the parts present, in order (sport · surface · env · zone)', () => {
-    expect(courtMetaParts({ sport: 'tennis', surface: 'clay', environment: 'indoor', zone: 'Hall A' }, raw)).toEqual([
+  it('includes only the parts present, in order (sport · surface · env)', () => {
+    expect(courtMetaParts({ sport: 'tennis', surface: 'clay', environment: 'indoor' }, raw)).toEqual([
       'school.settings.sports.tennis',
       'courts.surfaces.clay',
-      'courts.environments.indoor',
-      'Hall A'
+      'courts.environments.indoor'
     ])
   })
 
-  it('drops a missing surface and zone', () => {
-    expect(courtMetaParts({ sport: 'padel', surface: null, environment: 'outdoor', zone: null }, raw)).toEqual([
+  it('drops a missing surface (zone is not an inline part — it is a grouping)', () => {
+    expect(courtMetaParts({ sport: 'padel', surface: null, environment: 'outdoor' }, raw)).toEqual([
       'school.settings.sports.padel',
       'courts.environments.outdoor'
     ])
+  })
+})
+
+describe('courtZoneSchema', () => {
+  const schema = courtZoneSchema(raw)
+
+  it('accepts and trims a non-empty name', () => {
+    expect(schema.parse({ name: '  Hall A ' }).name).toBe('Hall A')
+  })
+
+  it('rejects an empty / whitespace-only name', () => {
+    const result = schema.safeParse({ name: '   ' })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0]?.message).toBe('nameRequired')
+  })
+
+  it('rejects an over-long name', () => {
+    const result = schema.safeParse({ name: 'x'.repeat(61) })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues[0]?.message).toBe('tooLong')
   })
 })

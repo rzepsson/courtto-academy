@@ -45,6 +45,21 @@ export function isCourtBlockKind(value: string): value is CourtBlockKind {
 // expressible; this is just an upper sanity bound.
 export const COURT_BLOCK_MAX_DAYS = 366
 
+// For utilization: a reservation either represents court USAGE (demand — a lesson
+// today, a marketplace `booking` under Courtto tomorrow) or DOWNTIME (maintenance
+// / closure — the block kinds). The split is what makes occupancy meaningful, and
+// it's product-neutral: when Courtto writes `booking` rows they count as usage
+// automatically, no analytics change.
+export function isUsageReservationKind(value: string): boolean {
+  return isReservationKind(value) && !isCourtBlockKind(value)
+}
+
+// The default operating window a facility is "open" (local wall-clock hours),
+// the denominator for utilization %. Matches the calendar's default band. A
+// future per-facility openHour/closeHour on orgProfile would replace this
+// constant without touching the aggregation.
+export const FACILITY_OPERATING_HOURS = { open: 7, close: 23 } as const
+
 // Half-open overlap [start, end): back-to-back ranges (aEnd === bStart) do NOT
 // overlap — matching Postgres `tstzrange(a, b)` '[)' semantics and the EXCLUDE
 // constraint, so a service pre-check and the DB guard agree exactly.

@@ -1,7 +1,8 @@
 import type { Sport } from '~~/shared/org-profile'
-import type { CourtDto } from '~~/server/database/types'
+import type { CourtDto, CourtZoneDto } from '~~/server/database/types'
 import { COURT_ENVIRONMENTS, SURFACES_BY_SPORT, courtUnit, isCourtSport } from '~~/shared/courts'
 import { courtSchema, type CourtErrorCode } from '~~/shared/courts-schema'
+import { courtZoneSchema, type CourtZoneErrorCode } from '~~/shared/court-zone-schema'
 
 // Client-facing re-exports of the shared court domain, plus form-only helpers.
 // app/utils/* is auto-imported, so pages/components get these without importing
@@ -39,7 +40,7 @@ export interface CourtFormState {
   environment: string
   surfaceColor: string
   lineColor: string
-  zone: string
+  zoneId: string
   notes: string
 }
 
@@ -82,15 +83,37 @@ export function courtUnitLabel(sport: string, t: (key: string) => string): strin
   return t(`courts.unit.${isCourtSport(sport) ? courtUnit(sport) : 'court'}`)
 }
 
-// The concise "sport · surface · environment · zone" descriptor (only the parts
+// The concise "sport · surface · environment" descriptor (only the parts
 // present), shared by the roster tile and the detail page so they never drift.
+// The zone is deliberately NOT here — it's a first-class grouping (roster
+// sections / a distinct field), not an inline metadata string.
 export function courtMetaParts(
-  court: Pick<CourtView, 'sport' | 'surface' | 'environment' | 'zone'>,
+  court: Pick<CourtView, 'sport' | 'surface' | 'environment'>,
   t: (key: string) => string
 ): string[] {
   const parts = [t(`school.settings.sports.${court.sport}`)]
   if (court.surface) parts.push(t(`courts.surfaces.${court.surface}`))
   parts.push(t(`courts.environments.${court.environment}`))
-  if (court.zone) parts.push(court.zone)
   return parts
+}
+
+// A facility zone, client-side. CourtZoneDto carries no Date fields, so the view
+// shape is identical — aliased for symmetry with CourtView.
+export type CourtZoneView = CourtZoneDto
+
+// Sentinel for the "no zone" select option. USelectMenu (Reka) reserves the
+// empty-string value for clearing the selection and throws on an item that uses
+// '', so the picker uses this token and the form maps it back to null on submit
+// (mirrors NO_COACH_VALUE).
+export const NO_ZONE_VALUE = '__none__'
+
+const COURT_ZONE_ERROR_KEYS: Record<CourtZoneErrorCode, string> = {
+  nameRequired: 'courts.zones.form.errors.nameRequired',
+  tooLong: 'courts.zones.form.errors.tooLong'
+}
+
+// The manage-zones editor binds this to `UForm :schema` — the same shared schema
+// the server validates against. Rebuilt per-locale (call inside a computed).
+export function courtZoneFormSchema(t: (key: string) => string) {
+  return courtZoneSchema(code => t(COURT_ZONE_ERROR_KEYS[code]))
 }

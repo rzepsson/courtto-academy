@@ -117,6 +117,17 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
           {{ metaParts.join(' · ') }}
         </span>
       </div>
+
+      <UButton
+        v-if="to"
+        :to="to"
+        color="neutral"
+        variant="subtle"
+        size="xs"
+        trailing-icon="i-lucide-arrow-right"
+        :label="t('courts.details')"
+        class="mt-1 self-start"
+      />
     </div>
   </div>
 </template>

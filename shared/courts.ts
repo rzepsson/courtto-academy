@@ -189,7 +189,7 @@ export const DEFAULT_LINE_COLOR = '#ffffff'
 export const COURT_LIMITS = {
   name: 60,
   notes: 500,
-  zone: 60
+  zoneName: 60
 } as const
 
 export function isCourtSport(value: string): value is Sport {

@@ -54,6 +54,7 @@ export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect
 export type OrgProfileInput = Omit<OrgProfile, 'organizationId' | 'createdAt' | 'updatedAt'>
 
 export type Court = typeof import('./app-schema').court.$inferSelect
+export type CourtZone = typeof import('./app-schema').courtZone.$inferSelect
 
 // The writable subset of a court — everything an admin sets in the builder.
 // Both the normalized PATCH/POST body and the service `set` are typed against
@@ -66,7 +67,7 @@ export interface CourtWritable {
   environment: string
   surfaceColor: string
   lineColor: string
-  zone: string | null
+  zoneId: string | null
   bookable: boolean
   notes: string | null
 }
@@ -78,6 +79,32 @@ export interface CourtDto extends CourtWritable {
   sortOrder: number
   archivedAt: Date | null
   createdAt: Date
+}
+
+// A facility zone (area/hall) — the client-facing shape (org id + audit columns
+// dropped, like CourtDto). `courtCount` is folded in by the list query.
+export interface CourtZoneDto {
+  id: string
+  name: string
+  sortOrder: number
+  courtCount: number
+}
+
+// A court's utilization over [from, to) — computed from the CORE reservation
+// primitive (product-neutral; a future Courtto `booking` counts as usage). Wraps
+// the pure UtilizationStats with the window + zone it was computed against.
+export interface CourtUtilizationDto {
+  from: Date
+  to: Date
+  timezone: string
+  operating: { open: number, close: number }
+  usageMinutes: number
+  downtimeMinutes: number
+  usageCount: number
+  dayCount: number
+  utilizationPct: number
+  heatmap: number[]
+  peakBucket: { weekday: number, hour: number, minutes: number } | null
 }
 
 export type NotificationRow = typeof import('./app-schema').notification.$inferSelect

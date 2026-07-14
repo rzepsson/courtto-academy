@@ -98,6 +98,43 @@ export const orgProfileRelations = relations(orgProfile, ({ one }) => ({
   })
 }))
 
+// A named grouping of courts within a facility ("Hall A", "Outdoor"). App-owned,
+// facility-core and first-class (not a free-text column): the roster sections by
+// it and a future marketplace can surface areas. A court references at most one
+// zone; deleting a zone UNGROUPS its courts (FK set null on court.zoneId) rather
+// than removing them.
+export const courtZone = pgTable(
+  'court_zone',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    // Display order within the facility (drag-reorder); assigned max+1 on create.
+    sortOrder: integer('sort_order').default(0).notNull(),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [
+    index('court_zone_org_sort_idx').on(table.organizationId, table.sortOrder),
+    // No two zones share a (case-insensitive) name within a facility.
+    uniqueIndex('court_zone_org_name_uidx').on(table.organizationId, sql`lower(${table.name})`)
+  ]
+)
+
+export const courtZoneRelations = relations(courtZone, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [courtZone.organizationId],
+    references: [organization.id]
+  }),
+  courts: many(court)
+}))
+
 // A single court (or table) belonging to a facility. App-owned — facility-core,
 // NOT Academy: the future Courtto marketplace books these exact rows, so nothing
 // here references lessons/coaches/students. `archivedAt` is the lifecycle axis
@@ -127,9 +164,9 @@ export const court = pgTable(
     lineColor: text('line_color').default('#ffffff').notNull(),
     // Display order within the facility (drag-reorder); assigned max+1 on create.
     sortOrder: integer('sort_order').default(0).notNull(),
-    // Lightweight intra-facility grouping ("Hala A") without a separate table; a
-    // formal courtZone table is a clean future extension if needed.
-    zone: text('zone'),
+    // The zone (area/hall) this court belongs to, or null when ungrouped. FK set
+    // null on zone delete, so removing a zone ungroups its courts (see courtZone).
+    zoneId: text('zone_id').references(() => courtZone.id, { onDelete: 'set null' }),
     // Seam for the future Courtto marketplace — whether this court may be exposed
     // publicly for booking. Unused by Academy today.
     bookable: boolean('bookable').default(false).notNull(),
@@ -159,6 +196,10 @@ export const courtRelations = relations(court, ({ one }) => ({
   organization: one(organization, {
     fields: [court.organizationId],
     references: [organization.id]
+  }),
+  zone: one(courtZone, {
+    fields: [court.zoneId],
+    references: [courtZone.id]
   })
 }))
 

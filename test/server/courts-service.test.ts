@@ -9,6 +9,7 @@ import {
   restoreCourt,
   updateCourt
 } from '../../server/utils/services/courts'
+import { createZone } from '../../server/utils/services/courtZones'
 import { upsertOrgProfile } from '../../server/utils/services/orgProfile'
 import { createOrg, hasTestDb, resetDb, signUp } from './helpers'
 import type { SeededUser } from './helpers'
@@ -102,11 +103,29 @@ describe.skipIf(!hasTestDb)('courts service', () => {
     )
     expect(created.surface).toBe('clay')
 
-    const updated = await updateCourt(orgId, created.id, { sport: 'padel', zone: 'Hall B' })
+    const updated = await updateCourt(orgId, created.id, { sport: 'padel', environment: 'outdoor' })
     expect(updated?.sport).toBe('padel')
-    expect(updated?.zone).toBe('Hall B')
+    expect(updated?.environment).toBe('outdoor')
     // 'clay' isn't a padel surface, so it must be cleared rather than persisted invalid.
     expect(updated?.surface).toBeNull()
+  })
+
+  it('assigns a court to a zone and rejects a foreign / unknown zone id', async () => {
+    const { owner, orgId } = await seedFacility()
+    const otherFacility = await seedFacility()
+    const zone = await createZone(orgId, { name: 'Hall A' }, owner.userId)
+    const foreignZone = await createZone(otherFacility.orgId, { name: 'Hall X' }, otherFacility.owner.userId)
+
+    const created = await createCourt(orgId, { name: 'Court 1', sport: 'tennis', zoneId: zone.id }, owner.userId)
+    expect(created.zoneId).toBe(zone.id)
+
+    // A zone from another facility is not valid here.
+    await expect(createCourt(orgId, { name: 'Court 2', sport: 'tennis', zoneId: foreignZone.id }, owner.userId))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'COURT_ZONE_NOT_FOUND' } })
+
+    // Clearing the zone (null) is allowed.
+    const cleared = await updateCourt(orgId, created.id, { zoneId: null })
+    expect(cleared?.zoneId).toBeNull()
   })
 
   it('archives (freeing the name), then restores', async () => {

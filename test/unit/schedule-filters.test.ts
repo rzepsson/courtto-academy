@@ -28,6 +28,7 @@ describe('isScheduleFilterActive', () => {
   it('is false for the empty filter and true once any constraint is set', () => {
     expect(isScheduleFilterActive(EMPTY_SCHEDULE_FILTERS)).toBe(false)
     expect(isScheduleFilterActive(filters({ coachMemberIds: ['c1'] }))).toBe(true)
+    expect(isScheduleFilterActive(filters({ zoneIds: ['z1'] }))).toBe(true)
     expect(isScheduleFilterActive(filters({ status: 'active' }))).toBe(true)
   })
 })
@@ -48,6 +49,16 @@ describe('sessionMatchesFilters', () => {
     expect(sessionMatchesFilters(session({ courtId: 'a' }), filters({ courtIds: ['a', 'b'] }))).toBe(true)
     expect(sessionMatchesFilters(session({ courtId: 'z' }), filters({ courtIds: ['a', 'b'] }))).toBe(false)
     expect(sessionMatchesFilters(session({ courtId: null }), filters({ courtIds: ['a'] }))).toBe(false)
+  })
+
+  it('filters by zone via a court→zone map; a court with no zone never matches', () => {
+    const zoneByCourt = new Map<string, string | null>([['a', 'z1'], ['b', 'z2'], ['c', null]])
+    expect(sessionMatchesFilters(session({ courtId: 'a' }), filters({ zoneIds: ['z1'] }), zoneByCourt)).toBe(true)
+    expect(sessionMatchesFilters(session({ courtId: 'b' }), filters({ zoneIds: ['z1'] }), zoneByCourt)).toBe(false)
+    expect(sessionMatchesFilters(session({ courtId: 'c' }), filters({ zoneIds: ['z1'] }), zoneByCourt)).toBe(false)
+    expect(sessionMatchesFilters(session({ courtId: null }), filters({ zoneIds: ['z1'] }), zoneByCourt)).toBe(false)
+    // No zone constraint → matches regardless of the map.
+    expect(sessionMatchesFilters(session({ courtId: 'b' }), filters({ zoneIds: [] }), zoneByCourt)).toBe(true)
   })
 
   it('filters by sport and type', () => {

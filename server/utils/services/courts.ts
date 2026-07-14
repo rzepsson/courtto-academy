@@ -8,6 +8,7 @@ import { DEFAULT_SURFACE_COLOR, isCourtSport, isValidSurfaceFor } from '../../..
 import { courtCreateSchema, courtPatchSchema } from '../../../shared/courts-schema'
 import { pgErrorCode } from '../pgError'
 import { getOrgProfile } from './orgProfile'
+import { zoneBelongsToOrg } from './courtZones'
 
 // Court is app-owned (facility core), so this service writes it with Drizzle
 // directly (rule 4 is scoped to Better-Auth tables). Every query is scoped by
@@ -29,7 +30,7 @@ const COURT_COLUMNS = {
   environment: court.environment,
   surfaceColor: court.surfaceColor,
   lineColor: court.lineColor,
-  zone: court.zone,
+  zoneId: court.zoneId,
   bookable: court.bookable,
   notes: court.notes,
   sortOrder: court.sortOrder,
@@ -69,6 +70,15 @@ async function requireOfferedSport(organizationId: string, sport: string): Promi
     bad('Sport not offered by this facility', 'COURT_SPORT_NOT_OFFERED')
   }
   return sport
+}
+
+// A court's zone (when set) must be one of this facility's zones. Defense in
+// depth: the builder only offers the facility's zones. Null/undefined = ungrouped.
+async function requireZone(organizationId: string, zoneId: string | null | undefined): Promise<void> {
+  if (!zoneId) return
+  if (!(await zoneBelongsToOrg(organizationId, zoneId))) {
+    bad('Zone not found', 'COURT_ZONE_NOT_FOUND')
+  }
 }
 
 export async function listCourts(
@@ -113,6 +123,7 @@ export async function createCourt(
   if (values.surface && !isValidSurfaceFor(sport, values.surface)) {
     bad('Invalid surface for this sport')
   }
+  await requireZone(organizationId, values.zoneId)
 
   // Append to the end of the active roster.
   const [agg] = await db
@@ -134,7 +145,7 @@ export async function createCourt(
         surfaceColor: values.surfaceColor ?? DEFAULT_SURFACE_COLOR[sport],
         lineColor: values.lineColor ?? '#ffffff',
         sortOrder: nextSort,
-        zone: values.zone ?? null,
+        zoneId: values.zoneId ?? null,
         notes: values.notes ?? null,
         createdBy: userId
       })
@@ -174,6 +185,7 @@ export async function updateCourt(
   if (values.surface && !isValidSurfaceFor(sport, values.surface)) {
     bad('Invalid surface for this sport')
   }
+  if (values.zoneId !== undefined) await requireZone(organizationId, values.zoneId)
 
   // Assemble only the keys actually present in the body.
   const set: Partial<typeof court.$inferInsert> = {}
@@ -182,7 +194,7 @@ export async function updateCourt(
   if (values.surfaceColor !== undefined) set.surfaceColor = values.surfaceColor
   if (values.lineColor !== undefined) set.lineColor = values.lineColor
   if (values.surface !== undefined) set.surface = values.surface
-  if (values.zone !== undefined) set.zone = values.zone
+  if (values.zoneId !== undefined) set.zoneId = values.zoneId
   if (values.notes !== undefined) set.notes = values.notes
 
   if (sportChanged && sport !== existing.sport) {

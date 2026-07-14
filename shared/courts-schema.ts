@@ -67,7 +67,15 @@ export function courtSchema(msg: CourtMessageResolver) {
     environment: z.string().refine(isCourtEnvironment, msg('environment')).optional(),
     surfaceColor: color(msg).optional(),
     lineColor: color(msg).optional(),
-    zone: optionalText(COURT_LIMITS.zone, msg),
+    // A reference to one of the facility's zones (or null = ungrouped). Shape only
+    // here (an id string); that it belongs to this org is checked in the service.
+    zoneId: z
+      .string()
+      .trim()
+      .max(64, msg('tooLong'))
+      .transform(value => (value === '' ? null : value))
+      .nullable()
+      .optional(),
     notes: optionalText(COURT_LIMITS.notes, msg)
   })
 }

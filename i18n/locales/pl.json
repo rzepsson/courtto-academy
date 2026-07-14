@@ -84,7 +84,10 @@
       "COURT_BLOCK_COURT_NOT_FOUND": "Ten kort już nie istnieje.",
       "COURT_BLOCK_INVALID": "Sprawdź szczegóły blokady.",
       "COURT_BLOCK_RANGE": "Blokada musi kończyć się po jej rozpoczęciu.",
-      "COURT_BLOCK_CONFLICT": "Ten kort ma już zajęcia lub blokadę w tym oknie czasowym."
+      "COURT_BLOCK_CONFLICT": "Ten kort ma już zajęcia lub blokadę w tym oknie czasowym.",
+      "INVALID_ZONE": "Sprawdź dane strefy.",
+      "COURT_ZONE_NAME_TAKEN": "Strefa o tej nazwie już istnieje.",
+      "COURT_ZONE_NOT_FOUND": "Ta strefa już nie istnieje."
     }
   },
   "common": {
@@ -189,10 +192,16 @@
       "deleteFailed": "Nie udało się usunąć kortu",
       "reorderFailed": "Nie udało się zapisać nowej kolejności"
     },
+    "details": "Szczegóły",
     "detail": {
       "title": "Kort",
       "back": "Wróć do kortów",
       "added": "Dodano {date}",
+      "tabs": {
+        "overview": "Przegląd",
+        "schedule": "Grafik",
+        "utilization": "Wykorzystanie"
+      },
       "notFound": {
         "title": "Nie znaleziono kortu",
         "description": "Ten kort nie istnieje lub należy do innej placówki.",
@@ -203,6 +212,47 @@
         "add": "Dodaj",
         "empty": "Brak nadchodzących zamknięć tego kortu."
       }
+    },
+    "zones": {
+      "manage": "Strefy",
+      "title": "Strefy",
+      "subtitle": "Grupuj korty w obszary lub hale. Przeciągnij, by zmienić kolejność; usunięcie strefy tylko rozgrupowuje jej korty.",
+      "newLabel": "Nowa strefa",
+      "namePlaceholder": "np. Hala A",
+      "add": "Dodaj",
+      "empty": "Brak stref. Dodaj pierwszą powyżej, aby zacząć grupować korty.",
+      "ungrouped": "Bez strefy",
+      "courtCount": "{n} kortów",
+      "delete": "Usuń strefę",
+      "deleted": "Strefa usunięta",
+      "deleteConfirm": {
+        "title": "Usuń strefę",
+        "description": "Usunąć „{name}\"? Korty zostaną — po prostu przestaną być pogrupowane."
+      },
+      "form": {
+        "errors": {
+          "nameRequired": "Podaj nazwę strefy",
+          "tooLong": "Zbyt długa wartość"
+        }
+      },
+      "errors": {
+        "createFailed": "Nie udało się utworzyć strefy",
+        "renameFailed": "Nie udało się zmienić nazwy strefy",
+        "reorderFailed": "Nie udało się zapisać nowej kolejności",
+        "deleteFailed": "Nie udało się usunąć strefy"
+      }
+    },
+    "utilization": {
+      "title": "Wykorzystanie",
+      "daysShort": "{n} dni",
+      "occupancy": "Obłożenie · {window}",
+      "lessonHours": "Godziny zajęć",
+      "sessions": "Zajęcia",
+      "downtime": "Serwis",
+      "empty": "Brak aktywności w tym okresie.",
+      "peak": "Najwięcej: {when}",
+      "less": "Mniej",
+      "more": "Więcej"
     },
     "form": {
       "createTitle": "Dodaj {unit}",
@@ -219,8 +269,8 @@
       "lineColor": "Kolor linii",
       "customColor": "Kolor własny",
       "zone": "Strefa",
-      "zoneHelp": "Opcjonalne grupowanie, np. hala lub obszar.",
-      "zonePlaceholder": "np. Hala A",
+      "zoneHelp": "Przypisz kort do obszaru lub hali. Strefami zarządzasz z listy kortów.",
+      "zoneNone": "Bez strefy",
       "notes": "Notatki",
       "notesPlaceholder": "Notatki wewnętrzne (opcjonalnie)",
       "create": "Utwórz {unit}",
@@ -302,6 +352,7 @@
     "filters": {
       "allCoaches": "Wszyscy trenerzy",
       "allCourts": "Wszystkie korty",
+      "allZones": "Wszystkie strefy",
       "allSports": "Wszystkie sporty",
       "allTypes": "Wszystkie typy",
       "clear": "Wyczyść",

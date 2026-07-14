@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
 import type { DropdownMenuItem } from '@nuxt/ui'
-import type { CourtView } from '~/utils/courts'
+import type { CourtView, CourtZoneView } from '~/utils/courts'
 import type { ScheduleSessionView, CourtBlockView } from '~/utils/schedule'
 
 // Per-court cockpit: overview + this court's schedule + its maintenance windows.
@@ -46,6 +46,11 @@ const students = computed(() =>
 const { data: courtsData } = await useLazyFetch('/api/school/courts', { key: 'school:courts' })
 const activeCourts = computed<CourtView[]>(() => (courtsData.value?.courts ?? []).filter(c => c.archivedAt === null))
 
+// Zones feed the edit form's grouping picker + resolve this court's zone name.
+const { data: zonesData } = await useLazyFetch('/api/school/zones', { key: 'school:zones' })
+const zones = computed<CourtZoneView[]>(() => zonesData.value?.zones ?? [])
+const zoneName = computed(() => zones.value.find(z => z.id === court.value?.zoneId)?.name ?? null)
+
 // This court's calendar window (day/week), server-filtered to the court.
 const view = ref<ScheduleView>('day')
 const anchorISO = ref(new Date().toISOString())
@@ -77,6 +82,17 @@ const unitLabel = computed(() => (court.value ? courtUnitLabel(court.value.sport
 const addedOn = computed(() =>
   court.value ? DateTime.fromISO(court.value.createdAt, { zone: timezone.value }).setLocale(locale.value).toFormat('d LLLL yyyy') : ''
 )
+
+// Cockpit tabs: a first-class view each (no long scroll). All panels stay mounted
+// (v-show), so the calendar's view/anchor state survives switching and nothing
+// refetches on tab change.
+type CockpitTab = 'overview' | 'schedule' | 'utilization'
+const activeTab = ref<CockpitTab>('overview')
+const tabs: { key: CockpitTab, label: string, icon: string }[] = [
+  { key: 'overview', label: 'courts.detail.tabs.overview', icon: 'i-lucide-info' },
+  { key: 'schedule', label: 'courts.detail.tabs.schedule', icon: 'i-lucide-calendar-days' },
+  { key: 'utilization', label: 'courts.detail.tabs.utilization', icon: 'i-lucide-bar-chart-3' }
+]
 
 async function refreshBlockViews() {
   await Promise.all([refreshSchedule(), refreshBlocks()])
@@ -255,10 +271,33 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
 
       <div
         v-else-if="court"
-        class="grid grid-cols-1 gap-6 lg:grid-cols-3"
+        class="flex flex-col gap-5"
       >
-        <!-- Left column: overview + maintenance -->
-        <div class="flex flex-col gap-6 lg:col-span-1">
+        <!-- Tabs -->
+        <MotionReveal>
+          <div class="flex gap-1 overflow-x-auto border-b border-default">
+            <button
+              v-for="tab in tabs"
+              :key="tab.key"
+              type="button"
+              class="-mb-px flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:text-primary"
+              :class="activeTab === tab.key ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-default'"
+              @click="activeTab = tab.key"
+            >
+              <UIcon
+                :name="tab.icon"
+                class="size-4"
+              />
+              {{ t(tab.label) }}
+            </button>
+          </div>
+        </MotionReveal>
+
+        <!-- Overview tab -->
+        <div
+          v-show="activeTab === 'overview'"
+          class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2"
+        >
           <MotionReveal>
             <div
               class="overflow-hidden rounded-xl bg-default ring-1 ring-default"
@@ -286,6 +325,14 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
                     color="neutral"
                     variant="subtle"
                     size="sm"
+                  />
+                  <UBadge
+                    v-if="zoneName"
+                    :label="zoneName"
+                    color="neutral"
+                    variant="subtle"
+                    size="sm"
+                    icon="i-lucide-layout-grid"
                   />
                 </div>
                 <p class="text-sm text-muted">
@@ -372,17 +419,18 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
           </MotionReveal>
         </div>
 
-        <!-- Right column: this court's schedule -->
-        <div class="flex flex-col gap-3 lg:col-span-2">
-          <MotionReveal :delay="0.1">
-            <ScheduleToolbar
-              v-model:view="view"
-              v-model:anchor-at="anchorISO"
-              :timezone="timezone"
-            />
-          </MotionReveal>
+        <!-- Schedule tab -->
+        <div
+          v-show="activeTab === 'schedule'"
+          class="flex flex-col gap-3"
+        >
+          <ScheduleToolbar
+            v-model:view="view"
+            v-model:anchor-at="anchorISO"
+            :timezone="timezone"
+          />
 
-          <MotionReveal :delay="0.15">
+          <div>
             <ScheduleAgenda
               v-if="view === 'agenda'"
               :sessions="sessions"
@@ -408,7 +456,15 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
               @create="openCreate"
               @move="onMove"
             />
-          </MotionReveal>
+          </div>
+        </div>
+
+        <!-- Utilization tab -->
+        <div v-show="activeTab === 'utilization'">
+          <SchoolCourtsUtilizationPanel
+            :court-id="courtId"
+            :timezone="timezone"
+          />
         </div>
       </div>
 
@@ -417,6 +473,7 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
         v-model:open="editOpen"
         :court="court"
         :allowed-sports="allowedSports"
+        :zones="zones"
         @saved="refreshCourt()"
       />
 

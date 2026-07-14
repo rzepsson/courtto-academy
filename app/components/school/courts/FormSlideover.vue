@@ -11,6 +11,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   court: CourtView | null
   allowedSports: string[]
+  // The facility's zones — the discipline's grouping picker. Empty = no zones yet.
+  zones?: CourtZoneView[]
 }>()
 
 const emit = defineEmits<{ saved: [] }>()
@@ -30,7 +32,7 @@ const unitLower = computed(() => unitLabel.value.toLocaleLowerCase(locale.value)
 
 const state = reactive<CourtFormState>({
   name: '', sport: 'tennis', surface: '', environment: 'indoor',
-  surfaceColor: '#2f6db5', lineColor: DEFAULT_LINE_COLOR, zone: '', notes: ''
+  surfaceColor: '#2f6db5', lineColor: DEFAULT_LINE_COLOR, zoneId: NO_ZONE_VALUE, notes: ''
 })
 const saving = ref(false)
 
@@ -43,7 +45,7 @@ function initForm() {
   state.environment = c?.environment ?? 'indoor'
   state.surfaceColor = c?.surfaceColor ?? DEFAULT_SURFACE_COLOR[sport as Sport] ?? '#2f6db5'
   state.lineColor = c?.lineColor ?? DEFAULT_LINE_COLOR
-  state.zone = c?.zone ?? ''
+  state.zoneId = c?.zoneId ?? NO_ZONE_VALUE
   state.notes = c?.notes ?? ''
 }
 
@@ -68,6 +70,13 @@ const surfaceOptions = computed(() => courtSurfaceOptions(state.sport, t))
 const showSurface = computed(() => surfaceOptions.value.length > 0)
 const environmentOptions = computed(() => courtEnvironmentOptions(t))
 
+// "No zone" sentinel first, then the facility's zones. The sentinel maps back to
+// null on submit (an empty-string item value breaks USelectMenu — see NO_ZONE_VALUE).
+const zoneOptions = computed(() => [
+  { value: NO_ZONE_VALUE, label: t('courts.form.zoneNone') },
+  ...(props.zones ?? []).map(z => ({ value: z.id, label: z.name }))
+])
+
 const lineColorPresets = ['#ffffff', '#0f172a', '#facc15']
 
 // The same shared Zod schema the server validates against (rebuilt per-locale).
@@ -82,7 +91,7 @@ async function onSubmit() {
     environment: state.environment,
     surfaceColor: state.surfaceColor,
     lineColor: state.lineColor,
-    zone: state.zone.trim(),
+    zoneId: state.zoneId === NO_ZONE_VALUE ? null : state.zoneId,
     notes: state.notes.trim()
   }
   // Only send surface for disciplines that have one; otherwise leave it null.
@@ -269,14 +278,17 @@ async function onSubmit() {
 
           <UFormField
             :label="t('courts.form.zone')"
-            name="zone"
+            name="zoneId"
             :help="t('courts.form.zoneHelp')"
           >
-            <UInput
-              v-model="state.zone"
+            <USelectMenu
+              v-model="state.zoneId"
+              value-key="value"
+              :items="zoneOptions"
+              :search-input="{ placeholder: t('common.search') }"
+              icon="i-lucide-layout-grid"
               size="lg"
               class="w-full"
-              :placeholder="t('courts.form.zonePlaceholder')"
             />
           </UFormField>
 

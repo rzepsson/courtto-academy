@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CourtView } from '~/utils/courts'
+import type { CourtView, CourtZoneView } from '~/utils/courts'
 
 // The calendar filter bar. Each picker is an "empty = all" multi-select; the
 // status control is a single-select. Purely client-side: the page applies the
@@ -9,11 +9,13 @@ import type { CourtView } from '~/utils/courts'
 const props = defineProps<{
   coaches: { id: string, name: string }[]
   courts: CourtView[]
+  zones: CourtZoneView[]
   sports: string[]
 }>()
 
 const coachMemberIds = defineModel<string[]>('coachMemberIds', { default: () => [] })
 const courtIds = defineModel<string[]>('courtIds', { default: () => [] })
+const zoneIds = defineModel<string[]>('zoneIds', { default: () => [] })
 const selectedSports = defineModel<string[]>('selectedSports', { default: () => [] })
 const types = defineModel<string[]>('types', { default: () => [] })
 const status = defineModel<'all' | 'active' | 'cancelled'>('status', { default: 'all' })
@@ -25,6 +27,7 @@ const coachItems = computed(() => [
   ...props.coaches.map(c => ({ value: c.id, label: c.name }))
 ])
 const courtItems = computed(() => props.courts.map(c => ({ value: c.id, label: c.name })))
+const zoneItems = computed(() => props.zones.map(z => ({ value: z.id, label: z.name })))
 const sportItems = computed(() =>
   props.sports.filter(isCourtSport).map(s => ({ value: s as string, label: t(`school.settings.sports.${s}`) }))
 )
@@ -38,6 +41,7 @@ const statusItems = computed(() => [
 const active = computed(() => isScheduleFilterActive({
   coachMemberIds: coachMemberIds.value,
   courtIds: courtIds.value,
+  zoneIds: zoneIds.value,
   sports: selectedSports.value,
   types: types.value,
   status: status.value
@@ -46,6 +50,7 @@ const active = computed(() => isScheduleFilterActive({
 function clear() {
   coachMemberIds.value = []
   courtIds.value = []
+  zoneIds.value = []
   selectedSports.value = []
   types.value = []
   status.value = 'all'
@@ -85,6 +90,20 @@ function clear() {
       variant="subtle"
       size="sm"
       class="min-w-40"
+    />
+
+    <USelectMenu
+      v-if="zoneItems.length"
+      v-model="zoneIds"
+      multiple
+      value-key="value"
+      :items="zoneItems"
+      icon="i-lucide-layout-grid"
+      :placeholder="t('schedule.filters.allZones')"
+      :search-input="{ placeholder: t('common.search') }"
+      variant="subtle"
+      size="sm"
+      class="min-w-36"
     />
 
     <USelectMenu

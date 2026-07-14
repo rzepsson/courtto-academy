@@ -138,9 +138,12 @@ export type ScheduleView = 'day' | 'week' | 'agenda'
 // The calendar's client-side filter model. Each list is "empty = no constraint"
 // (match all); a non-empty list keeps only sessions matching one of its values.
 // `coachMemberIds` may include NO_COACH_VALUE to match unassigned sessions.
+// `zoneIds` filters by the session's COURT's zone (resolved via a court→zone map,
+// since the zone lives on the court, not the session).
 export interface ScheduleFilterState {
   coachMemberIds: string[]
   courtIds: string[]
+  zoneIds: string[]
   sports: string[]
   types: string[]
   status: 'all' | 'active' | 'cancelled'
@@ -149,6 +152,7 @@ export interface ScheduleFilterState {
 export const EMPTY_SCHEDULE_FILTERS: ScheduleFilterState = {
   coachMemberIds: [],
   courtIds: [],
+  zoneIds: [],
   sports: [],
   types: [],
   status: 'all'
@@ -158,17 +162,36 @@ export const EMPTY_SCHEDULE_FILTERS: ScheduleFilterState = {
 export function isScheduleFilterActive(f: ScheduleFilterState): boolean {
   return f.coachMemberIds.length > 0
     || f.courtIds.length > 0
+    || f.zoneIds.length > 0
     || f.sports.length > 0
     || f.types.length > 0
     || f.status !== 'all'
 }
 
-export function sessionMatchesFilters(session: ScheduleSessionView, f: ScheduleFilterState): boolean {
+// Whether a court belongs to one of the selected zones (empty = no constraint).
+// Shared by session, block and column filtering so the zone rule lives in one
+// place. A court with no zone never matches a zone constraint.
+export function courtMatchesZones(
+  courtId: string | null,
+  zoneIds: string[],
+  zoneByCourtId?: ReadonlyMap<string, string | null>
+): boolean {
+  if (!zoneIds.length) return true
+  const zoneId = courtId ? zoneByCourtId?.get(courtId) ?? null : null
+  return zoneId !== null && zoneIds.includes(zoneId)
+}
+
+export function sessionMatchesFilters(
+  session: ScheduleSessionView,
+  f: ScheduleFilterState,
+  zoneByCourtId?: ReadonlyMap<string, string | null>
+): boolean {
   if (f.coachMemberIds.length) {
     const key = session.coachMemberId ?? NO_COACH_VALUE
     if (!f.coachMemberIds.includes(key)) return false
   }
   if (f.courtIds.length && (session.courtId === null || !f.courtIds.includes(session.courtId))) return false
+  if (!courtMatchesZones(session.courtId, f.zoneIds, zoneByCourtId)) return false
   if (f.sports.length && !f.sports.includes(session.sport)) return false
   if (f.types.length && !f.types.includes(session.type)) return false
   if (f.status === 'active' && session.status === 'cancelled') return false
