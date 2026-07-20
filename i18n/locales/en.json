@@ -63,7 +63,8 @@
       "SCHEDULE_COURT_NOT_FOUND": "The selected court no longer exists.",
       "SCHEDULE_COURT_SPORT_MISMATCH": "This court isn't set up for the lesson's sport.",
       "SCHEDULE_COACH_NOT_FOUND": "The selected coach is no longer a member of this school.",
-      "SCHEDULE_COACH_INVALID_ROLE": "A student can't be assigned as the coach.",
+      "SCHEDULE_COACH_INVALID_ROLE": "This person isn't set up to coach. Turn on \"Can be assigned as a coach\" on their member profile first.",
+      "SCHEDULE_COACH_INACTIVE": "That coach's access is paused, so they can't be assigned.",
       "SCHEDULE_CAPACITY_RANGE": "The minimum capacity can't exceed the maximum.",
       "SCHEDULE_NO_OCCURRENCES": "This recurrence produces no sessions in range. Check the start date and repeat rule.",
       "SCHEDULE_COURT_CONFLICT": "That court is already booked for part of this time.",
@@ -87,8 +88,66 @@
       "COURT_BLOCK_CONFLICT": "This court already has a lesson or block in that window.",
       "INVALID_ZONE": "Please check the zone details.",
       "COURT_ZONE_NAME_TAKEN": "A zone with that name already exists.",
-      "COURT_ZONE_NOT_FOUND": "That zone no longer exists."
+      "COURT_ZONE_NOT_FOUND": "That zone no longer exists.",
+      "INVALID_MEMBER_PROFILE": "Some member details are invalid. Please review the form.",
+      "MEMBER_NOT_FOUND": "That member is no longer part of this school.",
+      "MEMBER_OWNER_STATUS": "The owner's access can't be suspended or archived.",
+      "INVALID_ROLE": "Please choose a valid role.",
+      "MEMBER_OWNER_ROLE": "The owner's role can't be changed.",
+      "MEMBER_OWNER_REMOVE": "The owner can't be removed from the school.",
+      "MEMBER_SELF_ACTION": "You can't do that to your own membership.",
+      "MEMBERSHIP_INACTIVE": "Your access to this school is paused.",
+      "MEMBER_OWNER_ONLY": "Only the school's owner can transfer ownership.",
+      "MEMBER_ALREADY_OWNER": "That member already owns this school.",
+      "MEMBER_OWNER_INACTIVE": "The new owner must be an active member.",
+      "MEMBER_OWNER_DEMOTE_FAILED": "Ownership was transferred, but we couldn't change your role to admin. Ask the new owner to update it.",
+      "INVALID_GUARDIAN": "Some guardian details are invalid. Please review the form.",
+      "GUARDIAN_NOT_FOUND": "That guardian contact no longer exists.",
+      "GUARDIAN_LIMIT_REACHED": "This member already has the maximum number of guardians.",
+      "GUARDIAN_UNREACHABLE": "A guardian needs a phone or an email.",
+      "GUARDIAN_PRIMARY_REQUIRED": "Make another guardian the primary contact instead.",
+      "INVALID_CONSENT": "Some consent details are invalid. Please review the form.",
+      "CONSENT_TYPE_UNKNOWN": "Unknown consent type.",
+      "CONSENT_GUARDIAN_REQUIRED": "A minor's consent has to be given by their guardian.",
+      "CONSENT_GUARDIAN_INVALID": "That guardian isn't listed for this member."
     }
+  },
+  "audit": {
+    "title": "Activity log",
+    "subtitle": "Every governance change in your school — who did what, and when.",
+    "empty": {
+      "title": "No activity yet",
+      "description": "Role changes, suspensions and removals will show up here."
+    },
+    "none": "No activity yet.",
+    "by": "by {actor}",
+    "loadMore": "Load more",
+    "loadFailed": "Could not load more activity",
+    "actions": {
+      "member.role_changed": "Role set to {role}",
+      "member.suspended": "Membership suspended",
+      "member.archived": "Membership archived",
+      "member.reactivated": "Membership reactivated",
+      "member.coach_granted": "Marked as able to coach",
+      "member.coach_revoked": "Coaching capability removed",
+      "member.removed": "Removed from the school",
+      "member.ownership_transferred": "Made owner of the school",
+      "member.consent_granted": "Consent recorded",
+      "member.consent_withdrawn": "Consent withdrawn",
+      "unknown": "Membership updated"
+    }
+  },
+  "accessPaused": {
+    "suspended": {
+      "title": "Access paused",
+      "description": "Your access to {org} is paused. An administrator can restore it — reach out to your school if you think this is a mistake."
+    },
+    "archived": {
+      "title": "Membership ended",
+      "description": "Your membership at {org} is no longer active."
+    },
+    "switchTitle": "You're still active at",
+    "switch": "Go to {org}"
   },
   "common": {
     "language": "Language",
@@ -104,7 +163,8 @@
     "save": "Save changes",
     "discard": "Discard",
     "loading": "Loading…",
-    "search": "Search…"
+    "search": "Search…",
+    "clear": "Clear"
   },
   "nav": {
     "overview": "Overview",
@@ -112,6 +172,7 @@
     "members": "Members",
     "courts": "Courts",
     "payments": "Payments",
+    "activity": "Activity log",
     "settings": "Settings",
     "groups": "Groups",
     "lessons": "Lessons",
@@ -710,6 +771,203 @@
       "errors": {
         "updateFailed": "Could not update the role",
         "removeFailed": "Could not remove the member"
+      },
+      "consents": {
+        "title": "Consents",
+        "subtitle": "Recorded permissions. Absent consent means no — always.",
+        "grant": "Record consent",
+        "grantTitle": "Record consent",
+        "withdraw": "Withdraw",
+        "saved": "Consent recorded",
+        "withdrawn": "Consent withdrawn",
+        "givenBy": "Given by",
+        "givenByHint": "This member is a minor, so a guardian gives the consent.",
+        "noGuardian": "Add a guardian first — a minor's consent has to come from one.",
+        "documentVersion": "Document version",
+        "documentVersionHint": "Which version of the clause they agreed to (e.g. “Regulamin 2026-01”).",
+        "notes": "Notes",
+        "grantedMeta": "Given by {who} on {when}",
+        "grantedMetaNoName": "Given on {when}",
+        "withdrawnMeta": "Withdrawn on {when}",
+        "types": {
+          "image": "Image & likeness",
+          "marketing": "Marketing messages"
+        },
+        "purposes": {
+          "image": "Photos and video from lessons, used on the school's website and social media.",
+          "marketing": "Promotional messages about offers and events."
+        },
+        "states": {
+          "granted": "Granted",
+          "withdrawn": "Withdrawn",
+          "unknown": "Not asked"
+        },
+        "errors": {
+          "saveFailed": "Could not record the consent"
+        }
+      },
+      "guardians": {
+        "title": "Guardians",
+        "subtitle": "Who the school contacts about this member.",
+        "add": "Add guardian",
+        "addTitle": "Add guardian",
+        "editTitle": "Edit guardian",
+        "formHint": "A guardian needs a phone or an email — a contact you can't reach isn't one.",
+        "empty": "No guardian contacts yet.",
+        "primary": "Primary",
+        "makePrimary": "Make primary contact",
+        "remove": "Remove guardian",
+        "saved": "Guardian saved",
+        "minor": "Minor · {age}",
+        "gap": {
+          "title": "No one to call",
+          "description": "This member is a minor with no guardian on file. Add a contact for emergencies."
+        },
+        "relationships": {
+          "mother": "Mother",
+          "father": "Father",
+          "guardian": "Legal guardian",
+          "other": "Other"
+        },
+        "fields": {
+          "name": "Full name",
+          "relationship": "Relationship",
+          "phone": "Phone",
+          "email": "Email",
+          "notes": "Notes",
+          "isPrimary": "Primary contact",
+          "isPrimaryHint": "The first person the school calls."
+        },
+        "removeConfirm": {
+          "title": "Remove guardian",
+          "description": "{name} will no longer be listed as a contact for this member."
+        },
+        "errors": {
+          "required": "This is required.",
+          "tooLong": "This is too long.",
+          "relationship": "Choose a relationship.",
+          "phone": "Enter a valid phone number.",
+          "email": "Enter a valid email address.",
+          "unreachable": "Add a phone or an email — the school has to be able to reach them.",
+          "saveFailed": "Could not save the guardian",
+          "removeFailed": "Could not remove the guardian"
+        }
+      },
+      "academy": {
+        "title": "Academy",
+        "daysShort": "{n} d",
+        "sessions": "Sessions",
+        "sessionsCount": "{n} sessions",
+        "waitlisted": "Waitlisted",
+        "peak": "Busiest {when}",
+        "less": "Less",
+        "more": "More",
+        "empty": "No lessons in this period.",
+        "teaching": {
+          "hours": "Hours taught",
+          "groups": "Groups taught",
+          "groupsTitle": "Groups they teach"
+        },
+        "learning": {
+          "hours": "Hours trained",
+          "groups": "Groups",
+          "groupsTitle": "Groups they're in",
+          "attendance": "Attendance"
+        },
+        "none": {
+          "title": "Not part of lessons",
+          "description": "This member neither teaches nor trains. Turn on the coaching capability, or enrol them in a group from the schedule."
+        }
+      },
+      "directory": {
+        "searchPlaceholder": "Search name or email",
+        "segments": {
+          "all": "All",
+          "staff": "Staff",
+          "students": "Students"
+        },
+        "columns": {
+          "member": "Member",
+          "role": "Role",
+          "status": "Status",
+          "joined": "Joined"
+        },
+        "statusLabels": {
+          "active": "Active",
+          "suspended": "Suspended",
+          "archived": "Archived"
+        },
+        "statusFilter": "Status",
+        "export": "Export CSV",
+        "exportFailed": "Could not export members",
+        "showing": "Showing {from}–{to} of {total}",
+        "empty": {
+          "title": "No members match",
+          "description": "Try a different search or clear the filters."
+        }
+      },
+      "profile": {
+        "back": "Members",
+        "identity": {
+          "title": "Profile",
+          "joined": "Joined {date}"
+        },
+        "access": {
+          "title": "Access & lifecycle",
+          "roleLabel": "Role",
+          "changeRole": "Change role",
+          "capabilityTitle": "Coaching",
+          "canCoach": "Can be assigned as a coach",
+          "canCoachHint": "Lets this owner or admin be picked as a coach on lessons, without changing their role.",
+          "statusLabel": "Status",
+          "lifecycleTitle": "Lifecycle",
+          "suspend": "Suspend",
+          "reactivate": "Reactivate",
+          "archive": "Archive",
+          "restore": "Restore",
+          "suspendHint": "Revokes access but keeps the membership and all history.",
+          "archiveHint": "Marks them a former member — hidden from active rosters, history kept.",
+          "ownerProtected": "The owner's access can't be changed here.",
+          "selfHint": "You can't change your own access here.",
+          "transferOwnership": "Transfer ownership",
+          "transferred": "{name} now owns this school",
+          "transferConfirm": {
+            "title": "Transfer ownership?",
+            "description": "{name} becomes the owner and you become an admin. Only the new owner can transfer it back."
+          }
+        },
+        "details": {
+          "title": "Details",
+          "dobLabel": "Date of birth",
+          "dobHint": "Used to flag minors — never shown to the member.",
+          "notesLabel": "Internal notes",
+          "notesPlaceholder": "Staff-only notes about this member…",
+          "notesHint": "Only staff can see this — the member never does.",
+          "tagsLabel": "Tags",
+          "tagsPlaceholder": "Add a label, press Enter",
+          "save": "Save changes",
+          "saved": "Member updated"
+        },
+        "activity": {
+          "title": "Activity"
+        },
+        "tabs": {
+          "overview": "Overview",
+          "academy": "Academy"
+        },
+        "notFound": {
+          "title": "Member not found",
+          "description": "This member is no longer part of your school.",
+          "back": "Back to members"
+        },
+        "errors": {
+          "status": "Choose a valid status.",
+          "tooLong": "This is too long.",
+          "tags": "Too many tags.",
+          "date": "Enter a real date of birth, in the past.",
+          "saveFailed": "Could not save changes",
+          "transferFailed": "Could not transfer ownership"
+        }
       }
     },
     "invitations": {

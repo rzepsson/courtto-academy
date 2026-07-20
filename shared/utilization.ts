@@ -61,6 +61,73 @@ function addToHeatmap(heatmap: number[], startMs: number, endMs: number, timezon
   }
 }
 
+// One interval's minutes inside [from, to) — a lesson/block straddling the window
+// edge only contributes its in-range portion. 0 when it falls entirely outside.
+export function clampedMinutes(
+  interval: { startsAt: Date, endsAt: Date },
+  from: Date,
+  to: Date
+): number {
+  const startMs = Math.max(interval.startsAt.getTime(), from.getTime())
+  const endMs = Math.min(interval.endsAt.getTime(), to.getTime())
+  return endMs <= startMs ? 0 : (endMs - startMs) / MS_PER_MIN
+}
+
+function findPeak(heatmap: number[]): IntervalLoad['peakBucket'] {
+  let peak: IntervalLoad['peakBucket'] = null
+  for (let weekday = 0; weekday < WEEK; weekday++) {
+    for (let hour = 0; hour < DAY; hour++) {
+      const minutes = heatmap[bucketIndex(weekday, hour)]!
+      if (minutes > 0 && (!peak || minutes > peak.minutes)) {
+        peak = { weekday, hour, minutes }
+      }
+    }
+  }
+  return peak
+}
+
+export interface IntervalLoad {
+  // Total in-window minutes across the intervals.
+  minutes: number
+  // How many intervals touched the window.
+  count: number
+  // Weekday (Mon=0 … Sun=6) × hour (0…23) grid of minutes; flat, length 168.
+  heatmap: number[]
+  // The single busiest weekday×hour cell (drives the heatmap scale + a callout).
+  peakBucket: { weekday: number, hour: number, minutes: number } | null
+}
+
+// The bucketing engine: a set of time intervals → total minutes + a weekday×hour
+// grid, clamped to [from, to). Product-neutral time math with exactly one
+// implementation, shared by court utilization (occupancy) and per-person Academy
+// load (a coach's teaching hours, a student's training hours) — so both read the
+// same way and a DST/midnight fix lands once.
+export function computeIntervalLoad(
+  intervals: { startsAt: Date, endsAt: Date }[],
+  timezone: string,
+  from: Date,
+  to: Date
+): IntervalLoad {
+  const heatmap = new Array<number>(WEEK * DAY).fill(0)
+  let minutes = 0
+  let count = 0
+
+  for (const interval of intervals) {
+    const inWindow = clampedMinutes(interval, from, to)
+    if (inWindow <= 0) continue
+    minutes += inWindow
+    count += 1
+    addToHeatmap(
+      heatmap,
+      Math.max(interval.startsAt.getTime(), from.getTime()),
+      Math.min(interval.endsAt.getTime(), to.getTime()),
+      timezone
+    )
+  }
+
+  return { minutes, count, heatmap, peakBucket: findPeak(heatmap) }
+}
+
 export function computeUtilization(
   reservations: UtilizationReservation[],
   timezone: string,
@@ -68,52 +135,42 @@ export function computeUtilization(
   from: Date,
   to: Date
 ): UtilizationStats {
-  const heatmap = new Array<number>(WEEK * DAY).fill(0)
-  const fromMs = from.getTime()
-  const toMs = to.getTime()
-  let usageMinutes = 0
+  // Usage (demand) drives the heatmap + totals; downtime is counted but never
+  // bucketed — it isn't demand.
+  const usage = computeIntervalLoad(
+    reservations.filter(reservation => isUsageReservationKind(reservation.kind)),
+    timezone,
+    from,
+    to
+  )
+
   let downtimeMinutes = 0
-  let usageCount = 0
-
   for (const reservation of reservations) {
-    // Clamp to the reporting window so a lesson/block straddling the edge only
-    // contributes its in-range portion.
-    const startMs = Math.max(reservation.startsAt.getTime(), fromMs)
-    const endMs = Math.min(reservation.endsAt.getTime(), toMs)
-    if (endMs <= startMs) continue
-    const minutes = (endMs - startMs) / MS_PER_MIN
-
-    if (isUsageReservationKind(reservation.kind)) {
-      usageMinutes += minutes
-      usageCount += 1
-      addToHeatmap(heatmap, startMs, endMs, timezone)
-    } else {
-      downtimeMinutes += minutes
+    if (!isUsageReservationKind(reservation.kind)) {
+      downtimeMinutes += clampedMinutes(reservation, from, to)
     }
   }
 
-  const dayCount = Math.max(1, Math.ceil((toMs - fromMs) / MS_PER_DAY))
+  const dayCount = Math.max(1, Math.ceil((to.getTime() - from.getTime()) / MS_PER_DAY))
 
   // Utilization numerator: usage minutes inside the operating window only, so the
   // ratio can't exceed 100% (off-hours usage still shows in the heatmap + totals).
   let inWindowMinutes = 0
   for (let weekday = 0; weekday < WEEK; weekday++) {
     for (let hour = operating.open; hour < operating.close; hour++) {
-      inWindowMinutes += heatmap[bucketIndex(weekday, hour)]!
+      inWindowMinutes += usage.heatmap[bucketIndex(weekday, hour)]!
     }
   }
   const capacityMinutes = Math.max(0, operating.close - operating.open) * 60 * dayCount
   const utilizationPct = capacityMinutes > 0 ? Math.min(100, (inWindowMinutes / capacityMinutes) * 100) : 0
 
-  let peakBucket: UtilizationStats['peakBucket'] = null
-  for (let weekday = 0; weekday < WEEK; weekday++) {
-    for (let hour = 0; hour < DAY; hour++) {
-      const minutes = heatmap[bucketIndex(weekday, hour)]!
-      if (minutes > 0 && (!peakBucket || minutes > peakBucket.minutes)) {
-        peakBucket = { weekday, hour, minutes }
-      }
-    }
+  return {
+    usageMinutes: usage.minutes,
+    downtimeMinutes,
+    usageCount: usage.count,
+    dayCount,
+    utilizationPct,
+    heatmap: usage.heatmap,
+    peakBucket: usage.peakBucket
   }
-
-  return { usageMinutes, downtimeMinutes, usageCount, dayCount, utilizationPct, heatmap, peakBucket }
 }

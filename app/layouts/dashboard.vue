@@ -21,6 +21,7 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
         { label: t('nav.schedule'), icon: 'i-lucide-calendar-days', to: '/school/schedule' },
         soon(t('nav.payments'), 'i-lucide-credit-card')
       ], [
+        { label: t('nav.activity'), icon: 'i-lucide-history', to: '/school/audit' },
         { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/school/settings' }
       ]]
     case 'coach':

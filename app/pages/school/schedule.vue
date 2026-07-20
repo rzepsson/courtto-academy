@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
+import { canMemberCoach } from '~~/shared/member-profile'
 import type { CourtView } from '~/utils/courts'
 import type { ScheduleSessionView } from '~/utils/schedule'
 
@@ -30,11 +31,17 @@ const activeCourts = computed(() => courts.value.filter(c => c.archivedAt === nu
 const zones = computed(() => zonesData.value?.zones ?? [])
 // Resolve a session/block/court's zone for the zone filter (the zone lives on the court).
 const zoneByCourtId = computed(() => new Map(courts.value.map(c => [c.id, c.zoneId])))
+// Only active members who are set up to coach (role `coach`, or an owner/admin
+// granted the capability) are assignable — mirrors the server's requireCoach.
 const coaches = computed(() =>
-  (membersData.value ?? []).filter(m => m.role !== 'student').map(m => ({ id: m.id, name: m.user.name }))
+  (membersData.value ?? [])
+    .filter(m => m.status === 'active' && canMemberCoach(m))
+    .map(m => ({ id: m.id, name: m.user.name }))
 )
 const students = computed(() =>
-  (membersData.value ?? []).filter(m => m.role === 'student').map(m => ({ id: m.id, name: m.user.name, email: m.user.email }))
+  (membersData.value ?? [])
+    .filter(m => m.role === 'student' && m.status === 'active')
+    .map(m => ({ id: m.id, name: m.user.name, email: m.user.email }))
 )
 const hasCourts = computed(() => activeCourts.value.length > 0)
 

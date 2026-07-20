@@ -23,6 +23,7 @@ import { enrollInSeries, listSeriesEnrollments } from '../../server/utils/servic
 import { pgErrorCode, pgErrorConstraint } from '../../server/utils/pgError'
 import { createCourt } from '../../server/utils/services/courts'
 import { upsertOrgProfile } from '../../server/utils/services/orgProfile'
+import { upsertMemberProfile } from '../../server/utils/services/memberProfile'
 import { db } from '../../server/utils/db'
 import { lessonException, lessonSeriesRule, lessonSession, reservation } from '../../server/database/app-schema'
 import { addMember, createOrg, hasTestDb, resetDb, signUp } from './helpers'
@@ -162,6 +163,30 @@ describe.skipIf(!hasTestDb)('schedule service', () => {
     const other = await seedSchool()
     await expect(createLesson(school.orgId, lessonBody(school, { coachMemberId: other.coachMemberId }), school.owner.userId))
       .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_COACH_NOT_FOUND' } })
+  })
+
+  it('rejects an admin who is not set up to coach, and accepts them once granted the capability', async () => {
+    const school = await seedSchool()
+    const adminUser = await signUp()
+    const adminMemberId = await addMember(school.orgId, adminUser.userId, 'admin')
+
+    // An admin runs the school but does not teach by default.
+    await expect(createLesson(school.orgId, lessonBody(school, { coachMemberId: adminMemberId }), school.owner.userId))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_COACH_INVALID_ROLE' } })
+
+    // Granting the orthogonal capability makes them assignable, without touching
+    // their governance role.
+    await upsertMemberProfile(school.orgId, adminMemberId, { canCoach: true })
+    const lesson = await createLesson(school.orgId, lessonBody(school, { coachMemberId: adminMemberId }), school.owner.userId)
+    expect(lesson.sessions[0]!.coachMemberId).toBe(adminMemberId)
+  })
+
+  it('rejects a coach whose membership is suspended', async () => {
+    const school = await seedSchool()
+    await upsertMemberProfile(school.orgId, school.coachMemberId, { status: 'suspended' })
+
+    await expect(createLesson(school.orgId, lessonBody(school), school.owner.userId))
+      .rejects.toMatchObject({ statusCode: 400, data: { code: 'SCHEDULE_COACH_INACTIVE' } })
   })
 
   it('rejects an inverted capacity range', async () => {

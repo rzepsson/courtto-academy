@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import { canMemberCoach } from '~~/shared/member-profile'
 import type { CourtView, CourtZoneView } from '~/utils/courts'
 import type { ScheduleSessionView, CourtBlockView } from '~/utils/schedule'
 
@@ -34,11 +35,16 @@ const timezone = computed(() => profileData.value?.profile.timezone ?? 'Europe/W
 const allowedSports = computed(() => profileData.value?.profile.sports ?? [])
 
 const { data: membersData } = await useLazyFetch('/api/school/members', { key: 'school:members' })
+// Mirrors the schedule page: only active, coach-capable members are assignable.
 const coaches = computed(() =>
-  (membersData.value ?? []).filter(m => m.role !== 'student').map(m => ({ id: m.id, name: m.user.name }))
+  (membersData.value ?? [])
+    .filter(m => m.status === 'active' && canMemberCoach(m))
+    .map(m => ({ id: m.id, name: m.user.name }))
 )
 const students = computed(() =>
-  (membersData.value ?? []).filter(m => m.role === 'student').map(m => ({ id: m.id, name: m.user.name, email: m.user.email }))
+  (membersData.value ?? [])
+    .filter(m => m.role === 'student' && m.status === 'active')
+    .map(m => ({ id: m.id, name: m.user.name, email: m.user.email }))
 )
 
 // The active roster feeds the create form + the reschedule court picker (the same

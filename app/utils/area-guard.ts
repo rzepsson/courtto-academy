@@ -17,5 +17,12 @@ export async function resolveAreaRedirect(area: Area): Promise<string | null> {
     return '/onboarding'
   }
 
+  // A suspended/archived member keeps a membership but no area access — send them
+  // to the terminal /access-paused screen instead of any area (no redirect loop:
+  // that page carries no area guard).
+  if (active.status !== 'active') {
+    return '/access-paused'
+  }
+
   return roleArea(active.role) === area ? null : roleHome(active.role)
 }

@@ -63,7 +63,8 @@
       "SCHEDULE_COURT_NOT_FOUND": "Wybrany kort już nie istnieje.",
       "SCHEDULE_COURT_SPORT_MISMATCH": "Ten kort nie jest przeznaczony do sportu tych zajęć.",
       "SCHEDULE_COACH_NOT_FOUND": "Wybrany trener nie jest już członkiem tej szkoły.",
-      "SCHEDULE_COACH_INVALID_ROLE": "Uczeń nie może zostać przypisany jako trener.",
+      "SCHEDULE_COACH_INVALID_ROLE": "Ta osoba nie jest przygotowana do prowadzenia zajęć. Włącz „Może być przypisany(a) jako trener” w jej profilu członka.",
+      "SCHEDULE_COACH_INACTIVE": "Dostęp tego trenera jest wstrzymany, więc nie można go przypisać.",
       "SCHEDULE_CAPACITY_RANGE": "Minimalna liczba miejsc nie może przekraczać maksymalnej.",
       "SCHEDULE_NO_OCCURRENCES": "Ta reguła powtarzania nie tworzy żadnych zajęć w zakresie. Sprawdź datę startu i regułę.",
       "SCHEDULE_COURT_CONFLICT": "Ten kort jest już zarezerwowany w części tego czasu.",
@@ -87,8 +88,66 @@
       "COURT_BLOCK_CONFLICT": "Ten kort ma już zajęcia lub blokadę w tym oknie czasowym.",
       "INVALID_ZONE": "Sprawdź dane strefy.",
       "COURT_ZONE_NAME_TAKEN": "Strefa o tej nazwie już istnieje.",
-      "COURT_ZONE_NOT_FOUND": "Ta strefa już nie istnieje."
+      "COURT_ZONE_NOT_FOUND": "Ta strefa już nie istnieje.",
+      "INVALID_MEMBER_PROFILE": "Niektóre dane członka są nieprawidłowe. Sprawdź formularz.",
+      "MEMBER_NOT_FOUND": "Ta osoba nie należy już do tej szkoły.",
+      "MEMBER_OWNER_STATUS": "Dostępu właściciela nie można zawiesić ani zarchiwizować.",
+      "INVALID_ROLE": "Wybierz prawidłową rolę.",
+      "MEMBER_OWNER_ROLE": "Roli właściciela nie można zmienić.",
+      "MEMBER_OWNER_REMOVE": "Właściciela nie można usunąć ze szkoły.",
+      "MEMBER_SELF_ACTION": "Nie możesz tego zrobić własnemu członkostwu.",
+      "MEMBERSHIP_INACTIVE": "Twój dostęp do tej szkoły jest wstrzymany.",
+      "MEMBER_OWNER_ONLY": "Tylko właściciel szkoły może przekazać własność.",
+      "MEMBER_ALREADY_OWNER": "Ta osoba już jest właścicielem tej szkoły.",
+      "MEMBER_OWNER_INACTIVE": "Nowy właściciel musi być aktywnym członkiem.",
+      "MEMBER_OWNER_DEMOTE_FAILED": "Własność została przekazana, ale nie udało się zmienić Twojej roli na admina. Poproś nowego właściciela o zmianę.",
+      "INVALID_GUARDIAN": "Niektóre dane opiekuna są nieprawidłowe. Sprawdź formularz.",
+      "GUARDIAN_NOT_FOUND": "Ten kontakt do opiekuna już nie istnieje.",
+      "GUARDIAN_LIMIT_REACHED": "Ta osoba ma już maksymalną liczbę opiekunów.",
+      "GUARDIAN_UNREACHABLE": "Opiekun potrzebuje telefonu albo e-maila.",
+      "GUARDIAN_PRIMARY_REQUIRED": "Zamiast tego ustaw głównym kontaktem innego opiekuna.",
+      "INVALID_CONSENT": "Niektóre dane zgody są nieprawidłowe. Sprawdź formularz.",
+      "CONSENT_TYPE_UNKNOWN": "Nieznany typ zgody.",
+      "CONSENT_GUARDIAN_REQUIRED": "Zgody za małoletniego musi udzielić jego opiekun.",
+      "CONSENT_GUARDIAN_INVALID": "Ten opiekun nie jest przypisany do tej osoby."
     }
+  },
+  "audit": {
+    "title": "Dziennik aktywności",
+    "subtitle": "Każda zmiana zarządcza w Twojej szkole — kto, co i kiedy.",
+    "empty": {
+      "title": "Brak aktywności",
+      "description": "Zmiany ról, zawieszenia i usunięcia pojawią się tutaj."
+    },
+    "none": "Brak aktywności.",
+    "by": "przez {actor}",
+    "loadMore": "Wczytaj więcej",
+    "loadFailed": "Nie udało się wczytać więcej aktywności",
+    "actions": {
+      "member.role_changed": "Rola ustawiona na {role}",
+      "member.suspended": "Członkostwo zawieszone",
+      "member.archived": "Członkostwo zarchiwizowane",
+      "member.reactivated": "Członkostwo przywrócone",
+      "member.coach_granted": "Oznaczono jako mogący trenować",
+      "member.coach_revoked": "Odebrano możliwość trenowania",
+      "member.removed": "Usunięto ze szkoły",
+      "member.ownership_transferred": "Ustanowiono właścicielem szkoły",
+      "member.consent_granted": "Zarejestrowano zgodę",
+      "member.consent_withdrawn": "Wycofano zgodę",
+      "unknown": "Zaktualizowano członkostwo"
+    }
+  },
+  "accessPaused": {
+    "suspended": {
+      "title": "Dostęp wstrzymany",
+      "description": "Twój dostęp do {org} jest wstrzymany. Administrator może go przywrócić — skontaktuj się ze szkołą, jeśli to pomyłka."
+    },
+    "archived": {
+      "title": "Członkostwo zakończone",
+      "description": "Twoje członkostwo w {org} nie jest już aktywne."
+    },
+    "switchTitle": "Nadal jesteś aktywny(a) w",
+    "switch": "Przejdź do {org}"
   },
   "common": {
     "language": "Język",
@@ -104,7 +163,8 @@
     "save": "Zapisz zmiany",
     "discard": "Odrzuć",
     "loading": "Ładowanie…",
-    "search": "Szukaj…"
+    "search": "Szukaj…",
+    "clear": "Wyczyść"
   },
   "nav": {
     "overview": "Przegląd",
@@ -112,6 +172,7 @@
     "members": "Członkowie",
     "courts": "Korty",
     "payments": "Płatności",
+    "activity": "Dziennik aktywności",
     "settings": "Ustawienia",
     "groups": "Grupy",
     "lessons": "Zajęcia",
@@ -710,6 +771,203 @@
       "errors": {
         "updateFailed": "Nie udało się zmienić roli",
         "removeFailed": "Nie udało się usunąć członka"
+      },
+      "consents": {
+        "title": "Zgody",
+        "subtitle": "Zarejestrowane zgody. Brak zgody zawsze oznacza „nie”.",
+        "grant": "Zarejestruj zgodę",
+        "grantTitle": "Zarejestruj zgodę",
+        "withdraw": "Wycofaj",
+        "saved": "Zgoda zarejestrowana",
+        "withdrawn": "Zgoda wycofana",
+        "givenBy": "Udzielona przez",
+        "givenByHint": "Ta osoba jest małoletnia, więc zgody udziela opiekun.",
+        "noGuardian": "Najpierw dodaj opiekuna — zgodę za małoletniego musi udzielić on.",
+        "documentVersion": "Wersja dokumentu",
+        "documentVersionHint": "Na którą wersję klauzuli wyrażono zgodę (np. „Regulamin 2026-01”).",
+        "notes": "Notatki",
+        "grantedMeta": "Udzielona przez {who}, {when}",
+        "grantedMetaNoName": "Udzielona {when}",
+        "withdrawnMeta": "Wycofana {when}",
+        "types": {
+          "image": "Wizerunek",
+          "marketing": "Komunikacja marketingowa"
+        },
+        "purposes": {
+          "image": "Zdjęcia i wideo z zajęć, publikowane na stronie szkoły i w mediach społecznościowych.",
+          "marketing": "Wiadomości o ofertach i wydarzeniach."
+        },
+        "states": {
+          "granted": "Udzielona",
+          "withdrawn": "Wycofana",
+          "unknown": "Nie pytano"
+        },
+        "errors": {
+          "saveFailed": "Nie udało się zarejestrować zgody"
+        }
+      },
+      "guardians": {
+        "title": "Opiekunowie",
+        "subtitle": "Z kim szkoła kontaktuje się w sprawie tej osoby.",
+        "add": "Dodaj opiekuna",
+        "addTitle": "Dodaj opiekuna",
+        "editTitle": "Edytuj opiekuna",
+        "formHint": "Opiekun potrzebuje telefonu albo e-maila — kontakt, do którego się nie dodzwonisz, nie jest kontaktem.",
+        "empty": "Brak kontaktów do opiekunów.",
+        "primary": "Główny",
+        "makePrimary": "Ustaw jako główny kontakt",
+        "remove": "Usuń opiekuna",
+        "saved": "Zapisano opiekuna",
+        "minor": "Małoletni · {age} lat",
+        "gap": {
+          "title": "Nie ma do kogo zadzwonić",
+          "description": "Ta osoba jest małoletnia i nie ma przypisanego opiekuna. Dodaj kontakt na wypadek sytuacji awaryjnej."
+        },
+        "relationships": {
+          "mother": "Matka",
+          "father": "Ojciec",
+          "guardian": "Opiekun prawny",
+          "other": "Inny"
+        },
+        "fields": {
+          "name": "Imię i nazwisko",
+          "relationship": "Relacja",
+          "phone": "Telefon",
+          "email": "E-mail",
+          "notes": "Notatki",
+          "isPrimary": "Główny kontakt",
+          "isPrimaryHint": "Osoba, do której szkoła dzwoni najpierw."
+        },
+        "removeConfirm": {
+          "title": "Usunąć opiekuna",
+          "description": "{name} nie będzie już widnieć jako kontakt dla tej osoby."
+        },
+        "errors": {
+          "required": "To pole jest wymagane.",
+          "tooLong": "To jest za długie.",
+          "relationship": "Wybierz relację.",
+          "phone": "Podaj prawidłowy numer telefonu.",
+          "email": "Podaj prawidłowy adres e-mail.",
+          "unreachable": "Dodaj telefon lub e-mail — szkoła musi mieć jak się skontaktować.",
+          "saveFailed": "Nie udało się zapisać opiekuna",
+          "removeFailed": "Nie udało się usunąć opiekuna"
+        }
+      },
+      "academy": {
+        "title": "Academy",
+        "daysShort": "{n} d",
+        "sessions": "Zajęcia",
+        "sessionsCount": "{n} zajęć",
+        "waitlisted": "Lista rezerwowa",
+        "peak": "Najwięcej: {when}",
+        "less": "Mniej",
+        "more": "Więcej",
+        "empty": "Brak zajęć w tym okresie.",
+        "teaching": {
+          "hours": "Godziny prowadzone",
+          "groups": "Prowadzone grupy",
+          "groupsTitle": "Grupy, które prowadzi"
+        },
+        "learning": {
+          "hours": "Godziny treningu",
+          "groups": "Grupy",
+          "groupsTitle": "Grupy, w których jest",
+          "attendance": "Frekwencja"
+        },
+        "none": {
+          "title": "Poza zajęciami",
+          "description": "Ta osoba ani nie prowadzi, ani nie trenuje. Włącz możliwość trenowania albo zapisz ją do grupy z poziomu grafiku."
+        }
+      },
+      "directory": {
+        "searchPlaceholder": "Szukaj po imieniu lub e-mailu",
+        "segments": {
+          "all": "Wszyscy",
+          "staff": "Kadra",
+          "students": "Uczniowie"
+        },
+        "columns": {
+          "member": "Członek",
+          "role": "Rola",
+          "status": "Status",
+          "joined": "Dołączył(a)"
+        },
+        "statusLabels": {
+          "active": "Aktywny",
+          "suspended": "Zawieszony",
+          "archived": "Zarchiwizowany"
+        },
+        "statusFilter": "Status",
+        "export": "Eksport CSV",
+        "exportFailed": "Nie udało się wyeksportować członków",
+        "showing": "Wyświetlono {from}–{to} z {total}",
+        "empty": {
+          "title": "Brak pasujących członków",
+          "description": "Spróbuj innego wyszukiwania lub wyczyść filtry."
+        }
+      },
+      "profile": {
+        "back": "Członkowie",
+        "identity": {
+          "title": "Profil",
+          "joined": "Dołączył(a) {date}"
+        },
+        "access": {
+          "title": "Dostęp i cykl życia",
+          "roleLabel": "Rola",
+          "changeRole": "Zmień rolę",
+          "capabilityTitle": "Trenowanie",
+          "canCoach": "Może być przypisany(a) jako trener",
+          "canCoachHint": "Pozwala wybrać tego właściciela lub admina jako trenera na zajęciach, bez zmiany roli.",
+          "statusLabel": "Status",
+          "lifecycleTitle": "Cykl życia",
+          "suspend": "Zawieś",
+          "reactivate": "Przywróć dostęp",
+          "archive": "Archiwizuj",
+          "restore": "Przywróć",
+          "suspendHint": "Odbiera dostęp, ale zachowuje członkostwo i całą historię.",
+          "archiveHint": "Oznacza jako byłego członka — ukryty w aktywnych listach, historia zachowana.",
+          "ownerProtected": "Dostępu właściciela nie można tu zmienić.",
+          "selfHint": "Nie możesz tu zmienić własnego dostępu.",
+          "transferOwnership": "Przekaż własność",
+          "transferred": "{name} jest teraz właścicielem tej szkoły",
+          "transferConfirm": {
+            "title": "Przekazać własność?",
+            "description": "{name} zostanie właścicielem, a Ty adminem. Tylko nowy właściciel może przekazać ją z powrotem."
+          }
+        },
+        "details": {
+          "title": "Szczegóły",
+          "dobLabel": "Data urodzenia",
+          "dobHint": "Służy do oznaczania małoletnich — nigdy nie jest pokazywana członkowi.",
+          "notesLabel": "Notatki wewnętrzne",
+          "notesPlaceholder": "Notatki o tym członku, widoczne tylko dla kadry…",
+          "notesHint": "Widoczne tylko dla kadry — członek ich nie widzi.",
+          "tagsLabel": "Tagi",
+          "tagsPlaceholder": "Dodaj etykietę, naciśnij Enter",
+          "save": "Zapisz zmiany",
+          "saved": "Zaktualizowano członka"
+        },
+        "activity": {
+          "title": "Aktywność"
+        },
+        "tabs": {
+          "overview": "Przegląd",
+          "academy": "Academy"
+        },
+        "notFound": {
+          "title": "Nie znaleziono członka",
+          "description": "Ta osoba nie należy już do Twojej szkoły.",
+          "back": "Wróć do członków"
+        },
+        "errors": {
+          "status": "Wybierz prawidłowy status.",
+          "tooLong": "To jest za długie.",
+          "tags": "Za dużo tagów.",
+          "date": "Podaj prawdziwą datę urodzenia, z przeszłości.",
+          "saveFailed": "Nie udało się zapisać zmian",
+          "transferFailed": "Nie udało się przekazać własności"
+        }
       }
     },
     "invitations": {

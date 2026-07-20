@@ -1,4 +1,5 @@
 import type { OrgRole } from '../../shared/permissions'
+import type { MemberStatus } from '../../shared/member-profile'
 
 export type Organization = typeof import('./schema').organization.$inferSelect
 
@@ -12,6 +13,10 @@ export interface OrganizationSummary {
 export interface Membership {
   id: string
   role: OrgRole
+  // Lifecycle status from the memberProfile sidecar (coalesced to 'active' when no
+  // row exists). Drives access enforcement: a non-active membership is blocked at
+  // the server guard and routed to /access-paused on the client.
+  status: MemberStatus
   createdAt: Date
   organization: OrganizationSummary
 }
@@ -21,9 +26,14 @@ export interface AppContext {
   activeOrganizationId: string | null
 }
 
+// The flat member list behind `GET /api/school/members` — the schedule + court
+// pickers' source. Carries the sidecar's `status` and `canCoach` so a picker can
+// offer only members who are active and actually set up to coach.
 export interface OrganizationMember {
   id: string
   role: OrgRole
+  status: MemberStatus
+  canCoach: boolean
   createdAt: Date
   user: {
     id: string
@@ -44,6 +54,175 @@ export interface JoinCode {
   code: string
   enabled: boolean
   expiresAt: Date
+}
+
+// ─── Member profile (sidecar to Better Auth's `member`) ──────────────────────
+
+export type MemberProfileRow = typeof import('./app-schema').memberProfile.$inferSelect
+
+// The editable subset of a member's sidecar profile (everything except the id
+// and managed timestamps). The PATCH body and the service `set` are typed against
+// this, so a new sidecar column is wired through in one place.
+export interface MemberProfileInput {
+  status: MemberStatus
+  canCoach: boolean
+  // 'YYYY-MM-DD' calendar date (never an instant) — drives the derived minor check.
+  dateOfBirth: string | null
+  notes: string | null
+  tags: string[]
+}
+
+export type MemberGuardianRow = typeof import('./app-schema').memberGuardian.$inferSelect
+
+// The writable subset of a guardian record — both the request body and the service
+// `set` are typed against this, so a new column is wired through in one place.
+export interface MemberGuardianInput {
+  name: string
+  relationship: string
+  phone: string | null
+  email: string | null
+  isPrimary: boolean
+  notes: string | null
+}
+
+// The client-facing guardian shape: org id / member id / audit columns are never
+// exposed (the caller already knows whose guardians it asked for).
+export interface MemberGuardianDto extends MemberGuardianInput {
+  id: string
+  createdAt: Date
+}
+
+// A single member's full record for the detail cockpit — the directory row plus
+// the staff-only `notes` (omitted from the list for leanness). Scoped read.
+export interface MemberDetail {
+  id: string
+  role: OrgRole
+  createdAt: Date
+  status: MemberStatus
+  canCoach: boolean
+  dateOfBirth: string | null
+  notes: string | null
+  tags: string[]
+  user: {
+    id: string
+    name: string
+    email: string
+    image: string | null
+  }
+}
+
+// One row of the paginated member directory — the Better Auth membership fields
+// enriched with the sidecar. `notes` is intentionally omitted (it's detail-view
+// data: keeps the list payload lean and never broadcasts staff notes across the
+// whole roster).
+export interface MemberDirectoryRow {
+  id: string
+  role: OrgRole
+  createdAt: Date
+  status: MemberStatus
+  canCoach: boolean
+  tags: string[]
+  user: {
+    id: string
+    name: string
+    email: string
+    image: string | null
+  }
+}
+
+// The (all-optional) filter/sort/paginate inputs the directory accepts live in
+// shared/ (pure input shape, Nuxt/Node-free, used by the request parser); re-
+// exported here so server code importing directory types has one import site.
+export type { MemberDirectoryQuery } from '../../shared/member-profile'
+
+// A page of directory rows plus the total matching the filters (for pagination UI)
+// and the resolved page/pageSize actually applied.
+export interface MemberDirectoryResult {
+  rows: MemberDirectoryRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+// ─── Academy people-analytics ────────────────────────────────────────────────
+
+// One group (lesson series) a member teaches or trains in, within the window.
+export interface MemberAcademyGroup {
+  seriesId: string
+  title: string
+  sport: string
+  type: string
+  color: string
+  sessionCount: number
+  minutes: number
+  // Learning side only: the member's own enrolment state in this group.
+  enrollmentStatus: string | null
+}
+
+export interface MemberAcademyLoad {
+  minutes: number
+  sessionCount: number
+  // Weekday × hour grid (flat, 168) — the same shape court utilization renders.
+  heatmap: number[]
+  peakBucket: { weekday: number, hour: number, minutes: number } | null
+  groups: MemberAcademyGroup[]
+}
+
+export interface MemberAcademyLearning extends MemberAcademyLoad {
+  attendance: import('../../shared/member-academy').AttendanceTally
+  // null = nothing marked yet (renders as "—", not 0%).
+  attendanceRate: number | null
+}
+
+// A member's Academy engagement over [from, to) — the two lenses of one person:
+// `teaching` when they can coach, `learning` when they're a student. A member is
+// never both, so exactly one is populated (or neither, e.g. a non-coaching admin).
+export interface MemberAcademyDto {
+  from: Date
+  to: Date
+  timezone: string
+  teaching: MemberAcademyLoad | null
+  learning: MemberAcademyLearning | null
+}
+
+// ─── Consent (RODO/GDPR) ─────────────────────────────────────────────────────
+
+// One consent purpose as the staff sees it. `state` is derived: no row = 'unknown'
+// ("never asked"), which is deliberately not the same as 'withdrawn'.
+export interface MemberConsentDto {
+  type: string
+  state: import('../../shared/member-consent').ConsentState
+  grantedAt: Date | null
+  withdrawnAt: Date | null
+  grantedByName: string | null
+  guardianId: string | null
+  documentVersion: string | null
+  notes: string | null
+  // True when this member is a minor, so the decision must come from a guardian.
+  requiresGuardian: boolean
+}
+
+// ─── Audit log ───────────────────────────────────────────────────────────────
+
+// One governance audit entry as the client reads it. `action` is a stable key
+// (AUDIT_ACTIONS); `data` carries the interpolation params (incl. the snapshotted
+// `actorName`) the client renders the localized line from. Org id is not exposed.
+export interface AuditEntryDto {
+  id: string
+  action: string
+  actorMemberId: string | null
+  targetMemberId: string | null
+  data: Record<string, string | number | null> | null
+  createdAt: Date
+}
+
+// A page of the org-wide audit feed. **Keyset**-paginated, not OFFSET: this is an
+// append-only log, so new entries arriving at the head would shift an OFFSET
+// window and make the reader skip or repeat rows. The cursor encodes the last
+// row's (createdAt, id) tuple — id breaks timestamp ties. null = end of feed.
+export interface AuditFeedResult {
+  entries: AuditEntryDto[]
+  nextCursor: string | null
 }
 
 export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect

@@ -3,9 +3,11 @@ import { and, asc, eq, gt } from 'drizzle-orm'
 // `server/utils/auth.ts`, which the `auth` CLI loads outside of Nuxt.
 import { db } from '../db'
 import { invitation, member, organization, user } from '../../database/schema'
+import { memberProfile } from '../../database/app-schema'
 import type { Invitation, InvitationLanding, InvitationLandingStatus, Membership, OrganizationMember } from '../../database/types'
 import { isOrgRole } from '../../../shared/permissions'
 import type { OrgRole } from '../../../shared/permissions'
+import { toMemberStatus } from '../../../shared/member-profile'
 
 // The `role` column is a free-text string at the DB level and may hold legacy
 // values (e.g. Better Auth's default 'member' from before custom roles). Coerce
@@ -19,6 +21,9 @@ export async function listUserMemberships(userId: string): Promise<Membership[]>
     .select({
       id: member.id,
       role: member.role,
+      // Coalesced from the sidecar (absent row = active), so access enforcement
+      // and /access-paused routing see a member's lifecycle status.
+      status: memberProfile.status,
       createdAt: member.createdAt,
       organization: {
         id: organization.id,
@@ -29,10 +34,11 @@ export async function listUserMemberships(userId: string): Promise<Membership[]>
     })
     .from(member)
     .innerJoin(organization, eq(member.organizationId, organization.id))
+    .leftJoin(memberProfile, eq(memberProfile.memberId, member.id))
     .where(eq(member.userId, userId))
     .orderBy(asc(member.createdAt))
 
-  return rows.map(row => ({ ...row, role: toOrgRole(row.role) }))
+  return rows.map(row => ({ ...row, role: toOrgRole(row.role), status: toMemberStatus(row.status) }))
 }
 
 export async function getFirstMembershipOrganizationId(userId: string): Promise<string | null> {
@@ -61,6 +67,10 @@ export async function listOrganizationMembers(organizationId: string): Promise<O
     .select({
       id: member.id,
       role: member.role,
+      // Coalesced from the sidecar (absent row = active / non-coach) so the
+      // schedule + court pickers can filter to assignable people.
+      status: memberProfile.status,
+      canCoach: memberProfile.canCoach,
       createdAt: member.createdAt,
       user: {
         id: user.id,
@@ -71,10 +81,16 @@ export async function listOrganizationMembers(organizationId: string): Promise<O
     })
     .from(member)
     .innerJoin(user, eq(member.userId, user.id))
+    .leftJoin(memberProfile, eq(memberProfile.memberId, member.id))
     .where(eq(member.organizationId, organizationId))
     .orderBy(asc(member.createdAt))
 
-  return rows.map(row => ({ ...row, role: toOrgRole(row.role) }))
+  return rows.map(row => ({
+    ...row,
+    role: toOrgRole(row.role),
+    status: toMemberStatus(row.status),
+    canCoach: row.canCoach ?? false
+  }))
 }
 
 export async function listPendingInvitations(organizationId: string): Promise<Invitation[]> {

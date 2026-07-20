@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { and, asc, eq, gt, gte, inArray, isNotNull, isNull, lt, ne, notInArray, or, sql } from 'drizzle-orm'
 import { db } from '../db'
-import { court, lessonException, lessonSeries, lessonSeriesRule, lessonSession, reservation } from '../../database/app-schema'
+import { court, lessonException, lessonSeries, lessonSeriesRule, lessonSession, memberProfile, reservation } from '../../database/app-schema'
 import { member } from '../../database/schema'
 import type { ExtendResult, LessonDetail, LessonSeriesDto, LessonSessionDto, MaterializationSweepResult, ScheduleSessionDto } from '../../database/types'
 import { isSport, type Sport } from '../../../shared/org-profile'
@@ -15,6 +15,7 @@ import {
   type ExceptionAction
 } from '../../../shared/schedule'
 import { rangesOverlap } from '../../../shared/reservation'
+import { canMemberCoach, toMemberStatus } from '../../../shared/member-profile'
 import { REGIONAL_FALLBACK } from '../../../shared/regional'
 import {
   scheduleRuleSchema,
@@ -153,14 +154,31 @@ async function requireCourt(organizationId: string, courtId: string, sport: Spor
 }
 
 // A coach/assistant must be a member of this facility and NOT a student.
+// The assigned coach must be a member of this school who is (a) still active and
+// (b) actually set up to coach — role `coach`, or an owner/admin explicitly granted
+// the `canCoach` capability. Defense-in-depth: the pickers only offer such members,
+// but a crafted request must not slip a student (or a paused member) through. The
+// two failures are reported distinctly so the UI can tell the admin what to fix.
 async function requireCoach(organizationId: string, memberId: string): Promise<void> {
   const [row] = await db
-    .select({ id: member.id, role: member.role })
+    .select({
+      id: member.id,
+      role: member.role,
+      status: memberProfile.status,
+      canCoach: memberProfile.canCoach
+    })
     .from(member)
+    .leftJoin(memberProfile, eq(memberProfile.memberId, member.id))
     .where(and(eq(member.organizationId, organizationId), eq(member.id, memberId)))
     .limit(1)
+
   if (!row) bad('Coach not found', 'SCHEDULE_COACH_NOT_FOUND')
-  if (toOrgRole(row!.role) === 'student') bad('Assigned coach cannot be a student', 'SCHEDULE_COACH_INVALID_ROLE')
+  if (toMemberStatus(row!.status) !== 'active') {
+    bad('Assigned coach is not active', 'SCHEDULE_COACH_INACTIVE')
+  }
+  if (!canMemberCoach({ role: toOrgRole(row!.role), canCoach: row!.canCoach ?? false })) {
+    bad('Assigned member is not set up to coach', 'SCHEDULE_COACH_INVALID_ROLE')
+  }
 }
 
 // A time range to conflict-check. Occurrence is assignable (it has startsAt/endsAt).

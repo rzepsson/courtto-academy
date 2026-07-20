@@ -1,8 +1,4 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from '@nuxt/ui'
-import { INVITABLE_ROLES } from '~~/shared/permissions'
-import type { InvitableRole } from '~~/shared/permissions'
-
 definePageMeta({ middleware: ['auth', 'school'], layout: 'dashboard' })
 
 const { t, locale } = useI18n()
@@ -13,11 +9,11 @@ const { data: session } = await useAuthSession()
 const origin = useRequestURL().origin
 
 // Lazy so the page shell renders instantly on navigation; lists fill via skeletons.
-const { data: members, status: membersStatus, refresh: refreshMembers } = useLazyFetch('/api/school/members', { key: 'school:members' })
+// The members list itself is the self-contained <SchoolMembersDirectory> (its own
+// paginated fetch); this page owns only the join code + invitations sections.
 const { data: invitations, status: invitationsStatus, refresh: refreshInvitations } = useLazyFetch('/api/school/invitations', { key: 'school:invitations' })
 const { data: joinCodeData, status: joinCodeStatus, refresh: refreshJoinCode } = useLazyFetch('/api/school/join-code', { key: 'school:joinCode' })
 
-const membersLoading = computed(() => membersStatus.value === 'pending')
 const invitationsLoading = computed(() => invitationsStatus.value === 'pending')
 const joinCodeLoading = computed(() => joinCodeStatus.value === 'pending')
 
@@ -67,77 +63,6 @@ function copyJoinLink() {
   if (joinCode.value) {
     copy('link', joinLink.value)
   }
-}
-
-type MemberRow = NonNullable<typeof members.value>[number]
-
-function canManage(row: MemberRow) {
-  return row.role !== 'owner' && row.user.id !== session.value?.user.id
-}
-
-async function changeRole(row: MemberRow, role: InvitableRole) {
-  if (row.role === role) {
-    return
-  }
-
-  const { error } = await authClient.organization.updateMemberRole({ memberId: row.id, role })
-
-  if (error) {
-    toastError('school.members.errors.updateFailed', error)
-    return
-  }
-
-  await refreshMembers()
-  toast.add({ title: t('school.members.roleUpdated', { name: row.user.name }), color: 'success' })
-}
-
-function memberActions(row: MemberRow): DropdownMenuItem[][] {
-  return [
-    [{
-      label: t('school.members.changeRole'),
-      icon: 'i-lucide-user-cog',
-      children: INVITABLE_ROLES.map(role => ({
-        label: t(`roles.${role}`),
-        type: 'checkbox' as const,
-        checked: row.role === role,
-        onSelect: () => {
-          changeRole(row, role)
-        }
-      }))
-    }],
-    [{
-      label: t('school.members.remove'),
-      icon: 'i-lucide-user-minus',
-      color: 'error' as const,
-      onSelect: () => {
-        memberToRemove.value = row
-      }
-    }]
-  ]
-}
-
-const memberToRemove = ref<MemberRow | null>(null)
-const removing = ref(false)
-
-async function confirmRemove() {
-  if (!memberToRemove.value) {
-    return
-  }
-
-  removing.value = true
-  const { error } = await authClient.organization.removeMember({
-    memberIdOrEmail: memberToRemove.value.id
-  })
-  removing.value = false
-
-  if (error) {
-    toastError('school.members.errors.removeFailed', error)
-    return
-  }
-
-  toast.add({ title: t('school.members.removed', { name: memberToRemove.value.user.name }), color: 'success' })
-  memberToRemove.value = null
-  await refreshMembers()
 }
 
 async function cancelInvitation(invitationId: string) {
@@ -302,90 +227,7 @@ function dateLabel(value: string) {
         </MotionReveal>
 
         <MotionReveal :delay="0.1">
-          <UCard variant="subtle">
-            <template #header>
-              <div class="flex items-center gap-2.5">
-                <h2 class="font-semibold text-highlighted">
-                  {{ t('school.members.title') }}
-                </h2>
-                <UBadge
-                  v-if="!membersLoading"
-                  :label="String(members?.length ?? 0)"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                />
-              </div>
-              <p class="mt-1 text-sm text-muted">
-                {{ t('school.members.subtitle') }}
-              </p>
-            </template>
-
-            <AppListSkeleton
-              v-if="membersLoading"
-              :rows="5"
-            />
-            <ul
-              v-else
-              class="flex flex-col divide-y divide-default/60"
-            >
-              <li
-                v-for="row in members ?? []"
-                :key="row.id"
-                class="group -mx-2 flex items-center justify-between gap-4 rounded-lg px-3 py-3 transition-colors first:pt-3 last:pb-3 hover:bg-elevated/50"
-              >
-                <div class="flex min-w-0 items-center gap-3">
-                  <UAvatar
-                    :src="row.user.image ?? undefined"
-                    :alt="row.user.name"
-                    size="md"
-                    class="shrink-0 ring-1 ring-default"
-                  />
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-1.5">
-                      <p class="truncate text-sm font-medium text-highlighted">
-                        {{ row.user.name }}
-                      </p>
-                      <UBadge
-                        v-if="row.user.id === session?.user.id"
-                        :label="t('school.members.you')"
-                        color="neutral"
-                        variant="subtle"
-                        size="sm"
-                      />
-                    </div>
-                    <p class="truncate text-xs text-muted">
-                      {{ row.user.email }}
-                    </p>
-                  </div>
-                </div>
-                <div class="flex shrink-0 items-center gap-3">
-                  <span class="hidden text-xs text-dimmed md:block">
-                    {{ t('school.members.joined', { date: dateLabel(row.createdAt) }) }}
-                  </span>
-                  <RoleBadge :role="row.role" />
-                  <UDropdownMenu
-                    v-if="canManage(row)"
-                    :items="memberActions(row)"
-                    :content="{ align: 'end' }"
-                  >
-                    <UButton
-                      color="neutral"
-                      variant="ghost"
-                      icon="i-lucide-ellipsis-vertical"
-                      size="sm"
-                      class="text-dimmed transition-colors group-hover:text-default"
-                      :aria-label="t('school.members.actions')"
-                    />
-                  </UDropdownMenu>
-                  <span
-                    v-else
-                    class="size-8"
-                  />
-                </div>
-              </li>
-            </ul>
-          </UCard>
+          <SchoolMembersDirectory :current-user-id="session?.user.id" />
         </MotionReveal>
 
         <MotionReveal :delay="0.2">
@@ -516,30 +358,6 @@ function dateLabel(value: string) {
               :loading="rotating"
               :label="t('school.joinCode.regenerate')"
               @click="generateCode"
-            />
-          </div>
-        </template>
-      </UModal>
-
-      <UModal
-        :open="memberToRemove !== null"
-        :title="t('school.members.removeConfirm.title')"
-        :description="t('school.members.removeConfirm.description', { name: memberToRemove?.user.name })"
-        @update:open="(value: boolean) => { if (!value) memberToRemove = null }"
-      >
-        <template #footer>
-          <div class="flex w-full justify-end gap-2">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              :label="t('common.cancel')"
-              @click="memberToRemove = null"
-            />
-            <UButton
-              color="error"
-              :loading="removing"
-              :label="t('school.members.remove')"
-              @click="confirmRemove"
             />
           </div>
         </template>

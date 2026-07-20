@@ -8,5 +8,9 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/onboarding', { replace: true })
   }
 
+  if (active.status !== 'active') {
+    return navigateTo('/access-paused', { replace: true })
+  }
+
   return navigateTo(roleHome(active.role), { replace: true })
 })

@@ -26,6 +26,13 @@ export async function requireActiveMembership(event: H3Event, allowedRoles?: rea
     throw createError({ statusCode: 403, statusMessage: 'No active organization' })
   }
 
+  // A suspended/archived membership keeps the row (and appears in app-context so
+  // the client can route to /access-paused) but is denied every area API. The
+  // owner can never be non-active (guarded on write), so this can't lock a school.
+  if (membership.status !== 'active') {
+    throw createError({ statusCode: 403, statusMessage: 'Membership inactive', data: { code: 'MEMBERSHIP_INACTIVE' } })
+  }
+
   if (allowedRoles && !allowedRoles.includes(membership.role)) {
     throw createError({ statusCode: 403, statusMessage: 'Insufficient role' })
   }

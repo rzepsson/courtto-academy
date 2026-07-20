@@ -2,8 +2,9 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import type { H3Event } from 'h3'
 import { AREA_ROLES } from '../../shared/permissions'
 import { listUserMemberships } from '../../server/utils/services/membership'
+import { upsertMemberProfile } from '../../server/utils/services/memberProfile'
 import { requireActiveMembership } from '../../server/utils/org'
-import { createOrg, hasTestDb, resetDb, signUp, uniqueEmail } from './helpers'
+import { addMember, createOrg, hasTestDb, resetDb, signUp, uniqueEmail } from './helpers'
 import type { SeededUser } from './helpers'
 
 // `server/utils/org.ts` reaches for three Nuxt server auto-imports as globals:
@@ -55,6 +56,24 @@ describe.skipIf(!hasTestDb)('requireActiveMembership', () => {
 
     expect(membership.role).toBe('owner')
     expect(membership.organization.id).toBe(orgId)
+    // An active member (no sidecar row) resolves as active by default.
+    expect(membership.status).toBe('active')
+  })
+
+  it('403s a suspended member with a stable code, regardless of role match', async () => {
+    const owner = await signUp()
+    const orgId = await createOrg(owner, { name: 'Ace', slug: 'ace' })
+    const coach = await signUp({ email: uniqueEmail('coach') })
+    const coachMemberId = await addMember(orgId, coach.userId, 'coach')
+    await upsertMemberProfile(orgId, coachMemberId, { status: 'suspended' })
+    await sessionFor(coach, orgId)
+
+    // The coach role would satisfy the coach area, but a suspended membership is
+    // denied before the role check.
+    await expect(requireActiveMembership(event, AREA_ROLES.coach)).rejects.toMatchObject({
+      statusCode: 403,
+      data: { code: 'MEMBERSHIP_INACTIVE' }
+    })
   })
 
   it('403s when the role is not allowed for the area', async () => {
