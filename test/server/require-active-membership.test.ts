@@ -1,7 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { sql } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import { AREA_ROLES } from '../../shared/permissions'
+import { db } from '../../server/utils/db'
 import { listUserMemberships } from '../../server/utils/services/membership'
+import { getOrgEntitlement } from '../../server/utils/services/billing'
 import { upsertMemberProfile } from '../../server/utils/services/memberProfile'
 import { requireActiveMembership } from '../../server/utils/org'
 import { addMember, createOrg, hasTestDb, resetDb, signUp, uniqueEmail } from './helpers'
@@ -21,10 +24,13 @@ interface FakeSession {
 let currentSession: FakeSession | null = null
 
 const globals = globalThis as unknown as Record<string, unknown>
+// A method-less event reads as a "read" — the subscription gate only fires on an
+// explicit mutating verb (see MUTATING_METHODS in org.ts).
 const event = {} as H3Event
+const postEvent = { method: 'POST' } as H3Event
 
 beforeAll(() => {
-  globals.createError = (input: { statusCode: number, statusMessage?: string }) =>
+  globals.createError = (input: { statusCode: number, statusMessage?: string, data?: unknown }) =>
     Object.assign(new Error(input.statusMessage ?? 'Error'), input)
 
   globals.requireUserSession = async () => {
@@ -35,7 +41,16 @@ beforeAll(() => {
   }
 
   globals.listUserMemberships = listUserMemberships
+  // org.ts calls getOrgEntitlement as an auto-import global for the subscription gate.
+  globals.getOrgEntitlement = getOrgEntitlement
 })
+
+// Backdate an org past its 14-day trial so it has no entitlement without a sub.
+async function lapseTrial(organizationId: string): Promise<void> {
+  await db.execute(
+    sql`UPDATE "organization" SET "created_at" = now() - interval '30 days' WHERE "id" = ${organizationId}`
+  )
+}
 
 async function sessionFor(user: SeededUser, activeOrganizationId: string | null): Promise<void> {
   currentSession = { user: { id: user.userId }, session: { activeOrganizationId } }
@@ -107,6 +122,39 @@ describe.skipIf(!hasTestDb)('requireActiveMembership', () => {
 
     const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
+    expect(membership.organization.id).toBe(orgId)
+  })
+
+  it('402s a mutating request when the school subscription has lapsed', async () => {
+    const owner = await signUp()
+    const orgId = await createOrg(owner, { name: 'Ace', slug: 'ace' })
+    await lapseTrial(orgId)
+    await sessionFor(owner, orgId)
+
+    await expect(requireActiveMembership(postEvent, AREA_ROLES.school)).rejects.toMatchObject({
+      statusCode: 402,
+      data: { code: 'SUBSCRIPTION_INACTIVE' }
+    })
+  })
+
+  it('allows a mutating request while on the trial', async () => {
+    const owner = await signUp()
+    const orgId = await createOrg(owner, { name: 'Ace', slug: 'ace' })
+    await sessionFor(owner, orgId)
+
+    const { membership } = await requireActiveMembership(postEvent, AREA_ROLES.school)
+    expect(membership.role).toBe('owner')
+  })
+
+  it('allows a READ even when the subscription has lapsed (client routes to /billing-required)', async () => {
+    const owner = await signUp()
+    const orgId = await createOrg(owner, { name: 'Ace', slug: 'ace' })
+    await lapseTrial(orgId)
+    await sessionFor(owner, orgId)
+
+    // Method-less event = a read → the gate does not fire, so the membership still
+    // resolves (the client, not this guard, sends a lapsed school to billing).
+    const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
     expect(membership.organization.id).toBe(orgId)
   })
 

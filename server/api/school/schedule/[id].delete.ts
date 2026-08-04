@@ -5,7 +5,7 @@ import { AREA_ROLES } from '../../../../shared/permissions'
 // deleted (irreversible; cascades to sessions and their reservations). Optional
 // `?reason=` annotates a cancellation. School roles only.
 export default defineEventHandler(async (event) => {
-  const { membership } = await requireActiveMembership(event, AREA_ROLES.school)
+  const { session, membership } = await requireActiveMembership(event, AREA_ROLES.school)
 
   const id = getRouterParam(event, 'id')
   if (!id) {
@@ -14,9 +14,10 @@ export default defineEventHandler(async (event) => {
 
   const query = getQuery(event)
   const orgId = membership.organization.id
+  const actor = { memberId: membership.id, name: session.user.name }
 
   if (query.purge === '1' || query.purge === 'true') {
-    const purged = await purgeSeries(orgId, id)
+    const purged = await purgeSeries(orgId, id, actor)
     if (!purged) {
       throw createError({ statusCode: 404, statusMessage: 'Lesson not found' })
     }
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const reason = typeof query.reason === 'string' ? query.reason : undefined
-  const lesson = await cancelSeries(orgId, id, reason)
+  const lesson = await cancelSeries(orgId, id, reason, actor)
   if (!lesson) {
     throw createError({ statusCode: 404, statusMessage: 'Lesson not found' })
   }

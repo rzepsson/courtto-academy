@@ -108,9 +108,17 @@ async function onSubmit(event: FormSubmitEvent<LoginForm>) {
           </UInput>
         </UFormField>
 
+        <div class="-mt-1 flex justify-end">
+          <ULink
+            to="/forgot-password"
+            class="text-sm font-medium text-muted hover:text-primary"
+          >
+            {{ t('auth.login.forgotPassword') }}
+          </ULink>
+        </div>
+
         <PressButton
           type="submit"
-          class="mt-1"
           trailing-icon="i-lucide-arrow-right"
           :loading="loading"
           :label="t('auth.login.submit')"

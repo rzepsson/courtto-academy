@@ -111,6 +111,6 @@ export async function expireInvitation(invitationId: string): Promise<void> {
 // is irrelevant with CASCADE; RESTART IDENTITY keeps any serial columns clean.
 export async function resetDb(): Promise<void> {
   await db.execute(
-    sql`TRUNCATE TABLE "invitation", "member", "session", "account", "verification", "organization", "user" RESTART IDENTITY CASCADE`
+    sql`TRUNCATE TABLE "subscription", "invitation", "member", "session", "account", "verification", "organization", "user" RESTART IDENTITY CASCADE`
   )
 }

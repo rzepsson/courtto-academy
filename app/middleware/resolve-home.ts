@@ -12,5 +12,9 @@ export default defineNuxtRouteMiddleware(async () => {
     return navigateTo('/access-paused', { replace: true })
   }
 
+  if (context.value?.entitlement && !context.value.entitlement.entitled) {
+    return navigateTo('/billing-required', { replace: true })
+  }
+
   return navigateTo(roleHome(active.role), { replace: true })
 })

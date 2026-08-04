@@ -25,6 +25,24 @@
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "Konto z tym adresem e-mail już istnieje. Zaloguj się zamiast tego.",
       "PASSWORD_TOO_SHORT": "Hasło musi mieć co najmniej 8 znaków.",
       "PASSWORD_TOO_LONG": "Hasło jest zbyt długie.",
+      "INVALID_TOKEN": "Ten link do resetu hasła jest nieprawidłowy lub wygasł.",
+      "SUBSCRIPTION_INACTIVE": "Subskrypcja Twojej szkoły jest nieaktywna. Odnów ją, aby kontynuować.",
+      "ACCOUNT_OWNS_SCHOOL": "Jesteś jedynym właścicielem szkoły. Przekaż własność innej osobie albo najpierw usuń szkołę.",
+      "PAYMENTS_NOT_CONFIGURED": "Płatności online nie są jeszcze skonfigurowane dla tej szkoły.",
+      "PAYMENTS_ACCOUNT_REQUIRED": "Skonfiguruj pobieranie płatności, zanim dodasz plany.",
+      "PAYMENTS_STRIPE_ERROR": "Coś poszło nie tak w komunikacji ze Stripe. Spróbuj ponownie.",
+      "PRICING_PLAN_ARCHIVED": "Przywróć ten plan, zanim go zedytujesz.",
+      "INVALID_PRICING_PLAN": "Niektóre dane planu są nieprawidłowe. Sprawdź formularz.",
+      "SERIES_PLAN_NOT_SET": "Ta grupa nie ma jeszcze planu cenowego. Przypisz go przed pobieraniem opłat.",
+      "PRICING_PLAN_UNAVAILABLE": "Plan cenowy tej grupy jest niedostępny. Sprawdź go w Płatnościach.",
+      "PAYER_NO_GUARDIAN": "Ten uczeń to małoletni bez opiekuna głównego do obciążenia. Najpierw dodaj opiekuna.",
+      "PAYER_NO_EMAIL": "Płatnik nie ma zapisanego adresu e-mail.",
+      "BILLING_ALREADY_ACTIVE": "Ten zapis jest już rozliczany.",
+      "PAYMENTS_ACCOUNT_NOT_READY": "Dokończ konfigurację płatności przed pobieraniem — obciążenia nie są jeszcze włączone.",
+      "ENROLLMENT_NOT_ENROLLED": "Rozliczyć można tylko potwierdzony zapis.",
+      "BILLING_NO_CUSTOMER": "Brak klienta rozliczeniowego dla tego zapisu. Najpierw wyślij link płatności.",
+      "BILLING_NO_SUBSCRIPTION": "Dla tego zapisu nie ma jeszcze subskrypcji do zarządzania.",
+      "BILLING_NOTHING_TO_REFUND": "Nie ma płatności do zwrotu.",
       "USER_NOT_FOUND": "Nie znaleziono konta z tym adresem e-mail.",
       "EMAIL_NOT_VERIFIED": "Przed zalogowaniem potwierdź swój adres e-mail.",
       "CREDENTIAL_ACCOUNT_NOT_FOUND": "Dla tego konta nie skonfigurowano logowania hasłem.",
@@ -132,6 +150,7 @@
       "member.coach_revoked": "Odebrano możliwość trenowania",
       "member.removed": "Usunięto ze szkoły",
       "member.ownership_transferred": "Ustanowiono właścicielem szkoły",
+      "member.account_deleted": "Usunięcie konta Courtto",
       "member.consent_granted": "Zarejestrowano zgodę",
       "member.consent_withdrawn": "Wycofano zgodę",
       "unknown": "Zaktualizowano członkostwo"
@@ -148,6 +167,220 @@
     },
     "switchTitle": "Nadal jesteś aktywny(a) w",
     "switch": "Przejdź do {org}"
+  },
+  "billing": {
+    "title": "Rozliczenia",
+    "subtitle": "Zarządzaj subskrypcją i planem swojej szkoły.",
+    "perMonth": "/mies.",
+    "recommended": "Polecany",
+    "currentPlan": "Bieżący plan",
+    "choosePlan": "Wybierz plan",
+    "switchToPlan": "Przejdź na ten plan",
+    "choosePlanHeading": "Wybierz plan",
+    "changePlan": "Zmień plan",
+    "manage": "Zarządzaj płatnościami",
+    "ownerOnly": "Tylko właściciel szkoły może zmienić subskrypcję.",
+    "checkoutSuccess": "Subskrypcja aktywna — witamy na pokładzie!",
+    "trial": {
+      "title": "Okres próbny",
+      "daysLeft": "Pozostało dni okresu próbnego: {days}"
+    },
+    "status": {
+      "pastDue": "Wystąpił problem z ostatnią płatnością. Zaktualizuj kartę, aby zachować dostęp.",
+      "renewsOn": "Odnawia się {date}",
+      "cancelsOn": "Dostęp do {date}"
+    },
+    "notConfigured": {
+      "title": "Płatności nie są jeszcze skonfigurowane",
+      "description": "Subskrypcje online nie są dostępne w tym środowisku. Twoja szkoła zachowuje pełny dostęp w okresie próbnym."
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "tagline": "Dla jednej szkoły, która się organizuje."
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Dla rosnących szkół, które potrzebują analityki i więcej."
+      }
+    },
+    "features": {
+      "members": "Nielimitowani członkowie i role",
+      "schedule": "Grafik zajęć i obecności",
+      "courts": "Zarządzanie kortami",
+      "email": "Powiadomienia e-mail",
+      "everythingStarter": "Wszystko z planu Starter",
+      "analytics": "Analityka wykorzystania i osób",
+      "auditLog": "Dziennik aktywności i ślad audytu",
+      "prioritySupport": "Priorytetowe wsparcie"
+    },
+    "errors": {
+      "checkoutFailed": "Nie udało się rozpocząć płatności. Spróbuj ponownie.",
+      "portalFailed": "Nie udało się otworzyć portalu płatności. Spróbuj ponownie."
+    }
+  },
+  "billingRequired": {
+    "expired": {
+      "title": "Okres próbny dobiegł końca",
+      "description": "Bezpłatny okres próbny szkoły {org} się zakończył. Wybierz plan, aby dalej korzystać z Courtto."
+    },
+    "pastDue": {
+      "title": "Wymagana płatność",
+      "description": "Wystąpił problem z ostatnią płatnością szkoły {org}. Zaktualizuj dane rozliczeniowe, aby przywrócić dostęp."
+    },
+    "contactOwner": "Subskrypcja Twojej szkoły jest nieaktywna. Poproś właściciela szkoły o jej odnowienie."
+  },
+  "overview": {
+    "greeting": {
+      "default": "Witaj ponownie, {name}",
+      "morning": "Dzień dobry, {name}",
+      "afternoon": "Dzień dobry, {name}",
+      "evening": "Dobry wieczór, {name}"
+    },
+    "tiles": {
+      "students": "Uczniowie",
+      "coaches": "Trenerzy",
+      "courts": "Korty",
+      "lessons": "Lekcje w tym tygodniu"
+    },
+    "today": {
+      "title": "Dziś",
+      "viewSchedule": "Grafik",
+      "empty": {
+        "title": "Dziś nie ma lekcji",
+        "description": "Na dziś nic nie zaplanowano — odpocznij albo dodaj lekcję."
+      }
+    },
+    "occupancy": {
+      "title": "Obłożenie",
+      "window": "Ostatnie 7 dni",
+      "rate": "Obłożenie kortów",
+      "lessonHours": "Godziny lekcji",
+      "lessons": "Lekcje",
+      "empty": "Brak lekcji w ostatnich 7 dniach.",
+      "peak": "Najwięcej: {when}"
+    },
+    "activity": {
+      "title": "Ostatnia aktywność",
+      "empty": "Nic się jeszcze nie wydarzyło."
+    },
+    "pendingInvites": {
+      "title": "Oczekujące zaproszenia: {count}",
+      "subtitle": "Czekają na odpowiedź — sprawdź w Członkach."
+    }
+  },
+  "compliance": {
+    "title": "Zgodność",
+    "subtitle": "Uczniowie bez wymaganych prawem dokumentów: małoletni bez opiekuna w kartotece albo zgoda na wizerunek, o którą nigdy nie zapytano. Uzupełnij je, zanim dane zostaną użyte.",
+    "tiles": {
+      "students": "Aktywni uczniowie",
+      "guardian": "Małoletni bez opiekuna",
+      "consent": "Brak pytania o zgodę na wizerunek",
+      "withGaps": "Uczniowie z brakami"
+    },
+    "filter": {
+      "all": "Wszystkie braki",
+      "guardian": "Opiekun",
+      "consent": "Zgoda na wizerunek"
+    },
+    "searchPlaceholder": "Szukaj po imieniu lub e-mailu…",
+    "noMatch": "Żaden uczeń nie pasuje do tego filtra.",
+    "allClear": {
+      "title": "Wszystko w porządku",
+      "description": "Każdy aktywny uczeń ma opiekuna w kartotece tam, gdzie to wymagane, i zapytano go o zgodę na wizerunek."
+    },
+    "minor": "Małoletni · {age}",
+    "gap": {
+      "guardian": "Brak opiekuna",
+      "imageConsent": "Brak zgody na wizerunek"
+    },
+    "resolve": "Uzupełnij",
+    "columns": {
+      "member": "Uczeń",
+      "gaps": "Brak zgodności",
+      "action": "Akcja"
+    }
+  },
+  "payments": {
+    "title": "Płatności",
+    "subtitle": "Pobieraj opłaty za lekcje od rodziców. Podłącz konto Stripe, aby otrzymywać pieniądze — trafiają prosto na Twoje konto, Courtto ich nie przechowuje.",
+    "notConfigured": {
+      "title": "Płatności nie są jeszcze dostępne",
+      "description": "Pobieranie opłat online nie jest włączone w tym środowisku."
+    },
+    "none": {
+      "title": "Zacznij pobierać opłaty za lekcje",
+      "description": "Podłącz konto Stripe, aby obciążać rodziców za abonamenty grupowe. Stripe zajmuje się weryfikacją tożsamości i wypłatami na Twoje konto.",
+      "action": "Skonfiguruj płatności"
+    },
+    "pending": {
+      "title": "Kończenie konfiguracji",
+      "description": "Twoje konto Stripe jest weryfikowane. Dokończ tam, gdzie skończyłeś, albo wróć za chwilę.",
+      "action": "Dokończ konfigurację"
+    },
+    "ready": {
+      "title": "Możesz pobierać płatności",
+      "description": "Twoje konto Stripe jest aktywne i może przyjmować płatności."
+    },
+    "facts": {
+      "chargesOn": "Obciążenia włączone",
+      "chargesOff": "Obciążenia oczekują",
+      "payoutsOn": "Wypłaty włączone",
+      "payoutsOff": "Wypłaty oczekują"
+    },
+    "ownerOnly": "Tylko właściciel szkoły może skonfigurować płatności.",
+    "errors": {
+      "onboardingFailed": "Nie udało się rozpocząć konfiguracji Stripe. Spróbuj ponownie."
+    },
+    "plans": {
+      "title": "Plany cenowe",
+      "subtitle": "Miesięczne ceny, które przypiszesz do grup. Rodzice są obciążani za miejsce dziecka.",
+      "add": "Dodaj plan",
+      "addTitle": "Nowy plan cenowy",
+      "editTitle": "Edytuj plan cenowy",
+      "empty": "Brak planów cenowych. Dodaj jeden, aby zacząć pobierać opłaty za grupę.",
+      "archivedSection": "Zarchiwizowane",
+      "archive": "Archiwizuj",
+      "restore": "Przywróć",
+      "created": "Plan utworzony",
+      "updated": "Plan zaktualizowany",
+      "archived": "Plan zarchiwizowany",
+      "restored": "Plan przywrócony",
+      "saveFailed": "Nie udało się zapisać planu. Spróbuj ponownie.",
+      "fields": {
+        "name": "Nazwa",
+        "namePlaceholder": "np. Junior — 1×/tydzień",
+        "description": "Opis",
+        "descriptionPlaceholder": "Co obejmuje ten plan (opcjonalnie)",
+        "amount": "Cena miesięczna"
+      },
+      "errors": {
+        "required": "To pole jest wymagane.",
+        "tooLong": "Ta wartość jest za długa.",
+        "amount": "Podaj prawidłową cenę."
+      }
+    },
+    "activity": {
+      "title": "Aktywność płatności",
+      "empty": "Brak aktywności płatności.",
+      "someone": "Pracownik",
+      "actions": {
+        "checkout_sent": "{actor} wysłał(a) link płatności dla {student}",
+        "subscription_canceled": "{actor} anulował(a) subskrypcję {student}",
+        "refund_issued": "{actor} zwrócił(a) płatność dla {student}",
+        "unknown": "{actor} zmienił(a) rozliczenia"
+      }
+    }
+  },
+  "pay": {
+    "success": {
+      "title": "Płatność ustawiona",
+      "description": "Dziękujemy! Twoja miesięczna płatność jest już aktywna. Możesz zamknąć tę stronę."
+    },
+    "cancel": {
+      "title": "Płatność niedokończona",
+      "description": "Nie pobrano żadnej płatności. Możesz ponownie użyć linku z e-maila, gdy będziesz gotowy(a)."
+    }
   },
   "common": {
     "language": "Język",
@@ -172,6 +405,8 @@
     "members": "Członkowie",
     "courts": "Korty",
     "payments": "Płatności",
+    "billing": "Rozliczenia",
+    "compliance": "Zgodność",
     "activity": "Dziennik aktywności",
     "settings": "Ustawienia",
     "groups": "Grupy",
@@ -473,6 +708,10 @@
       "title": "Edytuj zajęcia",
       "subtitle": "Zaktualizuj szczegóły grupy i sloty, w których się spotyka.",
       "saved": "Zajęcia zaktualizowane",
+      "pricingPlan": "Plan cenowy",
+      "pricingPlanHelp": "Obciążaj rodziców miesięcznie za miejsca w tej grupie.",
+      "noPlan": "Bez planu (grupa darmowa)",
+      "noPlansHint": "Brak planów cenowych — utwórz go w",
       "editSlot": "Edytuj slot",
       "saveSlot": "Zapisz slot",
       "newSlot": "Nowy slot",
@@ -523,6 +762,35 @@
         "loadFailed": "Nie udało się wczytać zapisów",
         "addFailed": "Nie udało się zapisać ucznia",
         "removeFailed": "Nie udało się usunąć zapisu"
+      }
+    },
+    "billing": {
+      "none": "Nierozliczony",
+      "pending": "Oczekuje płatności",
+      "active": "Opłacony",
+      "pastDue": "Zaległa płatność",
+      "canceled": "Anulowany",
+      "ending": "Kończy się",
+      "endsOn": "Kończy się {date}",
+      "manage": "Zarządzaj",
+      "actions": "Akcje rozliczeniowe",
+      "sendLink": "Wyślij link",
+      "resend": "Wyślij ponownie",
+      "cancel": "Anuluj subskrypcję",
+      "refund": "Zwróć ostatnią płatność",
+      "linkSent": "Link płatności wysłany",
+      "cancelled": "Subskrypcja anulowana",
+      "refunded": "Płatność zwrócona",
+      "actionFailed": "Nie udało się wykonać akcji rozliczeniowej. Spróbuj ponownie.",
+      "cancelConfirm": {
+        "title": "Anuluj subskrypcję",
+        "warningTitle": "Miejsce działa do końca opłaconego miesiąca",
+        "warningBody": "Subskrypcja {name} zakończy się na koniec bieżącego okresu — bez dalszych obciążeń. Możesz później wysłać nowy link, aby wznowić."
+      },
+      "refundConfirm": {
+        "title": "Zwróć ostatnią płatność",
+        "warningTitle": "To zwraca pieniądze płatnikowi",
+        "warningBody": "Ostatnia płatność za {name} zostanie w pełni zwrócona na kartę płatnika. Tego nie można tu cofnąć."
       }
     },
     "form": {
@@ -589,7 +857,29 @@
       "subtitle": "Witaj ponownie w Courtto Academy.",
       "submit": "Zaloguj się",
       "noAccount": "Nie masz konta?",
-      "signUp": "Załóż konto"
+      "signUp": "Załóż konto",
+      "forgotPassword": "Nie pamiętasz hasła?"
+    },
+    "forgot": {
+      "title": "Zresetuj hasło",
+      "subtitle": "Podaj swój adres e-mail, a wyślemy Ci link do ustawienia nowego hasła.",
+      "submit": "Wyślij link resetujący",
+      "sentTitle": "Sprawdź skrzynkę",
+      "sentSubtitle": "Jeśli konto dla {email} istnieje, wysłaliśmy link do zresetowania hasła.",
+      "sentHint": "Link wygasa za godzinę. Sprawdź też folder ze spamem.",
+      "resend": "Wyślij ponownie",
+      "backToLogin": "Powrót do logowania"
+    },
+    "reset": {
+      "title": "Ustaw nowe hasło",
+      "subtitle": "Wprowadź nowe hasło do swojego konta.",
+      "submit": "Zmień hasło",
+      "newPassword": "Nowe hasło",
+      "confirmPassword": "Potwierdź hasło",
+      "success": "Hasło zostało zmienione. Zaloguj się.",
+      "invalidTitle": "Ten link jest nieprawidłowy lub wygasł",
+      "invalidDescription": "Linki do resetu hasła wygasają po godzinie. Poproś o nowy, aby kontynuować.",
+      "requestNew": "Poproś o nowy link"
     },
     "register": {
       "title": "Załóż konto",
@@ -613,8 +903,12 @@
       "emailRequired": "Podaj adres e-mail.",
       "passwordRequired": "Podaj hasło.",
       "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków.",
+      "confirmRequired": "Potwierdź hasło.",
+      "passwordMismatch": "Hasła nie są takie same.",
       "signInFailed": "Nie udało się zalogować",
-      "signUpFailed": "Nie udało się założyć konta"
+      "signUpFailed": "Nie udało się założyć konta",
+      "resetRequestFailed": "Nie udało się wysłać linku",
+      "resetFailed": "Nie udało się zmienić hasła"
     },
     "signOut": "Wyloguj się"
   },
@@ -1129,6 +1423,76 @@
   "dashboard": {
     "comingSoon": "Już wkrótce"
   },
+  "account": {
+    "title": "Twoje konto",
+    "tagline": "Dane logowania, urządzenia, na których jesteś zalogowany, i kontrola nad Twoimi danymi. Te ustawienia obowiązują we wszystkich szkołach, do których należysz.",
+    "saved": "Zmiany zapisane",
+    "profile": {
+      "title": "Profil",
+      "subtitle": "Imię i nazwisko widoczne na listach, w grafiku i w wiadomościach.",
+      "name": "Imię i nazwisko"
+    },
+    "email": {
+      "title": "Adres e-mail",
+      "subtitle": "Tym adresem się logujesz — na niego wysyłamy też resety hasła i powiadomienia o zajęciach.",
+      "label": "Adres e-mail",
+      "help": "Jeśli nowy adres należy już do innego konta, zmiana nie zostanie wprowadzona.",
+      "updated": "Adres e-mail zmieniony"
+    },
+    "password": {
+      "title": "Hasło",
+      "subtitle": "Zmień hasło, którym się logujesz.",
+      "current": "Aktualne hasło",
+      "new": "Nowe hasło",
+      "confirm": "Potwierdź nowe hasło",
+      "hint": "Minimum {min} znaków.",
+      "save": "Zmień hasło",
+      "revokeNote": "Zmiana hasła wylogowuje Cię na wszystkich pozostałych urządzeniach.",
+      "updated": "Hasło zmienione"
+    },
+    "devices": {
+      "title": "Urządzenia",
+      "subtitle": "Gdzie Twoje konto jest teraz zalogowane. Wyloguj wszystko, czego nie rozpoznajesz.",
+      "current": "To urządzenie",
+      "unknown": "Nieznane urządzenie",
+      "signedIn": "Zalogowano {date}",
+      "revoke": "Wyloguj",
+      "revokeOthers": "Wyloguj pozostałe urządzenia ({count})",
+      "revoked": "Urządzenie wylogowane",
+      "revokedOthers": "Pozostałe urządzenia wylogowane",
+      "empty": "Brak innych aktywnych sesji."
+    },
+    "data": {
+      "title": "Twoje dane",
+      "subtitle": "Pobierz kopię danych powiązanych z Twoim kontem.",
+      "includes": "Plik zawiera dane Twojego konta, członkostwo w każdej szkole, opiekunów i decyzje o zgodach, zapisy na zajęcia i historię obecności oraz powiadomienia — w formacie JSON.",
+      "controllerNote": "Każda szkoła prowadzi własną dokumentację swoich uczniów i pracowników. Po pełną kopię danych, które przechowuje o Tobie konkretna szkoła — lub po ich usunięcie — zgłoś się bezpośrednio do niej; to ona decyduje o zawartości swojej dokumentacji.",
+      "export": "Pobierz moje dane"
+    },
+    "danger": {
+      "title": "Usuń konto",
+      "subtitle": "Zamknij konto i usuń je ze wszystkich szkół.",
+      "hint": "Trwale usuwa Twoje konto, członkostwo w każdej szkole oraz historię zapisów i obecności. Tej operacji nie można odwrócić.",
+      "delete": "Usuń konto",
+      "confirmTitle": "Usunąć Twoje konto?",
+      "confirmDescription": "Podaj hasło, aby potwierdzić. Tej operacji nie można odwrócić.",
+      "confirmWarning": "Twoje członkostwa, zapisy, historia obecności i kontakty opiekunów zostaną usunięte. Aktywna płatność za zajęcia zostanie anulowana z końcem opłaconego okresu.",
+      "confirmLabel": "Twoje hasło"
+    },
+    "errors": {
+      "nameRequired": "Podaj imię i nazwisko.",
+      "tooLong": "Ta wartość jest za długa.",
+      "emailInvalid": "Podaj poprawny adres e-mail.",
+      "currentPasswordRequired": "Podaj aktualne hasło.",
+      "passwordTooShort": "Hasło musi mieć co najmniej 8 znaków.",
+      "passwordMismatch": "Hasła nie są identyczne.",
+      "saveFailed": "Nie udało się zapisać zmian",
+      "passwordFailed": "Nie udało się zmienić hasła",
+      "revokeFailed": "Nie udało się wylogować urządzenia",
+      "exportFailed": "Nie udało się przygotować danych",
+      "deleteFailed": "Nie udało się usunąć konta"
+    }
+  },
   "notifications": {
     "title": "Powiadomienia",
     "empty": "Wszystko na bieżąco.",
@@ -1143,6 +1507,32 @@
         "setup_incomplete": {
           "title": "Dokończ konfigurację szkoły {schoolName}",
           "body": "Uzupełnij dane kontaktowe, sporty i lokalizację w ustawieniach, aby szkoła była gotowa do pracy."
+        }
+      },
+      "lesson": {
+        "cancelled": {
+          "title": "Zajęcia odwołane",
+          "body": "Zajęcia {lessonTitle} zostały odwołane."
+        },
+        "rescheduled": {
+          "title": "Zmiana terminu zajęć",
+          "body": "Zajęcia {lessonTitle} zostały przeniesione na inny termin."
+        },
+        "reminder": {
+          "title": "Nadchodzące zajęcia",
+          "body": "Zajęcia {lessonTitle} już wkrótce."
+        }
+      },
+      "enrollment": {
+        "waitlist_promoted": {
+          "title": "Masz miejsce",
+          "body": "Zwolniło się miejsce w {lessonTitle} — jesteś teraz zapisany(a)."
+        }
+      },
+      "billing": {
+        "payment_failed": {
+          "title": "Nieudana płatność",
+          "body": "Miesięczna płatność {studentName} za {groupTitle} nie przeszła."
         }
       }
     }

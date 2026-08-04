@@ -26,6 +26,9 @@ import {
 import { pgErrorCode, pgErrorConstraint } from '../pgError'
 import { getOrgProfile } from './orgProfile'
 import { toOrgRole } from './membership'
+import { notifyLessonCancelled, notifyLessonRescheduled } from './lessonNotifications'
+import { stopBillingForSeries, type StaffActor } from './enrollmentBilling'
+import { captureError } from '../monitoring'
 
 // Academy scheduling service. `reservation` (core, occupancy) and the lesson
 // tables (Academy) are app-owned, so this writes them with Drizzle directly
@@ -58,6 +61,7 @@ const SERIES_COLUMNS = {
   enrollmentOpen: lessonSeries.enrollmentOpen,
   visibility: lessonSeries.visibility,
   status: lessonSeries.status,
+  pricingPlanId: lessonSeries.pricingPlanId,
   createdAt: lessonSeries.createdAt
 }
 
@@ -471,7 +475,8 @@ export async function listSessions(
 export async function cancelSeries(
   organizationId: string,
   seriesId: string,
-  reason?: string
+  reason?: string,
+  actor?: StaffActor
 ): Promise<LessonDetail | null> {
   const [existing] = await db
     .select({ id: lessonSeries.id })
@@ -512,6 +517,10 @@ export async function cancelSeries(
       .set({ status: 'cancelled' })
       .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
   })
+
+  // The group no longer runs, so nobody may keep paying for it — post-commit,
+  // best-effort (a Stripe outage must not fail calling the group off).
+  await stopBillingForSeries(organizationId, seriesId, actor)
 
   return getSeries(organizationId, seriesId)
 }
@@ -741,13 +750,19 @@ export async function removeSeriesRule(organizationId: string, seriesId: string,
 // enrolments/attendance) via FKs; the sessions' reservations do NOT cascade up
 // (core has no FK to Academy), so they are deleted explicitly here — the
 // lifecycle contract in app-schema.ts. Returns false when not this facility's.
-export async function purgeSeries(organizationId: string, seriesId: string): Promise<boolean> {
+export async function purgeSeries(organizationId: string, seriesId: string, actor?: StaffActor): Promise<boolean> {
   const [existing] = await db
     .select({ id: lessonSeries.id })
     .from(lessonSeries)
     .where(and(eq(lessonSeries.organizationId, organizationId), eq(lessonSeries.id, seriesId)))
     .limit(1)
   if (!existing) return false
+
+  // BEFORE the delete, not after: purging cascades enrolments and their billing rows
+  // away, taking the Stripe subscription ids with them. Stopping first is what keeps
+  // a deleted group from billing families forever with no trace left in the app (the
+  // money-audit entry it writes has no FK, so it survives this delete).
+  await stopBillingForSeries(organizationId, seriesId, actor)
 
   await db.transaction(async (tx) => {
     const sessions = await tx
@@ -945,6 +960,10 @@ export async function cancelLessonSession(
     await recordException(tx, organizationId, row.seriesId, row.ruleId, row.occurrenceStart, 'cancelled', sessionId)
   })
 
+  // Tell the enrolled students (+ their guardians) and the coach, in-app + email.
+  // Best-effort by construction — never fails the cancel it reports.
+  await notifyLessonCancelled(organizationId, sessionId, { reason: reason ?? null })
+
   return getLessonSession(organizationId, sessionId)
 }
 
@@ -1080,6 +1099,12 @@ export async function updateLessonSession(
     if (coachOverlapViolation(error)) conflict('Coach is already teaching at this time', 'SCHEDULE_COACH_CONFLICT')
     if (courtOverlapViolation(error)) conflict('Court already booked at this time', 'SCHEDULE_COURT_CONFLICT')
     throw error
+  }
+
+  // Only a genuine time move is a "reschedule" worth notifying — a notes/capacity
+  // or court-only edit isn't. `row.startsAt` is the pre-edit time. Best-effort.
+  if (timeChanged) {
+    await notifyLessonRescheduled(organizationId, sessionId, { previousStartsAt: row.startsAt })
   }
 
   return getLessonSession(organizationId, sessionId)
@@ -1333,7 +1358,7 @@ export async function runMaterializationSweep(): Promise<MaterializationSweepRes
         }
       } catch (error) {
         failed++
-        console.error(`[schedule:materialize] series ${series.id} failed`, error)
+        captureError(error, { scope: 'schedule.materialize', seriesId: series.id, organizationId: series.organizationId })
       }
     }
     return { status: 'ok', processed: batch.length, created, skipped, failed, capped }

@@ -48,7 +48,10 @@ function scopeWhere(userId: string, activeOrgId: string | null): SQL {
   return and(owned, scope)!
 }
 
-export async function createNotification(input: CreateNotificationInput): Promise<void> {
+// Returns whether a row was actually inserted (false = deduped no-op). Callers
+// that fan out to another channel (e.g. a reminder email) use this to act exactly
+// once per (user, dedupeKey), never on a repeat sweep.
+export async function createNotification(input: CreateNotificationInput): Promise<boolean> {
   const dismissible = input.dismissible ?? !isSystemNotificationType(input.type)
 
   const inserted = await db
@@ -67,11 +70,13 @@ export async function createNotification(input: CreateNotificationInput): Promis
     .onConflictDoNothing()
     .returning({ id: notification.id })
 
+  const created = inserted.length > 0
   // Only signal the client when a row was actually created (a deduped insert is
   // a no-op). REST stays authoritative, so this is a best-effort nudge.
-  if (inserted.length > 0) {
+  if (created) {
     publishToUser(input.userId, { event: 'notification' })
   }
+  return created
 }
 
 export async function getNotificationFeed(userId: string, activeOrgId: string | null): Promise<NotificationFeed> {

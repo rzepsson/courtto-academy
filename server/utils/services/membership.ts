@@ -62,6 +62,23 @@ export async function isOrganizationMember(organizationId: string, userId: strin
   return row !== undefined
 }
 
+// Whether the user is THE owner of the org. Gates who may manage the school's
+// subscription (the Stripe plugin's authorizeReference) — billing is owner-only,
+// like ownership transfer, so an admin can never move money on the school's behalf.
+export async function isOrgOwner(organizationId: string, userId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: member.id })
+    .from(member)
+    .where(and(
+      eq(member.organizationId, organizationId),
+      eq(member.userId, userId),
+      eq(member.role, 'owner')
+    ))
+    .limit(1)
+
+  return row !== undefined
+}
+
 export async function listOrganizationMembers(organizationId: string): Promise<OrganizationMember[]> {
   const rows = await db
     .select({

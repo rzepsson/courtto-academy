@@ -1,5 +1,7 @@
 import type { OrgRole } from '../../shared/permissions'
 import type { MemberStatus } from '../../shared/member-profile'
+import type { Entitlement } from '../../shared/billing'
+import type { RequiredProfileField } from '../../shared/org-profile'
 
 export type Organization = typeof import('./schema').organization.$inferSelect
 
@@ -24,6 +26,11 @@ export interface Membership {
 export interface AppContext {
   memberships: Membership[]
   activeOrganizationId: string | null
+  // Billing entitlement for the ACTIVE org (null when there's no active org). The
+  // single client source for subscription routing: a non-entitled active org is
+  // sent to /billing-required, mirroring how a non-active membership routes to
+  // /access-paused. Recomputed whenever app-context refetches (incl. org switch).
+  entitlement: Entitlement | null
 }
 
 // The flat member list behind `GET /api/school/members` — the schedule + court
@@ -202,6 +209,101 @@ export interface MemberConsentDto {
   requiresGuardian: boolean
 }
 
+// ─── Compliance (RODO/GDPR roster gaps) ──────────────────────────────────────
+
+// One student on the compliance report — appears only when they have at least one
+// actionable gap. `imageConsentState` carries the nuance (unknown vs withdrawn)
+// even though only 'unknown' raises the gap, so the UI can label it precisely.
+export interface ComplianceGapRow {
+  memberId: string
+  role: OrgRole
+  age: number | null
+  isMinor: boolean
+  missingGuardian: boolean
+  missingImageConsent: boolean
+  imageConsentState: string
+  user: { id: string, name: string, email: string, image: string | null }
+}
+
+// The roster-level compliance report. `rows` is the gap subset (a work-queue to
+// clear); the summary counts are over the whole active-student population so the
+// tiles read as "12 of 180 need a guardian", not just the filtered list.
+export interface ComplianceReportDto {
+  rows: ComplianceGapRow[]
+  summary: {
+    studentsConsidered: number
+    missingGuardian: number
+    missingImageConsent: number
+    withGaps: number
+  }
+}
+
+// ─── Account (self-service data export, RODO art. 15/20) ─────────────────────
+
+// One membership's slice of the export: what this person is in one school, plus
+// the records about them there. Staff-only CRM fields (memberProfile.notes/tags,
+// guardian/consent notes) are deliberately ABSENT — see services/account.ts.
+export interface AccountExportMembership {
+  organization: { name: string, slug: string }
+  role: OrgRole
+  status: MemberStatus
+  canCoach: boolean
+  // A calendar date ('YYYY-MM-DD'), never an instant — see memberProfile.
+  dateOfBirth: string | null
+  joinedAt: Date
+  guardians: Array<{
+    name: string
+    relationship: string
+    phone: string | null
+    email: string | null
+    isPrimary: boolean
+  }>
+  consents: Array<{
+    type: string
+    status: string
+    grantedAt: Date | null
+    withdrawnAt: Date | null
+    grantedByName: string | null
+    documentVersion: string | null
+  }>
+  enrollments: Array<{
+    group: string | null
+    status: string
+    waitlistPos: number | null
+    enrolledAt: Date
+  }>
+  attendance: Array<{
+    group: string | null
+    startsAt: Date
+    status: string
+    markedAt: Date
+  }>
+}
+
+// A machine-readable copy of everything the app holds ABOUT THE REQUESTING USER
+// as an account holder. Scoped strictly to one user id.
+export interface AccountExportDto {
+  exportedAt: Date
+  account: {
+    id: string
+    name: string
+    email: string
+    emailVerified: boolean
+    image: string | null
+    createdAt: Date
+    updatedAt: Date
+  }
+  memberships: AccountExportMembership[]
+  notifications: Array<{ type: string, createdAt: Date, readAt: Date | null }>
+}
+
+// Why an account can't be deleted yet. Null = nothing blocks it. Resolved by the
+// service so the Better Auth `beforeDelete` boundary stays a thin throw.
+export interface AccountDeletionBlocker {
+  code: 'ACCOUNT_OWNS_SCHOOL'
+  organizationName: string
+}
+
 // ─── Audit log ───────────────────────────────────────────────────────────────
 
 // One governance audit entry as the client reads it. `action` is a stable key
@@ -223,6 +325,125 @@ export interface AuditEntryDto {
 export interface AuditFeedResult {
   entries: AuditEntryDto[]
   nextCursor: string | null
+}
+
+// ─── School overview (owner dashboard) ───────────────────────────────────────
+
+// One of today's lessons as the dashboard timetable shows it — the calendar
+// session flattened with the resolved court + coach display names (so the client
+// needs no lookups). Cancelled occurrences are dropped by the service.
+export interface OverviewSession {
+  id: string
+  startsAt: Date
+  endsAt: Date
+  title: string
+  sport: string
+  color: string
+  status: string
+  courtName: string | null
+  coachName: string | null
+  capacityMax: number | null
+}
+
+// The owner dashboard payload — assembled from existing reads (members, courts,
+// schedule, reservations, invitations, audit, profile completion) into one shot.
+// `week` is a rolling 7-day window (always a full heatmap); occupancy is
+// facility-wide (usage within operating hours ÷ N active courts' capacity).
+export interface SchoolOverviewDto {
+  timezone: string
+  counts: { students: number, coaches: number, staff: number, courts: number }
+  week: {
+    from: Date
+    to: Date
+    operating: { open: number, close: number }
+    lessonHours: number
+    lessonCount: number
+    occupancyPct: number
+    heatmap: number[]
+    peakBucket: { weekday: number, hour: number, minutes: number } | null
+  }
+  today: { date: Date, sessions: OverviewSession[] }
+  attention: { profileMissing: RequiredProfileField[], pendingInvitations: number }
+  activity: AuditEntryDto[]
+}
+
+// ─── Payments (lesson fees — Stripe Connect) ─────────────────────────────────
+
+export type OrgPaymentAccountRow = typeof import('./app-schema').orgPaymentAccount.$inferSelect
+
+// The school's payment-collection status for the /school/payments page. `status`
+// is derived (shared/payments.ts) from the mirrored Stripe flags; `configured` is
+// whether the platform Stripe env is set at all (unset → the UI degrades to a
+// "payments unavailable" notice, mirroring billing's `configured`).
+export interface PaymentAccountDto {
+  status: import('../../shared/payments').PaymentAccountStatus
+  chargesEnabled: boolean
+  payoutsEnabled: boolean
+  detailsSubmitted: boolean
+  configured: boolean
+}
+
+// The billing state of one enrolment's paid spot (mirrored from Stripe). Stripe
+// object ids are never exposed to the client — only the status + period end.
+export interface EnrollmentBillingDto {
+  enrollmentId: string
+  status: import('../../shared/enrollment-billing').EnrollmentBillingStatus
+  currentPeriodEnd: Date | null
+  cancelAtPeriodEnd: boolean
+}
+
+// The compact per-enrolment billing summary the roster shows (keyed by enrolment id).
+export interface EnrollmentBillingSummary {
+  status: import('../../shared/enrollment-billing').EnrollmentBillingStatus
+  cancelAtPeriodEnd: boolean
+  currentPeriodEnd: Date | null
+}
+
+// The audit payload a money operation returns for the endpoint to record. The
+// service fills in the subject + money details; the endpoint adds the acting staff
+// member (actor), which only it knows from the session.
+export interface PaymentAuditPayload {
+  action: string
+  enrollmentId: string
+  studentName: string | null
+  amountMinor: number | null
+  currency: string | null
+  stripeRef: string | null
+}
+
+// One money-movement audit entry as the client reads it. Stripe refs + actor member
+// id are never exposed — only the human-readable trail.
+export interface PaymentAuditEntryDto {
+  id: string
+  action: string
+  actorName: string | null
+  studentName: string | null
+  amountMinor: number | null
+  currency: string | null
+  createdAt: Date
+}
+
+// What the enrolment panel needs to decide whether (and how) to show payment
+// actions: the group's active plan (null = free group) and whether the connected
+// account can actually charge right now.
+export interface SeriesBillingContext {
+  plan: { id: string, name: string, amountMinor: number, currency: string } | null
+  paymentsReady: boolean
+}
+
+export type PricingPlanRow = typeof import('./app-schema').pricingPlan.$inferSelect
+
+// The client-facing pricing plan — Stripe object ids + audit columns are never
+// exposed. `amountMinor` is integer minor units; the client formats it with
+// `currency` (formatMoney). `archivedAt` mirrors the court lifecycle axis.
+export interface PricingPlanDto {
+  id: string
+  name: string
+  description: string | null
+  amountMinor: number
+  currency: string
+  archivedAt: Date | null
+  createdAt: Date
 }
 
 export type OrgProfile = typeof import('./app-schema').orgProfile.$inferSelect
@@ -366,6 +587,7 @@ export interface LessonSeriesDto {
   enrollmentOpen: boolean
   visibility: string
   status: string
+  pricingPlanId: string | null
   createdAt: Date
 }
 

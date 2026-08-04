@@ -13,7 +13,8 @@ const ACTION_ICON: Record<string, string> = {
   'member.coach_granted': 'i-lucide-clipboard-list',
   'member.coach_revoked': 'i-lucide-clipboard-list',
   'member.removed': 'i-lucide-user-minus',
-  'member.ownership_transferred': 'i-lucide-crown'
+  'member.ownership_transferred': 'i-lucide-crown',
+  'member.account_deleted': 'i-lucide-user-x'
 }
 
 export function auditActionIcon(action: string): string {

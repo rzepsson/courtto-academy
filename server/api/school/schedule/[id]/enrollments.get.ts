@@ -17,6 +17,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Lesson not found', data: { code: 'SCHEDULE_NOT_FOUND' } })
   }
 
-  const enrollments = await listSeriesEnrollments(orgId, id)
-  return { series, enrollments }
+  const [enrollments, billing, billingContext] = await Promise.all([
+    listSeriesEnrollments(orgId, id),
+    listSeriesEnrollmentBilling(orgId, id),
+    getSeriesBillingContext(orgId, id)
+  ])
+  return { series, enrollments, billing, billingContext }
 })

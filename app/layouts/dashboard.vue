@@ -19,9 +19,11 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
         { label: t('nav.members'), icon: 'i-lucide-users', to: '/school/members' },
         { label: t('nav.courts'), icon: 'i-lucide-land-plot', to: '/school/courts' },
         { label: t('nav.schedule'), icon: 'i-lucide-calendar-days', to: '/school/schedule' },
-        soon(t('nav.payments'), 'i-lucide-credit-card')
+        { label: t('nav.payments'), icon: 'i-lucide-banknote', to: '/school/payments' }
       ], [
+        { label: t('nav.compliance'), icon: 'i-lucide-shield-check', to: '/school/compliance' },
         { label: t('nav.activity'), icon: 'i-lucide-history', to: '/school/audit' },
+        { label: t('nav.billing'), icon: 'i-lucide-credit-card', to: '/school/billing' },
         { label: t('nav.settings'), icon: 'i-lucide-settings', to: '/school/settings' }
       ]]
     case 'coach':
@@ -42,6 +44,8 @@ const navItems = computed<NavigationMenuItem[][]>(() => {
 const { signingOut, signOut } = useSignOut()
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [[
+  { label: t('account.title'), icon: 'i-lucide-user-cog', to: '/account' }
+], [
   { label: t('auth.signOut'), icon: 'i-lucide-log-out', onSelect: () => { signOut() } }
 ]])
 </script>

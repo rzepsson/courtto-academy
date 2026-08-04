@@ -43,6 +43,82 @@ export const orgJoinCodeRelations = relations(orgJoinCode, ({ one }) => ({
   })
 }))
 
+// The school's Stripe Connect (Express) account — how the school collects lesson
+// fees from parents (the school is the merchant of record; Courtto is the
+// platform). CORE, product-neutral: the future Courtto marketplace collects
+// court-booking fees through the SAME account. One row per org (PK =
+// organizationId). The `*Enabled`/`detailsSubmitted` flags MIRROR Stripe (kept
+// fresh by the Connect webhook + on-demand sync) — Stripe is the source of truth;
+// readiness is DERIVED from them (shared/payments.ts), never a stored boolean.
+export const orgPaymentAccount = pgTable(
+  'org_payment_account',
+  {
+    organizationId: text('organization_id')
+      .primaryKey()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    // The Stripe connected-account id (acct_…). Every direct charge / subscription
+    // for this school is created against it (Stripe-Account header).
+    stripeAccountId: text('stripe_account_id').notNull().unique(),
+    chargesEnabled: boolean('charges_enabled').default(false).notNull(),
+    payoutsEnabled: boolean('payouts_enabled').default(false).notNull(),
+    detailsSubmitted: boolean('details_submitted').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [uniqueIndex('org_payment_account_stripe_idx').on(table.stripeAccountId)]
+)
+
+export const orgPaymentAccountRelations = relations(orgPaymentAccount, ({ one }) => ({
+  organization: one(organization, {
+    fields: [orgPaymentAccount.organizationId],
+    references: [organization.id]
+  })
+}))
+
+// A reusable monthly pricing plan a school defines (e.g. "Junior 1×/week — 200 zł").
+// ACADEMY (it prices lessons); a group (lessonSeries) references one. Mirrored as a
+// Stripe Product + recurring Price ON THE SCHOOL'S CONNECTED ACCOUNT (direct charges
+// → the school is the merchant). `amountMinor` is INTEGER minor units (grosze),
+// never a float; `currency` is snapshotted from the school's profile at creation
+// (a Stripe Price is immutable, so changing the amount creates a NEW price — the old
+// one is deactivated and existing subscriptions keep it). `archivedAt` is the
+// lifecycle axis (soft-delete — a plan tied to subscriptions must keep its history).
+export const pricingPlan = pgTable(
+  'pricing_plan',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    amountMinor: integer('amount_minor').notNull(),
+    currency: text('currency').notNull(),
+    // Stripe object ids on the connected account (nullable only transiently before
+    // they're created; the service always sets them on insert).
+    stripeProductId: text('stripe_product_id'),
+    stripePriceId: text('stripe_price_id'),
+    archivedAt: timestamp('archived_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' })
+  },
+  table => [index('pricing_plan_org_idx').on(table.organizationId)]
+)
+
+export const pricingPlanRelations = relations(pricingPlan, ({ one }) => ({
+  organization: one(organization, {
+    fields: [pricingPlan.organizationId],
+    references: [organization.id]
+  })
+}))
+
 // Extended school profile (contact, address, regional & business details) that
 // Better Auth's `organization` table doesn't model. One row per org (PK =
 // organizationId). Kept out of the auth table on purpose: this is app-domain
@@ -139,6 +215,10 @@ export const memberProfile = pgTable(
     notes: text('notes'),
     // Free-form labels (e.g. 'beginner', 'competitive'). Postgres text[].
     tags: text('tags').array(),
+    // Stripe Customer id on the school's connected account when THIS member pays for
+    // their own spot (an adult student). A minor's payer is their guardian, whose
+    // customer id lives on memberGuardian. Set lazily at first checkout, reused.
+    stripeCustomerId: text('stripe_customer_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()
@@ -194,6 +274,10 @@ export const memberGuardian = pgTable(
     isPrimary: boolean('is_primary').default(false).notNull(),
     // Staff-only (e.g. "collects on Tuesdays", "do not contact before 5pm").
     notes: text('notes'),
+    // Stripe Customer id on the school's connected account when THIS guardian pays
+    // for a child's spot. One customer per guardian, reused across their children —
+    // set lazily at first checkout.
+    stripeCustomerId: text('stripe_customer_id'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
       .defaultNow()
@@ -598,6 +682,11 @@ export const lessonSeries = pgTable(
     enrollmentDeadlineMin: integer('enrollment_deadline_min'),
     visibility: text('visibility').default('members').notNull(),
     status: text('status').default('active').notNull(),
+    // The monthly pricing plan a parent is billed for this group's spot (ACADEMY
+    // payments). Null = a free/unbilled group. `set null` on delete so removing a
+    // plan ungroups its groups rather than deleting them (plans are archived, not
+    // deleted, so this is a backstop).
+    pricingPlanId: text('pricing_plan_id').references(() => pricingPlan.id, { onDelete: 'set null' }),
     createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at')
@@ -903,6 +992,79 @@ export const enrollmentRelations = relations(enrollment, ({ one }) => ({
     references: [lessonSession.id]
   })
 }))
+
+// ACADEMY — the billing state of one enrolment's paid spot, MIRRORED from a Stripe
+// subscription on the school's connected account (webhooks are the source of truth;
+// see shared/enrollment-billing.ts for the status vocabulary). Sidecar to
+// `enrollment` (PK = enrollmentId, 1:1) so the enrolment row stays payment-neutral.
+// `status` default is `pending_payment` — a row exists once a checkout link is sent.
+// Money amounts are never stored here; Stripe holds the ledger.
+export const enrollmentBilling = pgTable(
+  'enrollment_billing',
+  {
+    enrollmentId: text('enrollment_id')
+      .primaryKey()
+      .references(() => enrollment.id, { onDelete: 'cascade' }),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    status: text('status').default('pending_payment').notNull(),
+    // Stripe object ids on the CONNECTED account. The customer is the payer
+    // (guardian or adult student); the subscription is the recurring monthly charge.
+    stripeCustomerId: text('stripe_customer_id'),
+    stripeSubscriptionId: text('stripe_subscription_id'),
+    checkoutSessionId: text('checkout_session_id'),
+    // Mirrored from the subscription — when the current paid period ends.
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    // Mirrored: the subscription is set to stop at the period end (staff cancelled,
+    // or the parent cancelled in the portal). Status stays `active` until then, so
+    // this is how the roster shows "ends on {currentPeriodEnd}".
+    cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [
+    index('enrollment_billing_org_idx').on(table.organizationId),
+    index('enrollment_billing_subscription_idx').on(table.stripeSubscriptionId)
+  ]
+)
+
+export const enrollmentBillingRelations = relations(enrollmentBilling, ({ one }) => ({
+  enrollment: one(enrollment, {
+    fields: [enrollmentBilling.enrollmentId],
+    references: [enrollment.id]
+  })
+}))
+
+// Append-only internal audit of staff MONEY MOVEMENTS (a link sent, a subscription
+// cancelled, a refund issued) — the accountability trail on top of Stripe (which
+// stays the authoritative money ledger). Never updated or deleted by the app. The
+// actor and subject are DENORMALIZED (no FK) + name-snapshotted, so an entry
+// outlives the staff member or enrolment it refers to (same principle as auditLog).
+// Money is INTEGER minor units (grosze); `stripeRef` is the Stripe object id
+// (refund/subscription/session) for reconciliation against Stripe.
+export const paymentAudit = pgTable(
+  'payment_audit',
+  {
+    id: text('id').primaryKey(),
+    organizationId: text('organization_id')
+      .notNull()
+      .references(() => organization.id, { onDelete: 'cascade' }),
+    actorMemberId: text('actor_member_id'),
+    actorName: text('actor_name'),
+    action: text('action').notNull(),
+    enrollmentId: text('enrollment_id'),
+    studentName: text('student_name'),
+    amountMinor: integer('amount_minor'),
+    currency: text('currency'),
+    stripeRef: text('stripe_ref'),
+    createdAt: timestamp('created_at').defaultNow().notNull()
+  },
+  table => [index('payment_audit_org_created_idx').on(table.organizationId, table.createdAt)]
+)
 
 // ACADEMY — actual attendance per session (present | absent | excused | late),
 // recorded against the expected roster (active enrolments on that date). One

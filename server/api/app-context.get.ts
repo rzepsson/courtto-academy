@@ -11,6 +11,10 @@ export default defineEventHandler(async (event): Promise<AppContext> => {
 
   return {
     memberships,
-    activeOrganizationId: active?.organization.id ?? null
+    activeOrganizationId: active?.organization.id ?? null,
+    // Entitlement for the active org drives /billing-required routing. Only the
+    // active org's is computed (one small read) — the guard only ever asks about
+    // the org the user is currently in.
+    entitlement: active ? await getOrgEntitlement(active.organization.id) : null
   }
 })

@@ -11,6 +11,11 @@ export const AUDIT_ACTIONS = [
   'member.coach_revoked',
   'member.removed',
   'member.ownership_transferred',
+  // Self-service account deletion (RODO art. 17). Recorded in EVERY school the
+  // person belonged to, before the cascade removes their membership: otherwise a
+  // student simply vanishes from the roster with nothing to explain the hole. The
+  // denormalized, FK-free actor/target columns are what make this survive.
+  'member.account_deleted',
   // Consent (RODO/GDPR): the trail IS the art. 7(1) evidence that a consent was
   // given and when it was withdrawn — the consent row only holds current state.
   'member.consent_granted',

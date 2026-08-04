@@ -134,6 +134,48 @@
       "when": 1784208434847,
       "tag": "0018_lazy_prima",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1784639189462,
+      "tag": "0019_dizzy_thunderbolts",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1784822292878,
+      "tag": "0020_noisy_penance",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1784824111831,
+      "tag": "0021_gifted_korath",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1784917039790,
+      "tag": "0022_perfect_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1784973642574,
+      "tag": "0023_cuddly_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1784980617872,
+      "tag": "0024_happy_riptide",
+      "breakpoints": true
     }
   ]
 }

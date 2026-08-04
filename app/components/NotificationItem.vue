@@ -9,7 +9,12 @@ const { t, te, locale } = useI18n()
 
 // Per-type icon; unknown types fall back to a generic bell.
 const ICONS: Record<string, string> = {
-  'org.setup_incomplete': 'i-lucide-building-2'
+  'org.setup_incomplete': 'i-lucide-building-2',
+  'lesson.cancelled': 'i-lucide-calendar-x',
+  'lesson.rescheduled': 'i-lucide-calendar-clock',
+  'lesson.reminder': 'i-lucide-calendar-check',
+  'enrollment.waitlist_promoted': 'i-lucide-user-check',
+  'billing.payment_failed': 'i-lucide-credit-card'
 }
 
 const icon = computed(() => ICONS[props.notification.type] ?? 'i-lucide-bell')

@@ -14,13 +14,27 @@
 // `notifications.types.org.setup_incomplete.{title,body}` must be nested objects
 // in the locale files (NOT a single flat "org.setup_incomplete" key, which the
 // dotted lookup can't reach).
-export const NOTIFICATION_TYPES = ['org.setup_incomplete'] as const
+export const NOTIFICATION_TYPES = [
+  'org.setup_incomplete',
+  // Operational lesson events (dismissible, one row per real event). These are
+  // what turn the product into the school's system of record — a cancelled or
+  // moved lesson reaches the people it affects instead of a parallel WhatsApp
+  // group. Emitted by services/lessonNotifications.ts, which also mails them.
+  'lesson.cancelled',
+  'lesson.rescheduled',
+  'lesson.reminder',
+  'enrollment.waitlist_promoted',
+  // A student's monthly payment failed (Stripe dunning). Alerts school staff so
+  // they can follow up; the payer gets Stripe's own dunning email separately.
+  'billing.payment_failed'
+] as const
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
 // System-managed types: the user can't manually dismiss them (no `x`, skipped by
 // "clear all"). Their lifecycle is owned by the system — created and resolved by
 // a condition, never by a click. Each also gets a stable dedupe key so the row
-// is created at most once per (user, org).
+// is created at most once per (user, org). The lesson events above are ordinary
+// dismissible notifications — they mark a real event, not a live condition.
 export const SYSTEM_NOTIFICATION_TYPES: readonly NotificationType[] = ['org.setup_incomplete']
 
 export function isSystemNotificationType(type: string): boolean {

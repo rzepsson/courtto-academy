@@ -24,5 +24,12 @@ export async function resolveAreaRedirect(area: Area): Promise<string | null> {
     return '/access-paused'
   }
 
+  // The whole school is gated when its subscription lapses (trial elapsed or
+  // payment failed): route every area to the terminal /billing-required screen,
+  // which itself carries no area guard (no loop) and is where the owner subscribes.
+  if (context.value?.entitlement && !context.value.entitlement.entitled) {
+    return '/billing-required'
+  }
+
   return roleArea(active.role) === area ? null : roleHome(active.role)
 }

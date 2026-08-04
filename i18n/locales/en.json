@@ -25,6 +25,24 @@
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL": "An account with this email already exists. Try signing in instead.",
       "PASSWORD_TOO_SHORT": "Password must be at least 8 characters.",
       "PASSWORD_TOO_LONG": "Password is too long.",
+      "INVALID_TOKEN": "This password reset link is invalid or has expired.",
+      "SUBSCRIPTION_INACTIVE": "Your school's subscription is inactive. Renew it to continue.",
+      "ACCOUNT_OWNS_SCHOOL": "You're the only owner of a school. Transfer ownership to someone else, or delete the school first.",
+      "PAYMENTS_NOT_CONFIGURED": "Online payments aren't set up for this school yet.",
+      "PAYMENTS_ACCOUNT_REQUIRED": "Set up payment collection before adding plans.",
+      "PAYMENTS_STRIPE_ERROR": "Something went wrong talking to Stripe. Please try again.",
+      "PRICING_PLAN_ARCHIVED": "Restore this plan before editing it.",
+      "INVALID_PRICING_PLAN": "Some plan details are invalid. Please review the form.",
+      "SERIES_PLAN_NOT_SET": "This group has no pricing plan yet. Assign one before charging.",
+      "PRICING_PLAN_UNAVAILABLE": "This group's pricing plan is unavailable. Check it in Payments.",
+      "PAYER_NO_GUARDIAN": "This student is a minor with no primary guardian to bill. Add a guardian first.",
+      "PAYER_NO_EMAIL": "The payer has no email address on file.",
+      "BILLING_ALREADY_ACTIVE": "This enrolment is already being billed.",
+      "PAYMENTS_ACCOUNT_NOT_READY": "Finish setting up payments before charging — charges aren't enabled yet.",
+      "ENROLLMENT_NOT_ENROLLED": "Only a confirmed enrolment can be billed.",
+      "BILLING_NO_CUSTOMER": "No billing customer for this enrolment yet. Send a payment link first.",
+      "BILLING_NO_SUBSCRIPTION": "There's no subscription to manage for this enrolment yet.",
+      "BILLING_NOTHING_TO_REFUND": "There's no payment to refund.",
       "USER_NOT_FOUND": "We couldn't find an account with this email.",
       "EMAIL_NOT_VERIFIED": "Please verify your email address before signing in.",
       "CREDENTIAL_ACCOUNT_NOT_FOUND": "No password sign-in is set up for this account.",
@@ -132,6 +150,7 @@
       "member.coach_revoked": "Coaching capability removed",
       "member.removed": "Removed from the school",
       "member.ownership_transferred": "Made owner of the school",
+      "member.account_deleted": "Deleted their Courtto account",
       "member.consent_granted": "Consent recorded",
       "member.consent_withdrawn": "Consent withdrawn",
       "unknown": "Membership updated"
@@ -148,6 +167,220 @@
     },
     "switchTitle": "You're still active at",
     "switch": "Go to {org}"
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Manage your school's subscription and plan.",
+    "perMonth": "/mo",
+    "recommended": "Recommended",
+    "currentPlan": "Current plan",
+    "choosePlan": "Choose plan",
+    "switchToPlan": "Switch to this plan",
+    "choosePlanHeading": "Choose a plan",
+    "changePlan": "Change plan",
+    "manage": "Manage billing",
+    "ownerOnly": "Only the school owner can change the subscription.",
+    "checkoutSuccess": "Subscription activated — welcome aboard!",
+    "trial": {
+      "title": "Free trial",
+      "daysLeft": "{days} days left in your trial"
+    },
+    "status": {
+      "pastDue": "There was a problem with your last payment. Update your card to keep access.",
+      "renewsOn": "Renews on {date}",
+      "cancelsOn": "Access until {date}"
+    },
+    "notConfigured": {
+      "title": "Billing isn't set up yet",
+      "description": "Online subscriptions aren't available in this environment. Your school keeps full access on its trial."
+    },
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "tagline": "For a single school getting organized."
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "For growing schools that need analytics and more."
+      }
+    },
+    "features": {
+      "members": "Unlimited members & roles",
+      "schedule": "Lesson scheduling & attendance",
+      "courts": "Court management",
+      "email": "Email notifications",
+      "everythingStarter": "Everything in Starter",
+      "analytics": "Utilization & people analytics",
+      "auditLog": "Activity log & audit trail",
+      "prioritySupport": "Priority support"
+    },
+    "errors": {
+      "checkoutFailed": "We couldn't start checkout. Please try again.",
+      "portalFailed": "We couldn't open the billing portal. Please try again."
+    }
+  },
+  "billingRequired": {
+    "expired": {
+      "title": "Your trial has ended",
+      "description": "{org}'s free trial is over. Choose a plan to keep using Courtto."
+    },
+    "pastDue": {
+      "title": "Payment needed",
+      "description": "There was a problem with {org}'s last payment. Update your billing details to restore access."
+    },
+    "contactOwner": "Your school's subscription is inactive. Please ask the school owner to renew it."
+  },
+  "overview": {
+    "greeting": {
+      "default": "Welcome back, {name}",
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
+    "tiles": {
+      "students": "Students",
+      "coaches": "Coaches",
+      "courts": "Courts",
+      "lessons": "Lessons this week"
+    },
+    "today": {
+      "title": "Today",
+      "viewSchedule": "Schedule",
+      "empty": {
+        "title": "No lessons today",
+        "description": "Nothing on the calendar for today — enjoy the quiet, or add a lesson."
+      }
+    },
+    "occupancy": {
+      "title": "Occupancy",
+      "window": "Last 7 days",
+      "rate": "Court occupancy",
+      "lessonHours": "Lesson hours",
+      "lessons": "Lessons",
+      "empty": "No lessons in the last 7 days yet.",
+      "peak": "Busiest: {when}"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "empty": "Nothing has happened yet."
+    },
+    "pendingInvites": {
+      "title": "Pending invitations: {count}",
+      "subtitle": "Waiting for a response — review them in Members."
+    }
+  },
+  "compliance": {
+    "title": "Compliance",
+    "subtitle": "Students missing the paperwork the law requires: a minor with no guardian on file, or a photo consent that was never asked. Clear them before the data is used.",
+    "tiles": {
+      "students": "Active students",
+      "guardian": "Minors without a guardian",
+      "consent": "Image consent not asked",
+      "withGaps": "Students with gaps"
+    },
+    "filter": {
+      "all": "All gaps",
+      "guardian": "Guardian",
+      "consent": "Image consent"
+    },
+    "searchPlaceholder": "Search by name or email…",
+    "noMatch": "No students match this filter.",
+    "allClear": {
+      "title": "All clear",
+      "description": "Every active student has a guardian on file where required and has been asked for image consent."
+    },
+    "minor": "Minor · {age}",
+    "gap": {
+      "guardian": "No guardian",
+      "imageConsent": "Image consent not asked"
+    },
+    "resolve": "Resolve",
+    "columns": {
+      "member": "Student",
+      "gaps": "Compliance gap",
+      "action": "Action"
+    }
+  },
+  "payments": {
+    "title": "Payments",
+    "subtitle": "Collect lesson fees from parents. Connect your Stripe account to get paid — money goes straight to your bank, and Courtto never holds it.",
+    "notConfigured": {
+      "title": "Payments aren't available yet",
+      "description": "Online fee collection isn't enabled in this environment."
+    },
+    "none": {
+      "title": "Start collecting lesson fees",
+      "description": "Connect a Stripe account to charge parents for group memberships. Stripe handles identity checks and pays out to your bank.",
+      "action": "Set up payments"
+    },
+    "pending": {
+      "title": "Finishing setup",
+      "description": "Your Stripe account is being verified. Continue where you left off, or check back shortly.",
+      "action": "Continue setup"
+    },
+    "ready": {
+      "title": "You're ready to collect payments",
+      "description": "Your Stripe account is active and can accept payments."
+    },
+    "facts": {
+      "chargesOn": "Charges enabled",
+      "chargesOff": "Charges pending",
+      "payoutsOn": "Payouts enabled",
+      "payoutsOff": "Payouts pending"
+    },
+    "ownerOnly": "Only the school owner can set up payments.",
+    "errors": {
+      "onboardingFailed": "We couldn't start Stripe setup. Please try again."
+    },
+    "plans": {
+      "title": "Pricing plans",
+      "subtitle": "Monthly prices you can assign to groups. Parents are billed for their child's spot.",
+      "add": "Add plan",
+      "addTitle": "New pricing plan",
+      "editTitle": "Edit pricing plan",
+      "empty": "No pricing plans yet. Add one to start charging for a group.",
+      "archivedSection": "Archived",
+      "archive": "Archive",
+      "restore": "Restore",
+      "created": "Plan created",
+      "updated": "Plan updated",
+      "archived": "Plan archived",
+      "restored": "Plan restored",
+      "saveFailed": "We couldn't save the plan. Please try again.",
+      "fields": {
+        "name": "Name",
+        "namePlaceholder": "e.g. Junior — 1×/week",
+        "description": "Description",
+        "descriptionPlaceholder": "What this plan includes (optional)",
+        "amount": "Monthly price"
+      },
+      "errors": {
+        "required": "This field is required.",
+        "tooLong": "This value is too long.",
+        "amount": "Enter a valid price."
+      }
+    },
+    "activity": {
+      "title": "Payment activity",
+      "empty": "No payment activity yet.",
+      "someone": "A staff member",
+      "actions": {
+        "checkout_sent": "{actor} sent a payment link for {student}",
+        "subscription_canceled": "{actor} cancelled {student}'s subscription",
+        "refund_issued": "{actor} refunded a payment for {student}",
+        "unknown": "{actor} made a billing change"
+      }
+    }
+  },
+  "pay": {
+    "success": {
+      "title": "Payment set up",
+      "description": "Thank you! Your monthly payment is now active. You can close this page."
+    },
+    "cancel": {
+      "title": "Payment not completed",
+      "description": "No payment was taken. You can use the link from your email again whenever you're ready."
+    }
   },
   "common": {
     "language": "Language",
@@ -172,6 +405,8 @@
     "members": "Members",
     "courts": "Courts",
     "payments": "Payments",
+    "billing": "Billing",
+    "compliance": "Compliance",
     "activity": "Activity log",
     "settings": "Settings",
     "groups": "Groups",
@@ -473,6 +708,10 @@
       "title": "Edit lesson",
       "subtitle": "Update the group's details and the slots it meets on.",
       "saved": "Lesson updated",
+      "pricingPlan": "Pricing plan",
+      "pricingPlanHelp": "Bill parents monthly for this group's spots.",
+      "noPlan": "No plan (free group)",
+      "noPlansHint": "No pricing plans yet — create one in",
       "editSlot": "Edit slot",
       "saveSlot": "Save slot",
       "newSlot": "New slot",
@@ -523,6 +762,35 @@
         "loadFailed": "Could not load enrolments",
         "addFailed": "Could not enrol the student",
         "removeFailed": "Could not remove the enrolment"
+      }
+    },
+    "billing": {
+      "none": "Not billed",
+      "pending": "Awaiting payment",
+      "active": "Paid",
+      "pastDue": "Payment due",
+      "canceled": "Cancelled",
+      "ending": "Ending",
+      "endsOn": "Ends {date}",
+      "manage": "Manage",
+      "actions": "Billing actions",
+      "sendLink": "Send link",
+      "resend": "Resend link",
+      "cancel": "Cancel subscription",
+      "refund": "Refund last payment",
+      "linkSent": "Payment link sent",
+      "cancelled": "Subscription cancelled",
+      "refunded": "Payment refunded",
+      "actionFailed": "Could not complete the billing action. Please try again.",
+      "cancelConfirm": {
+        "title": "Cancel subscription",
+        "warningTitle": "The spot keeps running until the paid month ends",
+        "warningBody": "{name}'s subscription will stop at the end of the current period — no further charges. You can send a new link later to resume."
+      },
+      "refundConfirm": {
+        "title": "Refund last payment",
+        "warningTitle": "This returns money to the payer",
+        "warningBody": "The most recent payment for {name} will be fully refunded to the payer's card. This can't be undone here."
       }
     },
     "form": {
@@ -589,7 +857,29 @@
       "subtitle": "Welcome back to Courtto Academy.",
       "submit": "Sign in",
       "noAccount": "Don't have an account?",
-      "signUp": "Create one"
+      "signUp": "Create one",
+      "forgotPassword": "Forgot password?"
+    },
+    "forgot": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a link to set a new password.",
+      "submit": "Send reset link",
+      "sentTitle": "Check your inbox",
+      "sentSubtitle": "If an account exists for {email}, we've sent a link to reset your password.",
+      "sentHint": "The link expires in 1 hour. Don't forget to check your spam folder.",
+      "resend": "Send another link",
+      "backToLogin": "Back to sign in"
+    },
+    "reset": {
+      "title": "Choose a new password",
+      "subtitle": "Enter a new password for your account.",
+      "submit": "Update password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "success": "Your password has been updated. Please sign in.",
+      "invalidTitle": "This link is invalid or expired",
+      "invalidDescription": "Password reset links expire after an hour. Request a new one to continue.",
+      "requestNew": "Request a new link"
     },
     "register": {
       "title": "Create account",
@@ -613,8 +903,12 @@
       "emailRequired": "Please enter your email.",
       "passwordRequired": "Please enter your password.",
       "passwordTooShort": "Password must be at least 8 characters.",
+      "confirmRequired": "Please confirm your password.",
+      "passwordMismatch": "Passwords don't match.",
       "signInFailed": "Could not sign in",
-      "signUpFailed": "Could not create account"
+      "signUpFailed": "Could not create account",
+      "resetRequestFailed": "Could not send reset link",
+      "resetFailed": "Could not update password"
     },
     "signOut": "Sign out"
   },
@@ -1129,6 +1423,76 @@
   "dashboard": {
     "comingSoon": "Coming soon"
   },
+  "account": {
+    "title": "Your account",
+    "tagline": "Your sign-in details, the devices you're signed in on, and control over your data. These settings follow you across every school you belong to.",
+    "saved": "Changes saved",
+    "profile": {
+      "title": "Profile",
+      "subtitle": "The name your school sees on rosters, schedules and messages.",
+      "name": "Full name"
+    },
+    "email": {
+      "title": "Email address",
+      "subtitle": "You sign in with this address, and it's where we send password resets and lesson notifications.",
+      "label": "Email address",
+      "help": "If the new address already belongs to another account, the change won't be applied.",
+      "updated": "Email address updated"
+    },
+    "password": {
+      "title": "Password",
+      "subtitle": "Change the password you sign in with.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "hint": "At least {min} characters.",
+      "save": "Change password",
+      "revokeNote": "Changing your password signs you out on every other device.",
+      "updated": "Password changed"
+    },
+    "devices": {
+      "title": "Devices",
+      "subtitle": "Where your account is currently signed in. Sign out anything you don't recognise.",
+      "current": "This device",
+      "unknown": "Unknown device",
+      "signedIn": "Signed in {date}",
+      "revoke": "Sign out",
+      "revokeOthers": "Sign out {count} other devices",
+      "revoked": "Device signed out",
+      "revokedOthers": "Other devices signed out",
+      "empty": "No other active sessions."
+    },
+    "data": {
+      "title": "Your data",
+      "subtitle": "Download a copy of the data tied to your account.",
+      "includes": "The file includes your account details, your membership in each school, your guardians and consent decisions, your enrolments and attendance history, and your notifications — as JSON.",
+      "controllerNote": "Each school keeps its own records about its students and staff. For a full copy of what one school holds about you — or to have it erased — contact that school directly; they decide what their records contain.",
+      "export": "Download my data"
+    },
+    "danger": {
+      "title": "Delete account",
+      "subtitle": "Close your account and remove it from every school.",
+      "hint": "This permanently deletes your account, your membership in every school, and your enrolment and attendance history. It cannot be undone.",
+      "delete": "Delete account",
+      "confirmTitle": "Delete your account?",
+      "confirmDescription": "Enter your password to confirm. This cannot be undone.",
+      "confirmWarning": "Your memberships, enrolments, attendance history and guardian contacts will be deleted. Any active lesson payment is cancelled at the end of the paid period.",
+      "confirmLabel": "Your password"
+    },
+    "errors": {
+      "nameRequired": "Enter your name.",
+      "tooLong": "This is too long.",
+      "emailInvalid": "Enter a valid email address.",
+      "currentPasswordRequired": "Enter your current password.",
+      "passwordTooShort": "Password must be at least 8 characters.",
+      "passwordMismatch": "The passwords don't match.",
+      "saveFailed": "Could not save changes",
+      "passwordFailed": "Could not change your password",
+      "revokeFailed": "Could not sign out that device",
+      "exportFailed": "Could not prepare your data",
+      "deleteFailed": "Could not delete your account"
+    }
+  },
   "notifications": {
     "title": "Notifications",
     "empty": "You're all caught up.",
@@ -1143,6 +1507,32 @@
         "setup_incomplete": {
           "title": "Finish setting up {schoolName}",
           "body": "Add your contact details, sports and location in settings so your school is ready to operate."
+        }
+      },
+      "lesson": {
+        "cancelled": {
+          "title": "Lesson cancelled",
+          "body": "The {lessonTitle} lesson has been cancelled."
+        },
+        "rescheduled": {
+          "title": "Lesson rescheduled",
+          "body": "The {lessonTitle} lesson has been moved to a new time."
+        },
+        "reminder": {
+          "title": "Upcoming lesson",
+          "body": "The {lessonTitle} lesson is coming up soon."
+        }
+      },
+      "enrollment": {
+        "waitlist_promoted": {
+          "title": "You got a spot",
+          "body": "A place opened up in {lessonTitle} — you're now enrolled."
+        }
+      },
+      "billing": {
+        "payment_failed": {
+          "title": "Payment failed",
+          "body": "{studentName}'s monthly payment for {groupTitle} didn't go through."
         }
       }
     }

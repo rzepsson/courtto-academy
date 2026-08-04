@@ -5,6 +5,8 @@ import { attendance, enrollment, lessonSeries, lessonSession, reservation } from
 import { member, user } from '../../database/schema'
 import type { EnrollmentDto, EnrollmentView, RosterEntry, SeriesEnrollmentSummary, StudentSessionView } from '../../database/types'
 import { isAttendanceStatus } from '../../../shared/schedule'
+import { notifyWaitlistPromoted } from './lessonNotifications'
+import { stopBillingForEnrollments, type StaffActor } from './enrollmentBilling'
 
 // Academy enrolment + attendance service. App-owned tables, written with Drizzle
 // directly; every query scoped by organizationId (multi-tenant isolation).
@@ -230,7 +232,8 @@ export async function enrollInSession(
 export async function cancelEnrollment(
   organizationId: string,
   enrollmentId: string,
-  ownerStudentMemberId?: string
+  ownerStudentMemberId?: string,
+  actor?: StaffActor
 ): Promise<EnrollmentDto | null> {
   const [existing] = await db
     .select(ENROLLMENT_COLUMNS)
@@ -240,7 +243,7 @@ export async function cancelEnrollment(
   if (!existing) return null
   if (ownerStudentMemberId !== undefined && existing.studentMemberId !== ownerStudentMemberId) return null
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // Resolve and lock the owning series (a session enrolment locks its session's series).
     let lockSeriesId = existing.seriesId
     if (!lockSeriesId && existing.sessionId) {
@@ -267,7 +270,7 @@ export async function cancelEnrollment(
       .where(and(eq(enrollment.organizationId, organizationId), eq(enrollment.id, enrollmentId)))
       .limit(1)
     if (!current) return null
-    if (current.status === 'cancelled') return current // already cancelled → no double promotion
+    if (current.status === 'cancelled') return { cancelled: current, promotedStudentMemberId: null } // already cancelled → no double promotion
 
     const wasEnrolled = current.status === 'enrolled'
     const [cancelled] = await tx
@@ -276,12 +279,13 @@ export async function cancelEnrollment(
       .where(and(eq(enrollment.organizationId, organizationId), eq(enrollment.id, enrollmentId)))
       .returning(ENROLLMENT_COLUMNS)
 
+    let promotedStudentMemberId: string | null = null
     if (wasEnrolled) {
       const scopeWhere = existing.seriesId
         ? and(eq(enrollment.organizationId, organizationId), eq(enrollment.seriesId, existing.seriesId), eq(enrollment.status, 'waitlisted'))
         : and(eq(enrollment.organizationId, organizationId), eq(enrollment.sessionId, existing.sessionId!), eq(enrollment.status, 'waitlisted'))
       const [next] = await tx
-        .select({ id: enrollment.id })
+        .select({ id: enrollment.id, studentMemberId: enrollment.studentMemberId })
         .from(enrollment)
         .where(scopeWhere)
         .orderBy(asc(enrollment.waitlistPos))
@@ -291,11 +295,31 @@ export async function cancelEnrollment(
           .update(enrollment)
           .set({ status: 'enrolled', waitlistPos: null })
           .where(and(eq(enrollment.organizationId, organizationId), eq(enrollment.id, next.id)))
+        promotedStudentMemberId = next.studentMemberId
       }
     }
 
-    return cancelled!
+    return { cancelled: cancelled!, promotedStudentMemberId }
   })
+
+  if (!result) return null
+
+  // The spot has ended, so its monthly charge must end too — after commit,
+  // best-effort, and never changes the return contract. Emitted HERE rather than in
+  // the handlers so every call path stops the money: the staff panel, the student
+  // cancelling their own spot in /my, and any future bulk path.
+  await stopBillingForEnrollments(organizationId, [enrollmentId], actor)
+
+  // Tell the promoted student they're off the waitlist (bell + email, guardian too
+  // for a minor) — after commit, best-effort, and never changes the return contract.
+  if (result.promotedStudentMemberId) {
+    await notifyWaitlistPromoted(organizationId, result.promotedStudentMemberId, {
+      seriesId: existing.seriesId,
+      sessionId: existing.sessionId
+    })
+  }
+
+  return result.cancelled
 }
 
 // The series-level capacity context for the staff enrolment panel. Null when the

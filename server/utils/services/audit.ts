@@ -4,6 +4,7 @@ import { db } from '../db'
 import { auditLog } from '../../database/app-schema'
 import type { AuditEntryDto, AuditFeedResult } from '../../database/types'
 import type { AuditAction } from '../../../shared/audit'
+import { captureError } from '../monitoring'
 
 // The governance audit trail (app-owned, product-neutral core). Append-only:
 // recordAudit only inserts, reads only select. Every read is scoped by
@@ -43,7 +44,7 @@ export async function recordAudit(entry: {
       data: entry.data ?? null
     })
   } catch (error) {
-    console.error('[audit] failed to record', entry.action, error)
+    captureError(error, { scope: 'audit.record', action: entry.action, organizationId: entry.organizationId })
   }
 }
 

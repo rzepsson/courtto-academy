@@ -45,3 +45,9 @@ export function formatRelativeTime(value: string | Date, locale: string): string
 export function formatJoinCode(code: string): string {
   return code.replace(/(.{4})(?=.)/g, '$1-')
 }
+
+// Minor units (grosze/cents) → a locale-aware currency string. Display only —
+// Stripe stays the billing source of truth for what's actually charged.
+export function formatMoney(minorUnits: number, currency: string, locale: string): string {
+  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(minorUnits / 100)
+}

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { DateTime } from 'luxon'
 import type { CourtView } from '~/utils/courts'
-import type { LessonDetail } from '~~/server/database/types'
+import type { LessonDetail, PricingPlanDto } from '~~/server/database/types'
+
+const NO_PLAN = '__no_plan__'
 
 // Edit a lesson GROUP (school): its metadata (title, colour, capacity, enrolment
 // policy) plus its SLOTS — the recurrence rules it meets on. Each slot carries its
@@ -17,7 +19,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ saved: [] }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toast = useToast()
 const { toastError } = useApiError()
 const form = useTemplateRef('form')
@@ -29,6 +31,23 @@ const state = reactive({
   capacityMax: null as number | null,
   enrollmentOpen: true
 })
+
+// Pricing plan (saved via a dedicated endpoint, so kept outside the metadata form).
+const plans = ref<PricingPlanDto[]>([])
+const planId = ref<string>(NO_PLAN)
+const planOptions = computed(() => [
+  { label: t('schedule.edit.noPlan'), value: NO_PLAN },
+  ...plans.value.map(plan => ({ label: `${plan.name} · ${formatMoney(plan.amountMinor, plan.currency, locale.value)}`, value: plan.id }))
+])
+
+async function loadPlans() {
+  try {
+    const { plans: list } = await $fetch<{ plans: PricingPlanDto[] }>('/api/school/pricing-plans')
+    plans.value = list
+  } catch {
+    plans.value = []
+  }
+}
 const sport = ref('')
 const timezone = ref('Europe/Warsaw')
 const loading = ref(false)
@@ -62,6 +81,7 @@ async function load() {
     state.color = s.color
     state.capacityMax = s.capacityMax
     state.enrollmentOpen = s.enrollmentOpen
+    planId.value = s.pricingPlanId ?? NO_PLAN
     sport.value = s.sport
     timezone.value = s.timezone
     rules.value = lesson.rules
@@ -74,7 +94,10 @@ async function load() {
 }
 
 watch([open, () => props.seriesId], ([isOpen]) => {
-  if (isOpen && props.seriesId) load()
+  if (isOpen && props.seriesId) {
+    load()
+    loadPlans()
+  }
 })
 
 // --- Metadata save ---
@@ -90,6 +113,12 @@ async function onSubmit() {
         capacityMax: typeof state.capacityMax === 'number' && Number.isFinite(state.capacityMax) ? state.capacityMax : null,
         enrollmentOpen: state.enrollmentOpen
       }
+    })
+    // The plan lives on its own endpoint (it mutates Stripe-linked state), saved
+    // together with the metadata so one Save does both.
+    await $fetch(`/api/school/schedule/${props.seriesId}/plan`, {
+      method: 'PUT',
+      body: { pricingPlanId: planId.value === NO_PLAN ? null : planId.value }
     })
     toast.add({ title: t('schedule.edit.saved'), color: 'success' })
     open.value = false
@@ -311,6 +340,36 @@ async function confirmDelete() {
             </div>
           </UFormField>
         </UForm>
+
+        <!-- Pricing plan (monthly billing for this group) -->
+        <div class="flex flex-col gap-3 border-t border-default pt-5">
+          <div class="min-w-0">
+            <h3 class="text-sm font-semibold text-highlighted">
+              {{ t('schedule.edit.pricingPlan') }}
+            </h3>
+            <p class="mt-0.5 text-xs text-muted">
+              {{ t('schedule.edit.pricingPlanHelp') }}
+            </p>
+          </div>
+          <USelectMenu
+            v-if="plans.length"
+            v-model="planId"
+            value-key="value"
+            :items="planOptions"
+            size="lg"
+            class="w-full"
+          />
+          <p
+            v-else
+            class="text-xs text-muted"
+          >
+            {{ t('schedule.edit.noPlansHint') }}
+            <ULink
+              to="/school/payments"
+              class="text-primary hover:underline"
+            >{{ t('nav.payments') }}</ULink>
+          </p>
+        </div>
 
         <!-- Slots -->
         <div class="flex flex-col gap-3 border-t border-default pt-5">
