@@ -43,6 +43,15 @@ function daysFromNow(n: number): Date {
   d.setDate(d.getDate() + n)
   return d
 }
+// The occurrence of a weekday `weeks` back. Recurring series start in the PAST so
+// the current week is already full and the occupancy heatmap has history; a series
+// starting "next Monday" leaves the demo looking empty for up to a week.
+function weekdayWeeksAgo(target: number, weeks: number): Date {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - ((d.getDay() - target + 7) % 7) - weeks * 7)
+  return d
+}
 
 async function run() {
   // Dynamic imports AFTER the env guard so a missing DATABASE_URL fails with a
@@ -60,6 +69,7 @@ async function run() {
   const { upsertMemberProfile } = await import('../server/utils/services/memberProfile')
   const { createMemberGuardian } = await import('../server/utils/services/memberGuardians')
   const { recordMemberConsent } = await import('../server/utils/services/memberConsents')
+  const { recordAudit } = await import('../server/utils/services/audit')
 
   type OrgRole = 'owner' | 'admin' | 'coach' | 'student'
 
@@ -149,7 +159,7 @@ async function run() {
 
     // Staff
     const admin = await ensureAuth('Piotr Nowak', 'piotr@warszawa-tenis.pl')
-    await addStaffOrStudent(orgId, admin.userId, 'admin')
+    const adminMember = await addStaffOrStudent(orgId, admin.userId, 'admin')
     cred(school, 'admin', 'Piotr Nowak', admin.email)
 
     const coach1 = await ensureAuth('Marek Wiśniewski', 'marek@warszawa-tenis.pl')
@@ -209,53 +219,162 @@ async function run() {
     const padelZone = await createZone(orgId, { name: 'Korty padla' }, owner.userId)
 
     const kort1 = await createCourt(orgId, { name: 'Kort 1', sport: 'tennis', surface: 'hard', environment: 'indoor', zoneId: hala.id }, owner.userId)
-    await createCourt(orgId, { name: 'Kort 2', sport: 'tennis', surface: 'clay', environment: 'indoor', zoneId: hala.id }, owner.userId)
+    const kort2 = await createCourt(orgId, { name: 'Kort 2', sport: 'tennis', surface: 'clay', environment: 'indoor', zoneId: hala.id }, owner.userId)
     const kort3 = await createCourt(orgId, { name: 'Kort 3', sport: 'tennis', surface: 'clay', environment: 'outdoor', zoneId: null }, owner.userId)
     const padelA = await createCourt(orgId, { name: 'Padel A', sport: 'padel', surface: 'artificialGrass', environment: 'indoor', zoneId: padelZone.id }, owner.userId)
     const padelB = await createCourt(orgId, { name: 'Padel B', sport: 'padel', surface: 'artificialGrass', environment: 'indoor', zoneId: padelZone.id }, owner.userId)
 
-    // Recurring group: kids' tennis, Mondays 17:00, Kort 1, coach Marek.
-    const kidsGroup = await createLesson(orgId, {
-      type: 'group', sport: 'tennis', title: 'Grupa dziecięca — poniedziałki',
-      level: 'Początkujący', ageGroup: '8–12', capacityMin: 2, capacityMax: 4,
-      enrollmentOpen: true, visibility: 'members', color: '#2f6db5',
-      rules: [{ rrule: 'FREQ=WEEKLY;BYDAY=MO', dtStart: at(nextWeekday(1), 17, 0), durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member }]
-    }, owner.userId)
-    await enrollInSeries(orgId, kidsGroup.series.id, kacperMember, true)
-    await enrollInSeries(orgId, kidsGroup.series.id, lenaMember, true)
-    await enrollInSeries(orgId, kidsGroup.series.id, antoniMember, true)
+    // ── The weekly timetable ────────────────────────────────────────────────
+    // A real academy runs several lessons a day, so the demo does too: an empty
+    // calendar makes a working product look broken. Series start WEEKS_BACK weeks
+    // ago, which fills the current week from the moment you sign in and gives the
+    // occupancy heatmap real history to plot.
+    //
+    // Slots are laid out so no court and no coach is ever double-booked. That is
+    // not a style preference: the schedule service enforces both with Postgres
+    // EXCLUDE constraints, so an overlap here fails the seed instead of passing
+    // silently. Adjacent slots (one ends exactly where the next starts) are fine —
+    // reservation ranges are half-open.
+    const WEEKS_BACK = 3
+    const DAY_CODE: Record<number, string> = { 0: 'SU', 1: 'MO', 2: 'TU', 3: 'WE', 4: 'TH', 5: 'FR', 6: 'SA' }
+    const [MO, TU, WE, TH, FR, SA] = [1, 2, 3, 4, 5, 6]
 
-    // Recurring group: adult padel, Wednesdays 19:00, Padel A, coach Katarzyna.
-    const padelGroup = await createLesson(orgId, {
-      type: 'group', sport: 'padel', title: 'Padel dorośli — środy',
-      level: 'Średniozaawansowany', capacityMin: 2, capacityMax: 4,
-      enrollmentOpen: true, visibility: 'members', color: '#1c9c6b',
-      rules: [{ rrule: 'FREQ=WEEKLY;BYDAY=WE', dtStart: at(nextWeekday(3), 19, 0), durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member }]
-    }, owner.userId)
-    await enrollInSeries(orgId, padelGroup.series.id, janMember, true)
-    await enrollInSeries(orgId, padelGroup.series.id, zofiaMember, true)
+    const kids = [kacperMember, lenaMember, antoniMember]
+    const adults = [janMember, zofiaMember]
 
-    // One-off individual lesson tomorrow 10:00, Kort 2, coach Marek.
+    interface Slot {
+      day: number
+      hour: number
+      min?: number
+      durationMin: number
+      courtId: string
+      coachMemberId: string
+      sport: 'tennis' | 'padel'
+      title: string
+      type: 'group' | 'individual'
+      capacityMax: number
+      level?: string
+      ageGroup?: string
+      enroll?: string[]
+    }
+
+    const timetable: Slot[] = [
+      // Monday
+      { day: MO, hour: 9, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Poranny trening — dorośli', type: 'group', capacityMax: 4, level: 'Średniozaawansowany', enroll: adults },
+      { day: MO, hour: 10, min: 30, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Trening indywidualny — Zofia', type: 'individual', capacityMax: 1 },
+      { day: MO, hour: 16, durationMin: 60, courtId: kort2.id, coachMemberId: coach2Member, sport: 'tennis', title: 'Grupa dziecięca — starsi', type: 'group', capacityMax: 6, ageGroup: '10–14', enroll: [antoniMember] },
+      { day: MO, hour: 17, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Grupa dziecięca — poniedziałki', type: 'group', capacityMax: 4, level: 'Początkujący', ageGroup: '8–12', enroll: kids },
+      { day: MO, hour: 17, min: 30, durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel — poniedziałki', type: 'group', capacityMax: 4, enroll: adults },
+      { day: MO, hour: 18, min: 30, durationMin: 90, courtId: kort2.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Grupa zaawansowana', type: 'group', capacityMax: 4, level: 'Zaawansowany' },
+
+      // Tuesday
+      { day: TU, hour: 9, durationMin: 90, courtId: kort2.id, coachMemberId: coach2Member, sport: 'tennis', title: 'Tenis dla seniorów', type: 'group', capacityMax: 6 },
+      { day: TU, hour: 11, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Trening indywidualny — Jan', type: 'individual', capacityMax: 1 },
+      { day: TU, hour: 16, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Grupa dziecięca — młodsi', type: 'group', capacityMax: 6, ageGroup: '6–9', enroll: [kacperMember, lenaMember] },
+      { day: TU, hour: 17, durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel — średniozaawansowani', type: 'group', capacityMax: 4, enroll: [janMember] },
+      { day: TU, hour: 18, durationMin: 60, courtId: kort3.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Tenis wieczorny — korty otwarte', type: 'group', capacityMax: 4 },
+      { day: TU, hour: 19, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Sparingi', type: 'group', capacityMax: 4, enroll: adults },
+
+      // Wednesday
+      { day: WE, hour: 9, min: 30, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Poranny trening — dorośli', type: 'group', capacityMax: 4, enroll: [zofiaMember] },
+      { day: WE, hour: 16, durationMin: 60, courtId: kort2.id, coachMemberId: coach2Member, sport: 'tennis', title: 'Grupa dziecięca — starsi', type: 'group', capacityMax: 6, ageGroup: '10–14', enroll: [antoniMember] },
+      { day: WE, hour: 17, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Grupa młodzieżowa', type: 'group', capacityMax: 6, ageGroup: '13–17' },
+      { day: WE, hour: 18, durationMin: 60, courtId: kort3.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Tenis wieczorny — korty otwarte', type: 'group', capacityMax: 4 },
+      { day: WE, hour: 19, durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel dorośli — środy', type: 'group', capacityMax: 4, level: 'Średniozaawansowany', enroll: adults },
+      { day: WE, hour: 19, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Trening indywidualny — Zofia', type: 'individual', capacityMax: 1 },
+
+      // Thursday
+      { day: TH, hour: 10, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Trening indywidualny — Jan', type: 'individual', capacityMax: 1 },
+      { day: TH, hour: 16, min: 30, durationMin: 60, courtId: kort2.id, coachMemberId: coach2Member, sport: 'tennis', title: 'Grupa dziecięca — młodsi', type: 'group', capacityMax: 6, ageGroup: '6–9', enroll: [kacperMember, lenaMember] },
+      { day: TH, hour: 17, min: 30, durationMin: 90, courtId: padelB.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel — czwartki', type: 'group', capacityMax: 4, enroll: [zofiaMember] },
+      { day: TH, hour: 18, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Technika — dorośli', type: 'group', capacityMax: 4, enroll: [janMember] },
+      { day: TH, hour: 19, durationMin: 60, courtId: kort3.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Sparingi', type: 'group', capacityMax: 4 },
+
+      // Friday
+      { day: FR, hour: 9, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Poranny trening — dorośli', type: 'group', capacityMax: 4, enroll: adults },
+      { day: FR, hour: 10, durationMin: 60, courtId: kort3.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Trening indywidualny', type: 'individual', capacityMax: 1 },
+      { day: FR, hour: 16, durationMin: 60, courtId: kort2.id, coachMemberId: coach2Member, sport: 'tennis', title: 'Grupa dziecięca — starsi', type: 'group', capacityMax: 6, ageGroup: '10–14', enroll: [antoniMember] },
+      { day: FR, hour: 17, durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel — piątki', type: 'group', capacityMax: 4, enroll: adults },
+      { day: FR, hour: 18, durationMin: 60, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Grupa młodzieżowa', type: 'group', capacityMax: 6, ageGroup: '13–17' },
+
+      // Saturday
+      { day: SA, hour: 9, durationMin: 90, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Sobotni camp — grupa I', type: 'group', capacityMax: 6, enroll: kids },
+      { day: SA, hour: 9, durationMin: 90, courtId: padelA.id, coachMemberId: coach2Member, sport: 'padel', title: 'Padel weekendowy', type: 'group', capacityMax: 4, enroll: adults },
+      { day: SA, hour: 10, min: 30, durationMin: 90, courtId: kort1.id, coachMemberId: coach1Member, sport: 'tennis', title: 'Sobotni camp — grupa II', type: 'group', capacityMax: 6 },
+      { day: SA, hour: 11, durationMin: 60, courtId: kort2.id, coachMemberId: ownerMemberId, sport: 'tennis', title: 'Trening indywidualny', type: 'individual', capacityMax: 1 }
+    ]
+
+    for (const slot of timetable) {
+      const lesson = await createLesson(orgId, {
+        type: slot.type,
+        sport: slot.sport,
+        title: slot.title,
+        ...(slot.level ? { level: slot.level } : {}),
+        ...(slot.ageGroup ? { ageGroup: slot.ageGroup } : {}),
+        capacityMax: slot.capacityMax,
+        enrollmentOpen: slot.type === 'group',
+        visibility: slot.type === 'group' ? 'members' : 'private',
+        color: slot.sport === 'padel' ? '#1c9c6b' : '#2f6db5',
+        rules: [{
+          rrule: `FREQ=WEEKLY;BYDAY=${DAY_CODE[slot.day]}`,
+          dtStart: at(weekdayWeeksAgo(slot.day, WEEKS_BACK), slot.hour, slot.min ?? 0),
+          durationMin: slot.durationMin,
+          courtId: slot.courtId,
+          coachMemberId: slot.coachMemberId
+        }]
+      }, owner.userId)
+
+      for (const student of slot.enroll ?? []) {
+        await enrollInSeries(orgId, lesson.series.id, student, true)
+      }
+    }
+
+    // Recurring series materialize forward from NOW, so however far back dtStart is
+    // set the past stays empty — and an empty past means a blank occupancy heatmap
+    // and zero lesson hours on the owner dashboard. Replay the same timetable as
+    // one-off lessons over the preceding days to give the analytics real history.
+    // No conflict checks to worry about: those days hold no reservations yet, and
+    // each day's slots were already laid out not to clash with each other.
+    const PAST_DAYS = 10
+    let pastLessons = 0
+    for (let back = 1; back <= PAST_DAYS; back++) {
+      const date = daysFromNow(-back)
+      for (const slot of timetable.filter(s => s.day === date.getDay())) {
+        await createLesson(orgId, {
+          type: slot.type,
+          sport: slot.sport,
+          title: slot.title,
+          capacityMax: slot.capacityMax,
+          visibility: slot.type === 'group' ? 'members' : 'private',
+          color: slot.sport === 'padel' ? '#1c9c6b' : '#2f6db5',
+          rules: [{
+            rrule: null,
+            dtStart: at(date, slot.hour, slot.min ?? 0),
+            durationMin: slot.durationMin,
+            courtId: slot.courtId,
+            coachMemberId: slot.coachMemberId
+          }]
+        }, owner.userId)
+        pastLessons += 1
+      }
+    }
+
+    // A one-off (rrule null) alongside the recurring series. Noon on Kort 3 is free
+    // on every weekday in the timetable above, so "tomorrow" never collides.
     await createLesson(orgId, {
       type: 'individual', sport: 'tennis', title: 'Trening indywidualny — Jan',
       capacityMax: 1, visibility: 'private', color: '#b5532f',
-      rules: [{ rrule: null, dtStart: at(daysFromNow(1), 10, 0), durationMin: 60, courtId: kort3.id, coachMemberId: coach1Member }]
+      rules: [{ rrule: null, dtStart: at(daysFromNow(1), 12, 0), durationMin: 60, courtId: kort3.id, coachMemberId: coach1Member }]
     }, owner.userId)
 
-    // A couple of PAST one-off lessons so the occupancy heatmap / recent activity
-    // on the owner dashboard show real usage.
-    await createLesson(orgId, {
-      type: 'individual', sport: 'tennis', title: 'Trening — wczoraj',
-      capacityMax: 1, visibility: 'private', color: '#b5532f',
-      rules: [{ rrule: null, dtStart: at(daysFromNow(-1), 18, 0), durationMin: 60, courtId: kort3.id, coachMemberId: coach1Member }]
-    }, owner.userId)
-    await createLesson(orgId, {
-      type: 'group', sport: 'padel', title: 'Padel — 2 dni temu',
-      capacityMax: 4, visibility: 'members', color: '#1c9c6b',
-      rules: [{ rrule: null, dtStart: at(daysFromNow(-2), 17, 0), durationMin: 90, courtId: padelB.id, coachMemberId: coach2Member }]
-    }, owner.userId)
+    // The governance trail. These entries record what the seed itself just did, so
+    // the activity feed reads as a real history rather than sitting empty.
+    await recordAudit({ organizationId: orgId, action: 'member.role_changed', actorMemberId: ownerMemberId, targetMemberId: adminMember, data: { targetName: 'Piotr Nowak', role: 'admin' } })
+    await recordAudit({ organizationId: orgId, action: 'member.coach_granted', actorMemberId: ownerMemberId, targetMemberId: ownerMemberId, data: { targetName: 'Anna Kowalska' } })
+    await recordAudit({ organizationId: orgId, action: 'member.consent_granted', actorMemberId: ownerMemberId, targetMemberId: kacperMember, data: { targetName: 'Kacper Kowalczyk' } })
+    await recordAudit({ organizationId: orgId, action: 'member.consent_granted', actorMemberId: ownerMemberId, targetMemberId: janMember, data: { targetName: 'Jan Lewandowski' } })
 
-    console.log(`  ✓ ${school}: 9 members, 2 zones, 5 courts, 5 lessons, enrolments + guardians + consents`)
+    console.log(`  ✓ ${school}: 9 members, 2 zones, 5 courts, ${timetable.length} weekly series + ${pastLessons} past lessons, enrolments + guardians + consents`)
   }
 
   // ── School 2: Padel Club Kraków (minimal — proves multi-tenant isolation) ──
@@ -298,7 +417,7 @@ async function run() {
     const group = await createLesson(orgId, {
       type: 'group', sport: 'padel', title: 'Padel — czwartki',
       capacityMin: 2, capacityMax: 4, enrollmentOpen: true, visibility: 'members',
-      rules: [{ rrule: 'FREQ=WEEKLY;BYDAY=TH', dtStart: at(nextWeekday(4), 18, 0), durationMin: 60, courtId: court.id, coachMemberId: coachMember }]
+      rules: [{ rrule: 'FREQ=WEEKLY;BYDAY=TH', dtStart: at(weekdayWeeksAgo(4, 3), 18, 0), durationMin: 60, courtId: court.id, coachMemberId: coachMember }]
     }, owner.userId)
     await enrollInSeries(orgId, group.series.id, studentMember, true)
 

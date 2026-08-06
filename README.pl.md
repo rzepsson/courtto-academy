@@ -10,10 +10,24 @@ Projekt poboczny, robiony sam. Zauważyłem brak takiego oprogramowania w mojej 
 
 ## Zrzuty ekranu
 
-<!-- Wrzuć obrazki do docs/screenshots/ i podlinkuj je tutaj, np.:
+Kalendarz zajęć. W widoku tygodnia kolumnami są dni, w widoku dnia korty; lekcje przenosi się przeciągnięciem, a kliknięcie pustego miejsca otwiera formularz.
+
 ![Kalendarz zajęć](docs/screenshots/schedule.png)
-![Karta członka](docs/screenshots/member.png)
--->
+
+Panel właściciela: stan osobowy, co się dzieje dzisiaj i jak obłożone były korty w tym tygodniu.
+
+![Panel właściciela](docs/screenshots/dashboard.png)
+
+Korty pogrupowane po strefach. Każdy narysowany zgodnie ze swoją dyscypliną — układ linii wynika z dyscypliny, zapisany jest tylko kolor nawierzchni.
+
+![Korty](docs/screenshots/courts.png)
+
+<details>
+<summary>Logowanie</summary>
+
+![Logowanie](docs/screenshots/login.png)
+
+</details>
 
 ## Uruchomienie
 

@@ -10,10 +10,24 @@ A solo side project. My own tennis school had nothing like it, so I decided to t
 
 ## Screenshots
 
-<!-- Drop images in docs/screenshots/ and link them here, e.g.:
+The lesson calendar. Week view puts days in columns, day view puts courts in columns; lessons drag to reschedule and an empty slot opens the create form.
+
 ![Lesson calendar](docs/screenshots/schedule.png)
-![Member cockpit](docs/screenshots/member.png)
--->
+
+The owner's dashboard: headcount, what's on today, and how busy the courts have been this week.
+
+![Owner dashboard](docs/screenshots/dashboard.png)
+
+Courts, grouped by zone. Each is drawn to its own sport — the line pattern comes from the discipline, only the surface colour is stored.
+
+![Courts](docs/screenshots/courts.png)
+
+<details>
+<summary>Sign in</summary>
+
+![Sign in](docs/screenshots/login.png)
+
+</details>
 
 ## Running it
 

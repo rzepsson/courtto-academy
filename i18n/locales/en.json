@@ -142,17 +142,19 @@
     "loadMore": "Load more",
     "loadFailed": "Could not load more activity",
     "actions": {
-      "member.role_changed": "Role set to {role}",
-      "member.suspended": "Membership suspended",
-      "member.archived": "Membership archived",
-      "member.reactivated": "Membership reactivated",
-      "member.coach_granted": "Marked as able to coach",
-      "member.coach_revoked": "Coaching capability removed",
-      "member.removed": "Removed from the school",
-      "member.ownership_transferred": "Made owner of the school",
-      "member.account_deleted": "Deleted their Courtto account",
-      "member.consent_granted": "Consent recorded",
-      "member.consent_withdrawn": "Consent withdrawn",
+      "member": {
+        "role_changed": "Role set to {role}",
+        "suspended": "Membership suspended",
+        "archived": "Membership archived",
+        "reactivated": "Membership reactivated",
+        "coach_granted": "Marked as able to coach",
+        "coach_revoked": "Coaching capability removed",
+        "removed": "Removed from the school",
+        "ownership_transferred": "Made owner of the school",
+        "account_deleted": "Deleted their Courtto account",
+        "consent_granted": "Consent recorded",
+        "consent_withdrawn": "Consent withdrawn"
+      },
       "unknown": "Membership updated"
     }
   },

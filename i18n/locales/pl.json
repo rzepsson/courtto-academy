@@ -142,17 +142,19 @@
     "loadMore": "Wczytaj więcej",
     "loadFailed": "Nie udało się wczytać więcej aktywności",
     "actions": {
-      "member.role_changed": "Rola ustawiona na {role}",
-      "member.suspended": "Członkostwo zawieszone",
-      "member.archived": "Członkostwo zarchiwizowane",
-      "member.reactivated": "Członkostwo przywrócone",
-      "member.coach_granted": "Oznaczono jako mogący trenować",
-      "member.coach_revoked": "Odebrano możliwość trenowania",
-      "member.removed": "Usunięto ze szkoły",
-      "member.ownership_transferred": "Ustanowiono właścicielem szkoły",
-      "member.account_deleted": "Usunięcie konta Courtto",
-      "member.consent_granted": "Zarejestrowano zgodę",
-      "member.consent_withdrawn": "Wycofano zgodę",
+      "member": {
+        "role_changed": "Rola ustawiona na {role}",
+        "suspended": "Członkostwo zawieszone",
+        "archived": "Członkostwo zarchiwizowane",
+        "reactivated": "Członkostwo przywrócone",
+        "coach_granted": "Oznaczono jako mogący trenować",
+        "coach_revoked": "Odebrano możliwość trenowania",
+        "removed": "Usunięto ze szkoły",
+        "ownership_transferred": "Ustanowiono właścicielem szkoły",
+        "account_deleted": "Usunięcie konta Courtto",
+        "consent_granted": "Zarejestrowano zgodę",
+        "consent_withdrawn": "Wycofano zgodę"
+      },
       "unknown": "Zaktualizowano członkostwo"
     }
   },
