@@ -1,29 +1,60 @@
-# courtto academy
+# Courtto Academy
 
-Multi-tenant B2B SaaS for tennis & padel schools. Each school is a tenant (Better Auth organization).
+*[Polski](README.pl.md)*
 
-**Stack:** Nuxt 4 · Nuxt UI 4 · Drizzle ORM (PostgreSQL) · Better Auth · @nuxtjs/i18n (en/pl)
+Multi-tenant SaaS for tennis and other racket-sport schools: scheduling, rosters, attendance and payments in one place. Each school is a separate tenant.
 
-## Setup
+A solo side project. My own tennis school had nothing like it, so I decided to try building one as a way to learn, and made it multi-tenant on top of that.
+
+**Stack:** Nuxt 4 · Nuxt UI 4 (Tailwind v4) · Drizzle ORM + PostgreSQL · Better Auth (organization plugin) · Stripe · i18n (en/pl)
+
+## Screenshots
+
+<!-- Drop images in docs/screenshots/ and link them here, e.g.:
+![Lesson calendar](docs/screenshots/schedule.png)
+![Member cockpit](docs/screenshots/member.png)
+-->
+
+## Running it
 
 ```bash
 pnpm install
-cp .env.example .env   # fill in DATABASE_URL and BETTER_AUTH_SECRET
-pnpm db:push           # apply the schema to your database
-pnpm dev               # http://localhost:3000
+cp .env.example .env    # only DATABASE_URL and BETTER_AUTH_SECRET are required
+pnpm db:migrate
+pnpm seed               # two demo schools and other sample data
+pnpm dev
 ```
 
-## Scripts
+The seed prints a table of accounts, the password for each is `courtto123`. Stripe, S3 and SMTP are optional. Without them the app shows a notice instead of breaking, so the whole thing runs on nothing but Postgres.
 
-| Script | Description |
-| --- | --- |
-| `pnpm dev` / `build` / `preview` | Nuxt dev server / production build / preview |
-| `pnpm lint` / `typecheck` | ESLint / `vue-tsc` |
-| `pnpm db:generate` / `db:migrate` / `db:push` / `db:studio` | Drizzle Kit |
-| `pnpm auth:generate` | Regenerate `server/database/schema.ts` from the Better Auth config |
+## What's in the app?
 
-## Architecture
+- **Multi-tenancy** - a school is a Better Auth organization. Every query is scoped by organization id, with isolation covered by tests.
+- **Roles and areas** - owner / admin / coach / student, each with its own part of the app (`/school`, `/coach`, `/my`), guarded on both the client and the server.
+- **Scheduling** - recurring lessons, where time is stored as wall-clock plus an IANA timezone and resolved separately for each occurrence, so "every Monday at 17:00" stays 17:00 across a DST switch.
+- **Conflict prevention** - double-booking a court or a coach is blocked by Postgres `EXCLUDE USING gist` constraints, not only by application checks. One of the tests writes straight to the table to prove the database is the real backstop.
+- **Enrolment and attendance** - capacity is enforced under a row lock, so two concurrent enrolments can't both take the last seat. Overflow goes to a waitlist that promotes on cancellation.
+- **Payments** - two separate flows: schools subscribe to Courtto, and parents pay schools for lessons via Stripe Connect (direct charges, so the school is the merchant of record and issues its own invoices).
+- **GDPR** - guardians for minors, consent records with an audit trail, and a report listing which students still have gaps.
 
-- **Services pattern** — all Drizzle queries live in `server/utils/services/*`. API handlers in `server/api/*` only call services.
-- **Auth** — `server/utils/auth.ts` exports the Better Auth instance; mounted at `server/api/auth/[...all].ts`. Auth/org tables in `server/database/schema.ts` are generated via `pnpm auth:generate` (don't hand-edit); convenience types live in `server/database/types.ts`.
-- **i18n** — locale messages in `i18n/locales/*.json`; no hardcoded UI text.
+## A few decisions worth mentioning
+
+**Services pattern.** Every Drizzle query lives in `server/utils/services/*`, and API handlers only call services. Authorization and tenancy checks stay in one place instead of scattering across route files, which matters when a missed check means one school reading another's data.
+
+**Shared domain logic.** Validation schemas, permissions and time math live in `shared/`, imported by both the client and the server. A form can't drift apart from its endpoint if the two are built from the same schema.
+
+**Derived, not stored.** A stored flag goes stale the day a birthday passes, so subscription entitlement, profile completeness and whether a student is a minor are all computed on read.
+
+**Core kept separate from Academy.** Courts, reservations, organizations and billing don't reference lessons anywhere. On the same backend I plan to eventually build a sibling product, Courtto, where you'll be able to book things like court rentals.
+
+## Tests
+
+```bash
+pnpm test          # unit
+pnpm test:server   # integration
+pnpm test:e2e      # Playwright
+```
+
+## Status
+
+Still being built. Stripe isn't wired to a live account, so the payment flows run against test objects.

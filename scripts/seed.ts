@@ -1,29 +1,3 @@
-/**
- * Demo/seed data for courtto-academy.
- *
- * Populates the database with two schools and realistic domain data so the app
- * can be exercised end-to-end WITHOUT any external service (no Stripe / S3 / SMTP
- * — the app degrades gracefully when those are unset).
- *
- * HOW IT SEEDS (respecting the repo's non-negotiables):
- *   • Users, organizations and memberships go through `auth.api.*` (Better Auth
- *     owns those tables — CLAUDE.md rule 4), exactly like test/server/helpers.ts.
- *   • App-owned domain data (profile, courts, zones, schedule, enrolments,
- *     guardians, consents) goes through the real, tested SERVICES — so every
- *     invariant (conflict checks, capacity, DST-correct occurrence materialization,
- *     minor→guardian consent rule) is honoured, not re-implemented here.
- *
- * The services are Nuxt server utils that expect a few functions to be globally
- * available (Nitro auto-imports). Only `createError` is actually reached by the
- * code paths we call, so we polyfill it before importing anything. `db`/`auth`
- * are plain module-level singletons designed to load outside Nuxt.
- *
- * RUN:
- *   DATABASE_URL=postgres://... BETTER_AUTH_SECRET=... pnpm seed
- *
- * Idempotent per school: a school whose slug already exists is skipped, so
- * re-running against an already-seeded database is a safe no-op.
- */
 import { env, exit } from 'node:process'
 
 // Polyfill the one Nitro auto-import the services reach at runtime. h3's real
