@@ -72,3 +72,7 @@ pnpm test:e2e      # Playwright
 ## Status
 
 W trakcie rozwoju. Stripe nie jest podpięty do żywego konta, więc przepływy płatnicze działają na obiektach testowych.
+
+## Licencja
+
+Kod jest jawny na [PolyForm Noncommercial License 1.0.0](LICENSE.md). Można go czytać, uruchamiać, uczyć się z niego i forkować do dowolnych celów niekomercyjnych. Licencja nie obejmuje użycia komercyjnego - rozwijam to dalej jako produkt, więc jeśli ktoś chciałby wykorzystać ten kod w firmie, proszę o kontakt. Nazwa i logo nie są objęte licencją w żadnym wariancie.

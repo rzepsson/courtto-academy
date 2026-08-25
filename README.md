@@ -72,3 +72,7 @@ pnpm test:e2e      # Playwright
 ## Status
 
 Still being built. Stripe isn't wired to a live account, so the payment flows run against test objects.
+
+## License
+
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Read it, run it, learn from it, fork it for anything noncommercial. Commercial use isn't granted by that licence - I'm still building this as a product, so if you want it for a business, ask me. The name and the logo aren't covered either way.

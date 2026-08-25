@@ -1,5 +1,10 @@
 # Dokumentacja prawna Courtto Academy
 
+> [!WARNING]
+> **To są projekty dokumentów, a nie dokumenty wiążące.** Nie zostały zweryfikowane przez radcę prawnego, zawierają placeholdery w nawiasach kwadratowych i nie obowiązują żadnej ze stron — produkt nie działa jeszcze komercyjnie.
+>
+> Są w publicznym repozytorium jako część kodu: pokazują, jak zamodelowana została warstwa zgodności (role administrator/procesor, podstawy prawne, retencja), a nie jako wzory gotowe do użycia. **Nie kopiuj ich do własnego produktu** — zakres powierzenia i podstawa przetwarzania zależą od konkretnego przypadku, a pomyłka w tym miejscu kosztuje naprawdę.
+
 Źródło prawdy dla wszystkich dokumentów prawnych produktu. Pliki w tym katalogu są **wersjonowane w gicie** i renderowane w aplikacji — nie edytuj treści prawnej gdzie indziej.
 
 ## Zasada wersjonowania
