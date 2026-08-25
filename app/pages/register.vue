@@ -16,9 +16,21 @@ interface RegisterForm {
   name: string
   email: string
   password: string
+  // Accepting the terms is required — it is how the contract is concluded. The
+  // marketing consent beside it is deliberately separate, optional and unticked:
+  // a consent bundled with a mandatory acceptance is not freely given, and so is
+  // not a consent at all.
+  acceptTerms: boolean
+  marketing: boolean
 }
 
-const state = reactive<RegisterForm>({ name: '', email: '', password: '' })
+const state = reactive<RegisterForm>({
+  name: '',
+  email: '',
+  password: '',
+  acceptTerms: false,
+  marketing: false
+})
 const loading = ref(false)
 const showPassword = ref(false)
 
@@ -28,17 +40,34 @@ function validate(form: RegisterForm): FormError[] {
   if (!form.email) errors.push({ name: 'email', message: t('auth.errors.emailRequired') })
   if (!form.password) errors.push({ name: 'password', message: t('auth.errors.passwordRequired') })
   else if (form.password.length < 8) errors.push({ name: 'password', message: t('auth.errors.passwordTooShort') })
+  if (!form.acceptTerms) errors.push({ name: 'acceptTerms', message: t('auth.errors.termsRequired') })
   return errors
 }
 
 async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
   loading.value = true
-  const { error } = await authClient.signUp.email(event.data)
+
+  // Only the credential fields go to Better Auth. The acceptance itself is
+  // recorded server-side from the user-created hook, at the versions the server
+  // is actually serving — a version the browser claims to have read would not be
+  // evidence of anything.
+  const { name, email, password, marketing } = event.data
+  const { error } = await authClient.signUp.email({ name, email, password })
 
   if (error) {
     loading.value = false
     toastError('auth.errors.signUpFailed', error)
     return
+  }
+
+  // Optional, and it needs the session that sign-up just created. Best-effort by
+  // design: if it fails, no consent is stored, and no consent means no marketing —
+  // the failure direction that cannot cause an unlawful send.
+  if (marketing) {
+    await $fetch('/api/legal/consent/marketing', {
+      method: 'PUT',
+      body: { status: 'granted' }
+    }).catch(() => undefined)
   }
 
   clearAppContext()
@@ -123,6 +152,45 @@ async function onSubmit(event: FormSubmitEvent<RegisterForm>) {
             </template>
           </UInput>
         </UFormField>
+
+        <div class="flex flex-col gap-3">
+          <UFormField name="acceptTerms">
+            <UCheckbox
+              v-model="state.acceptTerms"
+              :aria-label="t('legal.accept.aria')"
+            >
+              <template #label>
+                <span class="text-sm text-muted">
+                  <i18n-t
+                    keypath="legal.accept.label"
+                    scope="global"
+                  >
+                    <template #terms>
+                      <ULink
+                        to="/terms"
+                        target="_blank"
+                        class="font-medium text-primary"
+                      >{{ t('legal.accept.termsLink') }}</ULink>
+                    </template>
+                    <template #privacy>
+                      <ULink
+                        to="/privacy"
+                        target="_blank"
+                        class="font-medium text-primary"
+                      >{{ t('legal.accept.privacyLink') }}</ULink>
+                    </template>
+                  </i18n-t>
+                </span>
+              </template>
+            </UCheckbox>
+          </UFormField>
+
+          <UCheckbox
+            v-model="state.marketing"
+            :label="t('legal.accept.marketing')"
+            :ui="{ label: 'text-sm text-muted' }"
+          />
+        </div>
 
         <PressButton
           type="submit"

@@ -8,6 +8,7 @@ import { getFirstMembershipOrganizationId, toOrgRole } from './services/membersh
 import { notifyOrgSetupIncomplete } from './services/notifications'
 import { sendMemberInvitationEmail, sendPasswordResetEmail } from './services/email'
 import { findAccountDeletionBlocker, prepareAccountDeletion } from './services/account'
+import { recordLegalAcceptance } from './services/legal'
 import { captureError } from './monitoring'
 import { stripe } from './billing-config'
 import { ac, roles } from '../../shared/permissions'
@@ -81,6 +82,30 @@ export const auth = betterAuth({
     }
   },
   databaseHooks: {
+    user: {
+      create: {
+        // Record acceptance of the terms + privacy policy at the versions the
+        // server was actually serving. Done here rather than from the client so
+        // it cannot be skipped or back-dated: the registration form makes the
+        // checkbox mandatory, so a user row existing means the box was ticked.
+        //
+        // Best-effort — a failed evidence write must never block someone from
+        // creating an account (mirrors the setup-notification emit), but it is
+        // never silent: an unrecorded acceptance is exactly what we would need in
+        // a dispute, so it is captured rather than swallowed.
+        after: async (newUser, context) => {
+          try {
+            await recordLegalAcceptance({
+              userId: newUser.id,
+              ipAddress: context?.headers?.get('x-forwarded-for') ?? null,
+              userAgent: context?.headers?.get('user-agent') ?? null
+            })
+          } catch (error) {
+            captureError(error, { scope: 'legal.recordAcceptance' })
+          }
+        }
+      }
+    },
     session: {
       create: {
         before: async session => ({

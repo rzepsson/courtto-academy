@@ -209,6 +209,62 @@ async function onExport() {
   }
 }
 
+// ─── Legal documents & consents ──────────────────────────────────────────────
+
+const { data: legal, status: legalStatus, refresh: refreshLegal } = await useLazyFetch('/api/legal/state', {
+  key: 'legal:state'
+})
+
+const acceptingLegal = ref(false)
+const savingConsent = ref(false)
+
+const marketingConsent = computed(() => legal.value?.consents.find(entry => entry.type === 'marketing') ?? null)
+
+// Three distinct states, not two: "never asked" is deliberately not folded into
+// "withdrawn" — both mean we may not send, but only one of them is a decision the
+// person actually made.
+const marketingStatusText = computed(() => {
+  const entry = marketingConsent.value
+  if (entry?.granted && entry.grantedAt) {
+    return t('legal.account.marketingGranted', { date: formatDate(entry.grantedAt, locale.value) })
+  }
+  if (entry?.asked && entry.withdrawnAt) {
+    return t('legal.account.marketingWithdrawn', { date: formatDate(entry.withdrawnAt, locale.value) })
+  }
+  return t('legal.account.marketingNever')
+})
+
+async function onAcceptLegal() {
+  acceptingLegal.value = true
+  try {
+    await $fetch('/api/legal/accept', { method: 'POST' })
+    await refreshLegal()
+    toast.add({ title: t('legal.account.accepted'), color: 'success' })
+  } catch (error) {
+    toastError('account.errors.saveFailed', error)
+  } finally {
+    acceptingLegal.value = false
+  }
+}
+
+// Withdrawal is one click and asks for nothing — art. 7(3) requires it to be as
+// easy as giving consent, so there is no confirmation step in the way.
+async function onSetMarketing(granted: boolean) {
+  savingConsent.value = true
+  try {
+    await $fetch('/api/legal/consent/marketing', {
+      method: 'PUT',
+      body: { status: granted ? 'granted' : 'withdrawn' }
+    })
+    await refreshLegal()
+    toast.add({ title: t('legal.account.consentSaved'), color: 'success' })
+  } catch (error) {
+    toastError('account.errors.saveFailed', error)
+  } finally {
+    savingConsent.value = false
+  }
+}
+
 // ─── Delete account ──────────────────────────────────────────────────────────
 
 const deleteOpen = ref(false)
@@ -505,8 +561,108 @@ async function onDelete() {
             </SchoolSettingsCard>
           </MotionReveal>
 
+          <!-- Documents & consents -->
+          <MotionReveal :delay="0.2">
+            <SchoolSettingsCard
+              id="legal"
+              :form="false"
+              :title="t('legal.account.title')"
+              :subtitle="t('legal.account.description')"
+            >
+              <div class="flex flex-col gap-5">
+                <div
+                  v-if="legalStatus === 'pending'"
+                  class="flex flex-col gap-3"
+                >
+                  <USkeleton class="h-14 w-full" />
+                  <USkeleton class="h-14 w-full" />
+                </div>
+
+                <template v-else>
+                  <div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                      <UButton
+                        to="/terms"
+                        target="_blank"
+                        size="sm"
+                        color="neutral"
+                        variant="subtle"
+                        icon="i-lucide-file-text"
+                        trailing-icon="i-lucide-external-link"
+                        :label="t('legal.terms.title')"
+                      />
+                      <UButton
+                        to="/privacy"
+                        target="_blank"
+                        size="sm"
+                        color="neutral"
+                        variant="subtle"
+                        icon="i-lucide-shield"
+                        trailing-icon="i-lucide-external-link"
+                        :label="t('legal.privacy.title')"
+                      />
+                    </div>
+
+                    <p class="text-xs text-muted">
+                      <template v-if="legal?.acceptance">
+                        {{ t('legal.account.acceptedOn', { date: formatDate(legal.acceptance.acceptedAt, locale) }) }}
+                      </template>
+                      <template v-else>
+                        {{ t('legal.account.neverAccepted') }}
+                      </template>
+                    </p>
+
+                    <UAlert
+                      v-if="legal?.needsReacceptance"
+                      icon="i-lucide-file-clock"
+                      color="warning"
+                      variant="subtle"
+                      :description="t('legal.account.outdated')"
+                    >
+                      <template #actions>
+                        <UButton
+                          size="sm"
+                          color="warning"
+                          variant="solid"
+                          :loading="acceptingLegal"
+                          :label="t('legal.account.acceptNow')"
+                          @click="onAcceptLegal"
+                        />
+                      </template>
+                    </UAlert>
+                  </div>
+
+                  <USeparator />
+
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-highlighted">
+                        {{ t('legal.account.marketingTitle') }}
+                      </p>
+                      <p class="mt-0.5 text-xs text-muted">
+                        {{ t('legal.account.marketingDescription') }}
+                      </p>
+                      <p class="mt-1 text-xs text-dimmed">
+                        {{ marketingStatusText }}
+                      </p>
+                    </div>
+                    <UButton
+                      size="sm"
+                      color="neutral"
+                      variant="subtle"
+                      :icon="marketingConsent?.granted ? 'i-lucide-bell-off' : 'i-lucide-bell'"
+                      :loading="savingConsent"
+                      :label="marketingConsent?.granted ? t('legal.account.withdraw') : t('legal.account.grant')"
+                      @click="onSetMarketing(!marketingConsent?.granted)"
+                    />
+                  </div>
+                </template>
+              </div>
+            </SchoolSettingsCard>
+          </MotionReveal>
+
           <!-- Danger zone -->
-          <MotionReveal :delay="0.22">
+          <MotionReveal :delay="0.24">
             <SchoolSettingsCard
               id="danger"
               tone="danger"

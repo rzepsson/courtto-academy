@@ -730,3 +730,24 @@ export interface RosterEntry {
 export interface StudentSessionView extends ScheduleSessionDto {
   enrollmentStatus: string
 }
+
+// Account-level consent (Courtto as controller), one entry per known purpose.
+// `asked` distinguishes "never asked" from "withdrawn": both block sending, but
+// one is paperwork to chase and the other a decision to respect.
+export interface AccountConsentDto {
+  type: import('../../shared/legal').AccountConsentType
+  granted: boolean
+  asked: boolean
+  grantedAt: Date | null
+  withdrawnAt: Date | null
+}
+
+// The whole legal surface for one account in a single read.
+export interface UserLegalState {
+  acceptance: import('../../shared/legal').LegalAcceptance | null
+  // True when a document has been revised since the user last accepted, or when
+  // they never accepted at all (an account predating the acceptance trail).
+  needsReacceptance: boolean
+  currentVersions: Record<import('../../shared/legal').LegalDocument, string>
+  consents: AccountConsentDto[]
+}

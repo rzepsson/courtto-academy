@@ -59,7 +59,7 @@
       "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_ORGANIZATION": "You don't have permission to delete this school.",
       "USER_IS_NOT_A_MEMBER_OF_THE_ORGANIZATION": "This person isn't a member of the school.",
       "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION": "This person is already a member of the school.",
-      "MEMBER_NOT_FOUND": "This member no longer exists.",
+      "MEMBER_NOT_FOUND": "That member is no longer part of this school.",
       "ROLE_NOT_FOUND": "That role doesn't exist.",
       "YOU_ARE_NOT_ALLOWED_TO_UPDATE_THIS_MEMBER": "You don't have permission to change this member's role.",
       "YOU_ARE_NOT_ALLOWED_TO_DELETE_THIS_MEMBER": "You don't have permission to remove this member.",
@@ -108,7 +108,6 @@
       "COURT_ZONE_NAME_TAKEN": "A zone with that name already exists.",
       "COURT_ZONE_NOT_FOUND": "That zone no longer exists.",
       "INVALID_MEMBER_PROFILE": "Some member details are invalid. Please review the form.",
-      "MEMBER_NOT_FOUND": "That member is no longer part of this school.",
       "MEMBER_OWNER_STATUS": "The owner's access can't be suspended or archived.",
       "INVALID_ROLE": "Please choose a valid role.",
       "MEMBER_OWNER_ROLE": "The owner's role can't be changed.",
@@ -127,7 +126,8 @@
       "INVALID_CONSENT": "Some consent details are invalid. Please review the form.",
       "CONSENT_TYPE_UNKNOWN": "Unknown consent type.",
       "CONSENT_GUARDIAN_REQUIRED": "A minor's consent has to be given by their guardian.",
-      "CONSENT_GUARDIAN_INVALID": "That guardian isn't listed for this member."
+      "CONSENT_GUARDIAN_INVALID": "That guardian isn't listed for this member.",
+      "CONSENT_DECISION_INVALID": "Invalid consent decision."
     }
   },
   "audit": {
@@ -910,7 +910,8 @@
       "signInFailed": "Could not sign in",
       "signUpFailed": "Could not create account",
       "resetRequestFailed": "Could not send reset link",
-      "resetFailed": "Could not update password"
+      "resetFailed": "Could not update password",
+      "termsRequired": "Please accept the Terms of Service and Privacy Policy."
     },
     "signOut": "Sign out"
   },
@@ -1537,6 +1538,40 @@
           "body": "{studentName}'s monthly payment for {groupTitle} didn't go through."
         }
       }
+    }
+  },
+  "legal": {
+    "version": "Version {version}",
+    "back": "Back",
+    "terms": {
+      "title": "Terms of Service"
+    },
+    "privacy": {
+      "title": "Privacy Policy"
+    },
+    "accept": {
+      "label": "I accept the {terms} and I have read the {privacy}.",
+      "termsLink": "Terms of Service",
+      "privacyLink": "Privacy Policy",
+      "aria": "Accept the Terms of Service and Privacy Policy",
+      "marketing": "I would like to receive news and offers from Courtto (optional)."
+    },
+    "account": {
+      "title": "Documents and consents",
+      "description": "What you have accepted and what you have consented to.",
+      "acceptedOn": "Accepted on {date}",
+      "neverAccepted": "No acceptance on record.",
+      "outdated": "The documents have changed since you last accepted them.",
+      "acceptNow": "Accept the current version",
+      "accepted": "Acceptance recorded.",
+      "marketingTitle": "Marketing communications",
+      "marketingDescription": "News and offers from Courtto, sent by email.",
+      "marketingNever": "We have never asked for your consent.",
+      "marketingGranted": "Consent given on {date}.",
+      "marketingWithdrawn": "Consent withdrawn on {date}.",
+      "withdraw": "Withdraw consent",
+      "grant": "Give consent",
+      "consentSaved": "Saved."
     }
   }
 }

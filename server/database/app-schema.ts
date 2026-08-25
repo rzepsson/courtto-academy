@@ -1111,3 +1111,87 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
     references: [member.id]
   })
 }))
+
+// Append-only record of a user accepting the legal documents. CORE and
+// product-neutral — the future Courtto marketplace needs the same trail.
+//
+// One row per acceptance EVENT, not per user: when a document version is bumped
+// and the user accepts again, a new row is written and the old one is kept. That
+// history is the point — art. 5(2) accountability is "prove they agreed to THIS
+// wording on THIS date", which a single mutable row could never answer.
+//
+// Both versions live on one row because a single checkbox covers both documents.
+// Storing them separately would imply they can be accepted independently, which
+// the registration form does not offer.
+//
+// `ipAddress`/`userAgent` are the evidence that the acceptance came from a real
+// session rather than a backfill. Nullable — a seeded or programmatic sign-up has
+// no request context, and a missing value must not block account creation.
+export const userAgreement = pgTable(
+  'user_agreement',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    termsVersion: text('terms_version').notNull(),
+    privacyVersion: text('privacy_version').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    acceptedAt: timestamp('accepted_at').defaultNow().notNull()
+  },
+  table => [
+    // "What did this user last accept?" — the only read, newest-first.
+    index('user_agreement_user_idx').on(table.userId, table.acceptedAt)
+  ]
+)
+
+export const userAgreementRelations = relations(userAgreement, ({ one }) => ({
+  user: one(user, {
+    fields: [userAgreement.userId],
+    references: [user.id]
+  })
+}))
+
+// Consent given by an account holder to COURTTO for Courtto's own purposes —
+// the account-level analogue of `member_consent`, where the school is the
+// controller. Exactly one type today (marketing); see ACCOUNT_CONSENT_TYPES for
+// why running the service itself is never consent-based.
+//
+// Withdrawal keeps the row and never clears `grantedAt`: that timestamp is the
+// art. 7(1) evidence of the period during which sending was lawful. Absence of a
+// row means "never asked", which means no — never a silent yes.
+export const userConsent = pgTable(
+  'user_consent',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    // One of ACCOUNT_CONSENT_TYPES.
+    type: text('type').notNull(),
+    // One of CONSENT_DECISIONS.
+    status: text('status').notNull(),
+    grantedAt: timestamp('granted_at'),
+    withdrawnAt: timestamp('withdrawn_at'),
+    // Which wording was agreed to. Consent is consent to a STATED purpose, so a
+    // changed clause no longer covers what the old consent covered.
+    documentVersion: text('document_version'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at')
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull()
+  },
+  table => [
+    // One current decision per (user, purpose).
+    uniqueIndex('user_consent_user_type_uidx').on(table.userId, table.type)
+  ]
+)
+
+export const userConsentRelations = relations(userConsent, ({ one }) => ({
+  user: one(user, {
+    fields: [userConsent.userId],
+    references: [user.id]
+  })
+}))

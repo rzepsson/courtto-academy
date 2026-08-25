@@ -1,0 +1,33 @@
+# Build context exclusions.
+#
+# CAREFUL — `docs/` is NOT excluded, and must not be: `app/pages/terms.vue` and
+# `privacy.vue` import `~~/docs/legal/**/*.md?raw` at build time, so excluding it
+# breaks the build. Only the screenshots inside it are dropped.
+
+node_modules
+.output
+.nuxt
+.data
+.git
+.github
+.vscode
+.idea
+
+# Secrets never belong in an image layer — Coolify injects env at runtime.
+.env
+.env.*
+!.env.example
+
+# Tests and their artifacts are not part of the runtime image. Note this only
+# affects the image: CI still runs them from the repository.
+test
+playwright.config.ts
+vitest.config.ts
+playwright-report
+test-results
+
+docs/screenshots
+
+*.log
+.DS_Store
+Thumbs.db
